@@ -9,6 +9,7 @@
   --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+  --font-heading: var(--font-cinzel);
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -45,84 +46,236 @@
   --radius-2xl: calc(var(--radius) + 8px);
   --radius-3xl: calc(var(--radius) + 12px);
   --radius-4xl: calc(var(--radius) + 16px);
+  --color-dnd-gold: var(--dnd-gold);
+  --color-dnd-gold-bright: var(--dnd-gold-bright);
+  --color-dnd-gold-dim: var(--dnd-gold-dim);
+  --color-dnd-blood: var(--dnd-blood);
+  --color-dnd-blood-bright: var(--dnd-blood-bright);
+  --color-dnd-hero-blue: var(--dnd-hero-blue);
+  --color-dnd-hero-blue-bright: var(--dnd-hero-blue-bright);
+  --color-dnd-parchment: var(--dnd-parchment);
+  --color-dnd-parchment-dim: var(--dnd-parchment-dim);
+  --color-dnd-mystic-purple: var(--dnd-mystic-purple);
+  --color-dnd-shadow-dark: var(--dnd-shadow-dark);
 }
 
 :root {
   --radius: 0.625rem;
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.13 0.028 261.692);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.13 0.028 261.692);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.13 0.028 261.692);
-  --primary: oklch(0.21 0.034 264.665);
-  --primary-foreground: oklch(0.985 0.002 247.839);
-  --secondary: oklch(0.967 0.003 264.542);
-  --secondary-foreground: oklch(0.21 0.034 264.665);
-  --muted: oklch(0.967 0.003 264.542);
-  --muted-foreground: oklch(0.551 0.027 264.364);
-  --accent: oklch(0.967 0.003 264.542);
-  --accent-foreground: oklch(0.21 0.034 264.665);
-  --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.928 0.006 264.531);
-  --input: oklch(0.928 0.006 264.531);
-  --ring: oklch(0.707 0.022 261.325);
-  --chart-1: oklch(0.646 0.222 41.116);
-  --chart-2: oklch(0.6 0.118 184.704);
-  --chart-3: oklch(0.398 0.07 227.392);
-  --chart-4: oklch(0.828 0.189 84.429);
-  --chart-5: oklch(0.769 0.188 70.08);
-  --sidebar: oklch(0.985 0.002 247.839);
-  --sidebar-foreground: oklch(0.13 0.028 261.692);
-  --sidebar-primary: oklch(0.21 0.034 264.665);
-  --sidebar-primary-foreground: oklch(0.985 0.002 247.839);
-  --sidebar-accent: oklch(0.967 0.003 264.542);
-  --sidebar-accent-foreground: oklch(0.21 0.034 264.665);
-  --sidebar-border: oklch(0.928 0.006 264.531);
-  --sidebar-ring: oklch(0.707 0.022 261.325);
+
+  /* Deep dungeon background */
+  --background: oklch(0.14 0.02 280);
+  --foreground: oklch(0.90 0.03 80);
+
+  /* Card: slightly lighter purple */
+  --card: oklch(0.18 0.025 280);
+  --card-foreground: oklch(0.90 0.03 80);
+
+  /* Popover */
+  --popover: oklch(0.18 0.025 280);
+  --popover-foreground: oklch(0.90 0.03 80);
+
+  /* Primary: warm gold */
+  --primary: oklch(0.78 0.15 80);
+  --primary-foreground: oklch(0.15 0.03 280);
+
+  /* Secondary: muted purple */
+  --secondary: oklch(0.25 0.04 280);
+  --secondary-foreground: oklch(0.88 0.03 80);
+
+  /* Muted */
+  --muted: oklch(0.22 0.03 280);
+  --muted-foreground: oklch(0.60 0.04 280);
+
+  /* Accent */
+  --accent: oklch(0.28 0.05 280);
+  --accent-foreground: oklch(0.90 0.03 80);
+
+  /* Destructive: blood red */
+  --destructive: oklch(0.55 0.22 25);
+
+  /* Border & input */
+  --border: oklch(0.30 0.03 60 / 40%);
+  --input: oklch(0.30 0.04 60 / 30%);
+  --ring: oklch(0.78 0.15 80);
+
+  /* Charts */
+  --chart-1: oklch(0.78 0.15 80);
+  --chart-2: oklch(0.55 0.20 25);
+  --chart-3: oklch(0.50 0.15 280);
+  --chart-4: oklch(0.60 0.15 160);
+  --chart-5: oklch(0.65 0.12 220);
+
+  /* Sidebar */
+  --sidebar: oklch(0.16 0.025 280);
+  --sidebar-foreground: oklch(0.90 0.03 80);
+  --sidebar-primary: oklch(0.78 0.15 80);
+  --sidebar-primary-foreground: oklch(0.15 0.03 280);
+  --sidebar-accent: oklch(0.25 0.04 280);
+  --sidebar-accent-foreground: oklch(0.90 0.03 80);
+  --sidebar-border: oklch(0.30 0.03 60 / 40%);
+  --sidebar-ring: oklch(0.78 0.15 80);
+
+  /* D&D Custom Properties */
+  --dnd-gold: oklch(0.78 0.15 80);
+  --dnd-gold-bright: oklch(0.85 0.18 80);
+  --dnd-gold-dim: oklch(0.55 0.12 80);
+  --dnd-blood: oklch(0.45 0.20 25);
+  --dnd-blood-bright: oklch(0.55 0.22 25);
+  --dnd-hero-blue: oklch(0.50 0.12 250);
+  --dnd-hero-blue-bright: oklch(0.60 0.15 250);
+  --dnd-parchment: oklch(0.85 0.05 80);
+  --dnd-parchment-dim: oklch(0.70 0.04 80);
+  --dnd-mystic-purple: oklch(0.40 0.15 300);
+  --dnd-shadow-dark: oklch(0.08 0.02 280);
 }
 
 .dark {
-  --background: oklch(0.13 0.028 261.692);
-  --foreground: oklch(0.985 0.002 247.839);
-  --card: oklch(0.21 0.034 264.665);
-  --card-foreground: oklch(0.985 0.002 247.839);
-  --popover: oklch(0.21 0.034 264.665);
-  --popover-foreground: oklch(0.985 0.002 247.839);
-  --primary: oklch(0.928 0.006 264.531);
-  --primary-foreground: oklch(0.21 0.034 264.665);
-  --secondary: oklch(0.278 0.033 256.848);
-  --secondary-foreground: oklch(0.985 0.002 247.839);
-  --muted: oklch(0.278 0.033 256.848);
-  --muted-foreground: oklch(0.707 0.022 261.325);
-  --accent: oklch(0.278 0.033 256.848);
-  --accent-foreground: oklch(0.985 0.002 247.839);
-  --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.551 0.027 264.364);
-  --chart-1: oklch(0.488 0.243 264.376);
-  --chart-2: oklch(0.696 0.17 162.48);
-  --chart-3: oklch(0.769 0.188 70.08);
-  --chart-4: oklch(0.627 0.265 303.9);
-  --chart-5: oklch(0.645 0.246 16.439);
-  --sidebar: oklch(0.21 0.034 264.665);
-  --sidebar-foreground: oklch(0.985 0.002 247.839);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0.002 247.839);
-  --sidebar-accent: oklch(0.278 0.033 256.848);
-  --sidebar-accent-foreground: oklch(0.985 0.002 247.839);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.551 0.027 264.364);
+  --background: oklch(0.14 0.02 280);
+  --foreground: oklch(0.90 0.03 80);
+  --card: oklch(0.18 0.025 280);
+  --card-foreground: oklch(0.90 0.03 80);
+  --popover: oklch(0.18 0.025 280);
+  --popover-foreground: oklch(0.90 0.03 80);
+  --primary: oklch(0.78 0.15 80);
+  --primary-foreground: oklch(0.15 0.03 280);
+  --secondary: oklch(0.25 0.04 280);
+  --secondary-foreground: oklch(0.88 0.03 80);
+  --muted: oklch(0.22 0.03 280);
+  --muted-foreground: oklch(0.60 0.04 280);
+  --accent: oklch(0.28 0.05 280);
+  --accent-foreground: oklch(0.90 0.03 80);
+  --destructive: oklch(0.55 0.22 25);
+  --border: oklch(0.30 0.03 60 / 40%);
+  --input: oklch(0.30 0.04 60 / 30%);
+  --ring: oklch(0.78 0.15 80);
+  --chart-1: oklch(0.78 0.15 80);
+  --chart-2: oklch(0.55 0.20 25);
+  --chart-3: oklch(0.50 0.15 280);
+  --chart-4: oklch(0.60 0.15 160);
+  --chart-5: oklch(0.65 0.12 220);
+  --sidebar: oklch(0.16 0.025 280);
+  --sidebar-foreground: oklch(0.90 0.03 80);
+  --sidebar-primary: oklch(0.78 0.15 80);
+  --sidebar-primary-foreground: oklch(0.15 0.03 280);
+  --sidebar-accent: oklch(0.25 0.04 280);
+  --sidebar-accent-foreground: oklch(0.90 0.03 80);
+  --sidebar-border: oklch(0.30 0.03 60 / 40%);
+  --sidebar-ring: oklch(0.78 0.15 80);
 }
 
 @layer base {
   * {
     @apply border-border outline-ring/50;
-    @apply border-border outline-ring/50;
   }
   body {
     @apply bg-background text-foreground;
-    @apply bg-background text-foreground;
+  }
+}
+
+/* === D&D Fantasy Effects === */
+
+@keyframes dnd-active-pulse {
+  0%, 100% {
+    box-shadow: 0 0 15px oklch(0.78 0.15 80 / 40%),
+                0 0 30px oklch(0.78 0.15 80 / 20%),
+                inset 0 1px 0 oklch(0.78 0.15 80 / 15%);
+  }
+  50% {
+    box-shadow: 0 0 20px oklch(0.78 0.15 80 / 60%),
+                0 0 40px oklch(0.78 0.15 80 / 30%),
+                inset 0 1px 0 oklch(0.78 0.15 80 / 25%);
+  }
+}
+
+@keyframes dnd-enemy-flicker {
+  0%, 100% {
+    box-shadow: inset 0 0 30px oklch(0.45 0.20 25 / 10%);
+  }
+  50% {
+    box-shadow: inset 0 0 40px oklch(0.45 0.20 25 / 18%);
+  }
+}
+
+.dnd-parchment-texture {
+  background-image:
+    radial-gradient(ellipse at 20% 50%, oklch(0.22 0.03 60 / 15%) 0%, transparent 50%),
+    radial-gradient(ellipse at 80% 50%, oklch(0.20 0.02 280 / 10%) 0%, transparent 50%);
+}
+
+.dnd-card-ornate {
+  border: 1px solid oklch(0.78 0.15 80 / 25%);
+  box-shadow:
+    0 2px 8px oklch(0.08 0.02 280 / 50%),
+    inset 0 1px 0 oklch(0.78 0.15 80 / 8%);
+}
+
+.dnd-active-glow {
+  animation: dnd-active-pulse 3s ease-in-out infinite;
+  border-color: oklch(0.78 0.15 80 / 50%);
+}
+
+.dnd-enemy-menace {
+  animation: dnd-enemy-flicker 4s ease-in-out infinite;
+  border-left-color: oklch(0.55 0.22 25);
+}
+
+.dnd-hero-aura {
+  border-left-color: oklch(0.50 0.12 250);
+  box-shadow:
+    0 2px 8px oklch(0.08 0.02 280 / 40%),
+    inset 0 0 20px oklch(0.50 0.12 250 / 6%);
+}
+
+.dnd-initiative-circle {
+  background: linear-gradient(135deg, oklch(0.22 0.04 280) 0%, oklch(0.15 0.03 280) 100%);
+  border: 2px solid oklch(0.78 0.15 80 / 30%);
+  box-shadow: 0 2px 6px oklch(0.08 0.02 280 / 40%);
+}
+
+.dnd-initiative-circle-active {
+  background: linear-gradient(135deg, oklch(0.35 0.10 80) 0%, oklch(0.22 0.08 80) 100%);
+  border: 2px solid oklch(0.78 0.15 80 / 60%);
+  box-shadow: 0 0 12px oklch(0.78 0.15 80 / 40%);
+}
+
+.dnd-rune-text {
+  letter-spacing: 0.3em;
+  text-transform: uppercase;
+  background: linear-gradient(180deg, oklch(0.78 0.15 80) 0%, oklch(0.60 0.12 60) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.dnd-page-bg {
+  background:
+    radial-gradient(ellipse at 50% 0%, oklch(0.20 0.04 280) 0%, transparent 60%),
+    radial-gradient(ellipse at 50% 100%, oklch(0.12 0.03 25) 0%, transparent 40%),
+    oklch(0.14 0.02 280);
+}
+
+.dnd-stat-block {
+  background: oklch(0.12 0.02 280 / 60%);
+  border: 1px solid oklch(0.78 0.15 80 / 12%);
+  border-radius: 0.375rem;
+  padding: 0.5rem 0.75rem;
+}
+
+.dnd-badge-active {
+  background: linear-gradient(135deg, oklch(0.35 0.12 140) 0%, oklch(0.28 0.10 140) 100%);
+  color: oklch(0.85 0.08 140);
+  border: 1px solid oklch(0.45 0.12 140 / 40%);
+}
+
+.dnd-badge-inactive {
+  background: oklch(0.20 0.02 280);
+  color: oklch(0.55 0.03 280);
+  border: 1px solid oklch(0.30 0.02 280 / 40%);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dnd-active-glow,
+  .dnd-enemy-menace {
+    animation: none;
   }
 }
