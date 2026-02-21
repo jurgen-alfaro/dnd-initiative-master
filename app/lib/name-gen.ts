@@ -1,0 +1,31 @@
+export function generateRandomName(): string {
+  const names = [
+    "Frodo Baggins",
+    "Samwise Gamgee",
+    "Gandalf",
+    "Aragorn",
+    "Legolas",
+    "Gimli",
+    "Boromir",
+    "Pippin",
+    "Merry",
+    "Théoden",
+    "Eowyn",
+    "Faramir",
+    "Galadriel",
+    "Elrond",
+    "Bilbo Baggins",
+    "Gollum",
+    "Sauron",
+    "Saruman",
+    "Gríma Wormtongue",
+    "Denethor",
+    "Éomer",
+    "Théodred",
+    "Gríma Wormtongue",
+    "Denethor",
+    "Éomer",
+    "Théodred",
+  ];
+  return names[Math.floor(Math.random() * names.length)];
+}

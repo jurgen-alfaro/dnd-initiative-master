@@ -29,6 +29,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/app/components/ui/select";
+import { generateRandomName } from "@/app/lib/name-gen";
 
 // Sub-componente del formulario para aislar el estado
 const AddCombatantToPartyForm = ({
@@ -43,6 +44,7 @@ const AddCombatantToPartyForm = ({
     null,
   );
 
+  const [placeholderName] = useState(() => generateRandomName());
   const [initiative, setInitiative] = useState("");
 
   // Close dialog on success
@@ -76,7 +78,7 @@ const AddCombatantToPartyForm = ({
             maxLength={30}
             id="inline-start-input"
             name="combatantName"
-            placeholder="Gimli"
+            placeholder={placeholderName}
           />
           <InputGroupAddon align="inline-start">
             <Dice1Icon className="text-muted-foreground" />
