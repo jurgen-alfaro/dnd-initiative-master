@@ -17,6 +17,8 @@ const AddCombatantToPartySchema = z.object({
   combatantName: z.string().min(3, "Name must be at least 3 characters"),
   type: z.enum(["player", "enemy"]),
   initiative: z.coerce.number().min(0).max(100).default(0).optional(),
+  hp: z.coerce.number().min(0).max(100).default(0).optional(),
+  ac: z.coerce.number().min(0).max(100).default(0).optional(),
   partyCode: z.string(),
 });
 
@@ -127,6 +129,8 @@ export async function addCombatantToParty(prevState: any, formData: FormData) {
     combatantName: formData.get("combatantName"),
     type: formData.get("type"),
     initiative: formData.get("initiative"),
+    hp: formData.get("hp"),
+    ac: formData.get("ac"),
     partyCode: formData.get("partyCode"),
   });
 
@@ -148,6 +152,8 @@ export async function addCombatantToParty(prevState: any, formData: FormData) {
         name: validatedFields.data.combatantName,
         type: validatedFields.data.type,
         initiative: validatedFields.data.initiative,
+        hp: validatedFields.data.hp,
+        ac: validatedFields.data.ac,
         partyId: partyId,
       })
       .returning({

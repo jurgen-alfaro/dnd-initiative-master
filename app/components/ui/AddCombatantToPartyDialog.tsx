@@ -9,15 +9,21 @@ import {
   AlertDialogTrigger,
 } from "@/app/components/ui/alert-dialog";
 import { useParams } from "next/navigation";
-import { Field, FieldDescription, FieldLabel } from "@/app/components/ui/field";
+import { Field, FieldError, FieldLabel } from "@/app/components/ui/field";
 import {
   InputGroup,
   InputGroupAddon,
   InputGroupInput,
 } from "@/app/components/ui/input-group";
-import { Dice2Icon, Dice3Icon, PlusIcon, SearchIcon } from "lucide-react";
+import {
+  Dice1Icon,
+  Dice2Icon,
+  Dice3Icon,
+  Dice4Icon,
+  Dice5Icon,
+  PlusIcon,
+} from "lucide-react";
 import { Button } from "@/app/components/ui/button";
-import { HeartHandshakeIcon, DicesIcon, Dice1Icon } from "lucide-react";
 import { useActionState, useState, useEffect } from "react";
 import { addCombatantToParty } from "@/app/server/actions";
 import {
@@ -31,7 +37,7 @@ import {
 } from "@/app/components/ui/select";
 import { generateRandomName } from "@/app/lib/name-gen";
 
-// Sub-componente del formulario para aislar el estado
+// Form sub-component to isolate state
 const AddCombatantToPartyForm = ({
   onSuccess,
   partyCode,
@@ -46,6 +52,8 @@ const AddCombatantToPartyForm = ({
 
   const [placeholderName] = useState(() => generateRandomName());
   const [initiative, setInitiative] = useState("");
+  const [hp, setHp] = useState("");
+  const [ac, setAc] = useState("");
 
   // Close dialog on success
   useEffect(() => {
@@ -54,80 +62,128 @@ const AddCombatantToPartyForm = ({
     }
   }, [state, onSuccess]);
 
-  const handleInitiativeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value;
-    if (value === "") {
-      setInitiative("");
-      return;
-    }
+  const handleNumericChange =
+    (setter: (value: string) => void) =>
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      const value = e.target.value;
+      if (value === "") {
+        setter("");
+        return;
+      }
 
-    // Allow only numbers and max 3 digits
-    if (!/^\d*$/.test(value)) return;
+      // Allow only numbers and max 3 digits
+      if (!/^\d*$/.test(value)) return;
 
-    if (Number(value) <= 100 && value.length <= 3) {
-      setInitiative(value);
-    }
-  };
+      if (Number(value) <= 100 && value.length <= 3) {
+        setter(value);
+      }
+    };
 
   return (
     <form action={formAction}>
-      <Field className="max-w-sm">
-        <FieldLabel htmlFor="combatantName">Name</FieldLabel>
-        <InputGroup id="combatantName">
-          <InputGroupInput
-            maxLength={30}
-            id="inline-start-input"
-            name="combatantName"
-            placeholder={placeholderName}
-          />
-          <InputGroupAddon align="inline-start">
-            <Dice1Icon className="text-muted-foreground" />
-          </InputGroupAddon>
-        </InputGroup>
-        <FieldLabel htmlFor="type">Type</FieldLabel>
-        <InputGroup id="type">
-          <Select name="type">
-            <SelectTrigger className="w-full flex justify-start">
+      <div className="flex max-w-sm flex-col gap-4">
+        <Field>
+          <FieldLabel htmlFor="combatantName">Name</FieldLabel>
+          <InputGroup>
+            <InputGroupInput
+              maxLength={30}
+              id="combatantName"
+              name="combatantName"
+              placeholder={placeholderName}
+              required
+            />
+            <InputGroupAddon align="inline-start">
+              <Dice1Icon className="text-muted-foreground" />
+            </InputGroupAddon>
+          </InputGroup>
+        </Field>
+
+        <Field>
+          <FieldLabel htmlFor="type">Type</FieldLabel>
+          <Select name="type" required>
+            <SelectTrigger id="type" className="w-full flex justify-start">
               <Dice2Icon className="text-muted-foreground" />
               <SelectValue placeholder="Select a type" />
             </SelectTrigger>
             <SelectContent>
               <SelectGroup>
                 <SelectLabel>Type</SelectLabel>
-                <SelectItem value="player">Heroe</SelectItem>
+                <SelectItem value="player">Hero</SelectItem>
                 <SelectItem value="enemy">Enemy</SelectItem>
               </SelectGroup>
             </SelectContent>
           </Select>
-        </InputGroup>
-        <FieldLabel htmlFor="initiative">Initiative</FieldLabel>
-        <InputGroup id="initiative">
-          <InputGroupInput
-            type="text"
-            inputMode="numeric"
-            id="initiative"
-            name="initiative"
-            placeholder="10"
-            value={initiative}
-            onChange={handleInitiativeChange}
-            maxLength={3}
-          />
-          <InputGroupAddon align="inline-start">
-            <Dice3Icon className="text-muted-foreground" />
-          </InputGroupAddon>
-        </InputGroup>
+        </Field>
+
+        <div className="flex gap-2">
+          <Field>
+            <FieldLabel htmlFor="initiative">Initiative</FieldLabel>
+            <InputGroup>
+              <InputGroupInput
+                type="text"
+                inputMode="numeric"
+                id="initiative"
+                name="initiative"
+                placeholder="10"
+                value={initiative}
+                onChange={handleNumericChange(setInitiative)}
+                maxLength={3}
+              />
+              <InputGroupAddon align="inline-start">
+                <Dice3Icon className="text-muted-foreground" />
+              </InputGroupAddon>
+            </InputGroup>
+          </Field>
+          <Field>
+            <FieldLabel htmlFor="hp">HP</FieldLabel>
+            <InputGroup>
+              <InputGroupInput
+                type="text"
+                inputMode="numeric"
+                id="hp"
+                name="hp"
+                placeholder="10"
+                value={hp}
+                onChange={handleNumericChange(setHp)}
+                maxLength={3}
+              />
+              <InputGroupAddon align="inline-start">
+                <Dice4Icon className="text-muted-foreground" />
+              </InputGroupAddon>
+            </InputGroup>
+          </Field>
+          <Field>
+            <FieldLabel htmlFor="ac">AC</FieldLabel>
+            <InputGroup>
+              <InputGroupInput
+                type="text"
+                inputMode="numeric"
+                id="ac"
+                name="ac"
+                placeholder="10"
+                value={ac}
+                onChange={handleNumericChange(setAc)}
+                maxLength={3}
+              />
+              <InputGroupAddon align="inline-start">
+                <Dice5Icon className="text-muted-foreground" />
+              </InputGroupAddon>
+            </InputGroup>
+          </Field>
+        </div>
+
         <input type="hidden" name="partyCode" value={partyCode} />
         {state?.error && (
-          <p className="text-sm font-medium text-destructive mt-2 text-center">
+          <FieldError>
             {typeof state.error === "string"
               ? state.error
               : "Error adding combatant"}
-          </p>
+          </FieldError>
         )}
-      </Field>
+      </div>
       <AlertDialogFooter className="mt-4">
-        <AlertDialogCancel>Cancel</AlertDialogCancel>
-        <Button type="submit" disabled={isPending}>
+        <AlertDialogCancel className="cursor-pointer">Cancel</AlertDialogCancel>
+        <Button type="submit" disabled={isPending} className="cursor-pointer">
           {isPending ? "Adding to party..." : "Add to Party"}
         </Button>
       </AlertDialogFooter>
