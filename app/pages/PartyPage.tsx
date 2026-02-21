@@ -94,9 +94,7 @@ export default function PartyPage({ party }: PartyPageProps) {
               />
               <span className="flex items-center gap-2 text-dnd-blood-bright">
                 <Sword size={16} className="text-dnd-blood" />
-                <span className="font-heading font-semibold">
-                  {enemyCount}
-                </span>
+                <span className="font-heading font-semibold">{enemyCount}</span>
                 <span className="text-muted-foreground">
                   {enemyCount !== 1 ? "Enemies" : "Enemy"}
                 </span>

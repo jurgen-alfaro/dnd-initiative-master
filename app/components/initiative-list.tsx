@@ -6,7 +6,6 @@ import { Card } from "@/app/components/ui/card";
 import { Badge } from "@/app/components/ui/badge";
 import { Input } from "@/app/components/ui/input";
 import { Sword, Shield } from "lucide-react";
-import { Button } from "@/app/components/ui/button";
 import AddCombatantToPartyDialog from "./ui/AddCombatantToPartyDialog";
 
 type Combatant = {
