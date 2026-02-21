@@ -7,15 +7,15 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
   AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
-import { Field, FieldDescription, FieldLabel } from "@/components/ui/field";
+} from "@/app/components/ui/alert-dialog";
+import { Field, FieldDescription, FieldLabel } from "@/app/components/ui/field";
 import {
   InputGroup,
   InputGroupAddon,
   InputGroupInput,
-} from "@/components/ui/input-group";
+} from "@/app/components/ui/input-group";
 import { SearchIcon } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Button } from "@/app/components/ui/button";
 import { HeartHandshakeIcon, DicesIcon } from "lucide-react";
 import { useActionState, useState } from "react";
 import { joinParty } from "@/app/server/actions";
