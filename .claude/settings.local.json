@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git add:*)",
+      "Bash(git commit -m \"$\\(cat <<''EOF''\nrefactor: move UI components to app directory and add Select component\n\nRelocate shared UI components \\(alert-dialog, field, input-group, label,\nseparator, textarea\\) from components/ui/ to app/components/ui/ and update\nimport paths. Remove unused button and input components. Add new Select\ndropdown component using Radix UI.\n\nCo-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>\nEOF\n\\)\")",
+      "Bash(git commit -m \"$\\(cat <<''EOF''\nfeat: add HP, temp HP, and AC columns to combatants table\n\nExtend the combatants schema with hit points \\(hp\\), temporary hit points\n\\(tmp_hp\\), and armor class \\(ac\\) fields, all defaulting to 0. Includes\nDrizzle migration.\n\nCo-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>\nEOF\n\\)\")",
+      "Bash(git commit:*)",
+      "Bash(move:*)",
+      "Bash(npm run build:*)"
+    ]
+  }
+}

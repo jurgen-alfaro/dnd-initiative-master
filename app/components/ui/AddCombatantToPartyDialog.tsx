@@ -28,7 +28,7 @@ import {
   SelectLabel,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select";
+} from "@/app/components/ui/select";
 
 // Sub-componente del formulario para aislar el estado
 const AddCombatantToPartyForm = ({
