@@ -6,9 +6,9 @@ import {
   CardContent,
 } from "@/app/components/ui/card";
 import { Badge } from "@/app/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
+import { Separator } from "@/app/components/ui/separator";
 import InitiativeList from "@/app/components/initiative-list";
-import { Shield, Users } from "lucide-react";
+import { Shield, SwordsIcon, Users, UsersRoundIcon } from "lucide-react";
 
 type Combatant = {
   id: number;
@@ -34,14 +34,12 @@ interface PartyPageProps {
 
 export default function PartyPage({ party }: PartyPageProps) {
   const playerCount = party.combatants.filter(
-    (c) => c.type === "player"
+    (c) => c.type === "player",
   ).length;
-  const enemyCount = party.combatants.filter(
-    (c) => c.type === "enemy"
-  ).length;
+  const enemyCount = party.combatants.filter((c) => c.type === "enemy").length;
 
   const sortedCombatants = [...party.combatants].sort(
-    (a, b) => b.initiative - a.initiative
+    (a, b) => b.initiative - a.initiative,
   );
 
   return (
@@ -51,19 +49,19 @@ export default function PartyPage({ party }: PartyPageProps) {
           <CardHeader>
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <Shield className="text-primary" size={28} />
                 <div>
                   <CardTitle className="text-2xl">{party.name}</CardTitle>
                   <CardDescription className="text-sm mt-1">
-                    Código:{" "}
+                    Code:{" "}
                     <span className="font-mono font-bold tracking-widest text-foreground">
                       {party.code}
                     </span>
                   </CardDescription>
                 </div>
+                <SwordsIcon className="text-primary" size={38} />
               </div>
               <Badge variant={party.isActive ? "default" : "secondary"}>
-                {party.isActive ? "Activa" : "Inactiva"}
+                {party.isActive ? "Active" : "Inactive"}
               </Badge>
             </div>
           </CardHeader>
@@ -71,11 +69,12 @@ export default function PartyPage({ party }: PartyPageProps) {
             <div className="flex gap-6 text-sm text-muted-foreground">
               <span className="flex items-center gap-1">
                 <Users size={14} />
-                {playerCount} Héroe{playerCount !== 1 ? "s" : ""}
+                {playerCount} Heroe{playerCount !== 1 ? "s" : ""}
               </span>
               <Separator orientation="vertical" className="h-4" />
-              <span>
-                {enemyCount} Enemigo{enemyCount !== 1 ? "s" : ""}
+              <span className="flex items-center gap-1">
+                <UsersRoundIcon size={14} />
+                {enemyCount} {enemyCount !== 1 ? "Enemies" : "Enemy"}
               </span>
             </div>
           </CardContent>

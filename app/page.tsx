@@ -9,12 +9,6 @@ export default async function Home() {
   return (
     <main className="relative min-h-screen flex justify-center items-center w-full">
       <HomePage />
-      {/* <div
-        aria-hidden="true"
-        className="absolute text-[150px] bottom-5 opacity-20"
-      >
-        🐉
-      </div> */}
     </main>
   );
 }
