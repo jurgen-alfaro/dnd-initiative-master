@@ -10,7 +10,14 @@ import { z } from "zod";
 
 // Esquemas de validación Zod
 const CreatePartySchema = z.object({
-  partyName: z.string().min(3, "El nombre debe tener al menos 3 caracteres"),
+  partyName: z.string().min(3, "Name must be at least 3 characters"),
+});
+
+const AddCombatantToPartySchema = z.object({
+  combatantName: z.string().min(3, "Name must be at least 3 characters"),
+  type: z.enum(["player", "enemy"]),
+  initiative: z.coerce.number().min(0).max(100).default(0).optional(),
+  partyCode: z.string(),
 });
 
 const UpdateInitiativeSchema = z.object({
@@ -20,7 +27,7 @@ const UpdateInitiativeSchema = z.object({
 });
 
 const JoinPartySchema = z.object({
-  code: z.string().length(6, "El código debe ser de 6 caracteres"),
+  code: z.string().length(6, "Code must be 6 characters"),
 });
 
 // --- Actions ---
@@ -113,4 +120,46 @@ export async function getPartyWithCombatants(code: string) {
     where: eq(parties.code, code),
     with: { combatants: true },
   });
+}
+
+export async function addCombatantToParty(prevState: any, formData: FormData) {
+  const validatedFields = AddCombatantToPartySchema.safeParse({
+    combatantName: formData.get("combatantName"),
+    type: formData.get("type"),
+    initiative: formData.get("initiative"),
+    partyCode: formData.get("partyCode"),
+  });
+
+  if (!validatedFields.success) {
+    return { error: validatedFields.error.flatten().fieldErrors };
+  }
+
+  const party = await getPartyByCode(validatedFields.data.partyCode);
+  if (!party) {
+    return { error: "Party not found" };
+  }
+
+  const partyId = party.id;
+
+  try {
+    const newCombatant = await db
+      .insert(combatants)
+      .values({
+        name: validatedFields.data.combatantName,
+        type: validatedFields.data.type,
+        initiative: validatedFields.data.initiative,
+        partyId: partyId,
+      })
+      .returning({
+        name: combatants.name,
+        type: combatants.type,
+        initiative: combatants.initiative,
+      });
+  } catch (error) {
+    console.log(error);
+    return { error: "Error at adding combatant to party" };
+  }
+
+  revalidatePath(`/party/${party.code}`);
+  return { success: true };
 }
