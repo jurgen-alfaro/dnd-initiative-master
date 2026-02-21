@@ -8,6 +8,13 @@
       "when": 1770956183398,
       "tag": "0000_rapid_ravenous",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1771480871345,
+      "tag": "0001_living_squadron_supreme",
+      "breakpoints": true
     }
   ]
 }
