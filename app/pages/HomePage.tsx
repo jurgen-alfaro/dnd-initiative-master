@@ -13,6 +13,7 @@ import Link from "next/link";
 import { useState } from "react";
 import Modal from "../components/Modal";
 import JoinPartyDialog from "../components/JoinPartyDialog";
+import CreatePartyDialog from "../components/CreatePartyDialog";
 
 const HomePage = () => {
   const [loading, setLoading] = useState(true);
@@ -90,20 +91,7 @@ const HomePage = () => {
         D&D Initiative Tracker
       </h1>
       <div className="relative z-10 flex gap-4 justify-center">
-        <Link href="/party/create">
-          <Button size="lg" className="cursor-pointer">
-            Create Party
-            <SwordsIcon />
-          </Button>
-        </Link>
-        {/* <Button
-          size="lg"
-          className="cursor-pointer"
-          onClick={() => setShowForm(true)}
-        >
-          Join Party
-          <HandshakeIcon />
-        </Button> */}
+        <CreatePartyDialog />
         <JoinPartyDialog />
       </div>{" "}
       <div
