@@ -9,6 +9,7 @@ import { Badge } from "@/app/components/ui/badge";
 import { Separator } from "@/app/components/ui/separator";
 import InitiativeList from "@/app/components/initiative-list";
 import { Shield, Sword, SwordsIcon } from "lucide-react";
+import CopyableCode from "@/app/components/CopyableCode";
 
 type Combatant = {
   id: number;
@@ -59,9 +60,7 @@ export default function PartyPage({ party }: PartyPageProps) {
                       Party Code
                     </span>
                     <br />
-                    <span className="dnd-rune-text text-lg font-heading font-semibold">
-                      {party.code}
-                    </span>
+                    <CopyableCode code={party.code} />
                   </CardDescription>
                 </div>
               </div>
