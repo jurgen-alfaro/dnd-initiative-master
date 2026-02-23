@@ -16,6 +16,10 @@ type Combatant = {
   name: string;
   initiative: number;
   type: "player" | "enemy";
+  hp: number;
+  maxHp: number;
+  tmpHp: number;
+  ac: number;
   partyId: number;
   createdAt: Date;
 };

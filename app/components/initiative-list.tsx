@@ -1,7 +1,7 @@
 "use client";
 
 import { useTransition } from "react";
-import { updateInitiative } from "@/app/server/actions";
+import { updateCombatantStat } from "@/app/server/actions";
 import { Card } from "@/app/components/ui/card";
 import { Badge } from "@/app/components/ui/badge";
 import { Input } from "@/app/components/ui/input";
@@ -12,7 +12,10 @@ type Combatant = {
   id: number;
   name: string;
   initiative: number;
-  ac?: number;
+  hp: number;
+  maxHp: number;
+  tmpHp: number;
+  ac: number;
   type: "player" | "enemy";
 };
 
@@ -29,12 +32,12 @@ export default function InitiativeList({
 }: InitiativeListProps) {
   const [isPending, startTransition] = useTransition();
 
-  const handleInitiativeChange = (id: number, val: string) => {
+  const handleStatChange = (id: number, field: "hp" | "ac" | "tmpHp", val: string) => {
     const numVal = parseInt(val);
     if (isNaN(numVal)) return;
 
     startTransition(async () => {
-      await updateInitiative(id, numVal, partyCode);
+      await updateCombatantStat(id, field, numVal, partyCode);
     });
   };
 
@@ -132,13 +135,13 @@ export default function InitiativeList({
                   defaultValue={char.ac}
                   className="w-16 h-8 text-center font-mono text-base font-bold bg-transparent border-dnd-gold/20 focus-visible:ring-dnd-gold/30 focus-visible:border-dnd-gold/40"
                   onBlur={(e) =>
-                    handleInitiativeChange(char.id, e.target.value)
+                    handleStatChange(char.id, "ac", e.target.value)
                   }
                   disabled={isPending}
                 />
               ) : (
                 <div className="w-16 text-center font-mono text-xl font-bold text-dnd-parchment">
-                  {char.initiative}
+                  {char.ac}
                 </div>
               )}
             </div>
@@ -147,18 +150,25 @@ export default function InitiativeList({
                 HP
               </span>
               {isDm ? (
-                <Input
-                  type="number"
-                  defaultValue={char.ac}
-                  className="w-16 h-8 text-center font-mono text-base font-bold bg-transparent border-dnd-blood/20 focus-visible:ring-dnd-blood/30 focus-visible:border-dnd-blood/40"
-                  onBlur={(e) =>
-                    handleInitiativeChange(char.id, e.target.value)
-                  }
-                  disabled={isPending}
-                />
+                <div className="flex items-center gap-0.5">
+                  <Input
+                    type="number"
+                    defaultValue={char.hp}
+                    className="w-14 h-8 text-center font-mono text-base font-bold bg-transparent border-dnd-blood/20 focus-visible:ring-dnd-blood/30 focus-visible:border-dnd-blood/40"
+                    onBlur={(e) =>
+                      handleStatChange(char.id, "hp", e.target.value)
+                    }
+                    disabled={isPending}
+                  />
+                  <span className="font-mono text-sm text-muted-foreground">/</span>
+                  <span className="font-mono text-sm font-bold text-dnd-parchment-dim">
+                    {char.maxHp}
+                  </span>
+                </div>
               ) : (
-                <div className="w-16 text-center font-mono text-xl font-bold text-dnd-parchment">
-                  {char.initiative}
+                <div className="text-center font-mono text-xl font-bold text-dnd-parchment">
+                  {char.hp}
+                  <span className="text-sm text-muted-foreground">/{char.maxHp}</span>
                 </div>
               )}
             </div>
@@ -169,16 +179,16 @@ export default function InitiativeList({
               {isDm ? (
                 <Input
                   type="number"
-                  defaultValue={char.initiative}
+                  defaultValue={char.tmpHp}
                   className="w-16 h-8 text-center font-mono text-base font-bold bg-transparent border-dnd-gold/20 focus-visible:ring-dnd-gold/30 focus-visible:border-dnd-gold/40"
                   onBlur={(e) =>
-                    handleInitiativeChange(char.id, e.target.value)
+                    handleStatChange(char.id, "tmpHp", e.target.value)
                   }
                   disabled={isPending}
                 />
               ) : (
                 <div className="w-16 text-center font-mono text-xl font-bold text-dnd-parchment">
-                  {char.initiative}
+                  {char.tmpHp}
                 </div>
               )}
             </div>
