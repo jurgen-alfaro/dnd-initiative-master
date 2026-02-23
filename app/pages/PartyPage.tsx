@@ -10,19 +10,7 @@ import { Separator } from "@/app/components/ui/separator";
 import InitiativeList from "@/app/components/initiative-list";
 import { Shield, Sword, SwordsIcon } from "lucide-react";
 import CopyableCode from "@/app/components/CopyableCode";
-
-type Combatant = {
-  id: number;
-  name: string;
-  initiative: number;
-  type: "player" | "enemy";
-  hp: number;
-  maxHp: number;
-  tmpHp: number;
-  ac: number;
-  partyId: number;
-  createdAt: Date;
-};
+import type { Combatant } from "@/app/lib/types";
 
 type Party = {
   id: number;
@@ -30,7 +18,7 @@ type Party = {
   code: string;
   isActive: boolean | null;
   createdAt: Date;
-  combatants: Combatant[];
+  combatants: (Combatant & { partyId: number; createdAt: Date })[];
 };
 
 interface PartyPageProps {

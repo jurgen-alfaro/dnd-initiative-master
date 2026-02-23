@@ -12,7 +12,10 @@
       "Bash(ls:*)",
       "Bash(git status:*)",
       "Bash(npm run db:generate:*)",
-      "Bash(npm run db:migrate:*)"
+      "Bash(npm run db:migrate:*)",
+      "Bash(npx tsc:*)",
+      "Bash(git -C \"c:\\\\Users\\\\gkuke\\\\Documents\\\\Projects\\\\dnd-initiative-master\" diff)",
+      "Bash(git -C \"c:\\\\Users\\\\gkuke\\\\Documents\\\\Projects\\\\dnd-initiative-master\" log --oneline -5)"
     ]
   }
 }
