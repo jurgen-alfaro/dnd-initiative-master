@@ -10,7 +10,9 @@
       "Bash(dir:*)",
       "Bash(npx next build:*)",
       "Bash(ls:*)",
-      "Bash(git status:*)"
+      "Bash(git status:*)",
+      "Bash(npm run db:generate:*)",
+      "Bash(npm run db:migrate:*)"
     ]
   }
 }
