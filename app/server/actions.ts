@@ -16,9 +16,9 @@ const CreatePartySchema = z.object({
 const AddCombatantToPartySchema = z.object({
   combatantName: z.string().min(3, "Name must be at least 3 characters"),
   type: z.enum(["player", "enemy"]),
-  initiative: z.coerce.number().min(0).max(100).default(0).optional(),
-  hp: z.coerce.number().min(0).max(100).default(0).optional(),
-  ac: z.coerce.number().min(0).max(100).default(0).optional(),
+  initiative: z.coerce.number().min(0).max(999).default(0).optional(),
+  maxHp: z.coerce.number().min(0).max(999).default(0).optional(),
+  ac: z.coerce.number().min(0).max(999).default(0).optional(),
   partyCode: z.string(),
 });
 
@@ -111,6 +111,28 @@ export async function updateInitiative(
   }
 }
 
+export async function updateCombatantStat(
+  combatantId: number,
+  field: "hp" | "ac" | "tmpHp",
+  value: number,
+  partyCode: string,
+) {
+  const numVal = typeof value === "number" ? value : Number(value);
+  if (isNaN(numVal)) return { error: "Invalid value" };
+
+  try {
+    await db
+      .update(combatants)
+      .set({ [field]: numVal })
+      .where(eq(combatants.id, combatantId));
+
+    revalidatePath(`/party/${partyCode}`);
+    return { success: true };
+  } catch (error) {
+    return { error: "Error updating combatant" };
+  }
+}
+
 export async function getPartyByCode(code: string) {
   return await db.query.parties.findFirst({
     where: eq(parties.code, code),
@@ -129,7 +151,7 @@ export async function addCombatantToParty(prevState: any, formData: FormData) {
     combatantName: formData.get("combatantName"),
     type: formData.get("type"),
     initiative: formData.get("initiative"),
-    hp: formData.get("hp"),
+    maxHp: formData.get("maxHp"),
     ac: formData.get("ac"),
     partyCode: formData.get("partyCode"),
   });
@@ -152,7 +174,8 @@ export async function addCombatantToParty(prevState: any, formData: FormData) {
         name: validatedFields.data.combatantName,
         type: validatedFields.data.type,
         initiative: validatedFields.data.initiative,
-        hp: validatedFields.data.hp,
+        hp: validatedFields.data.maxHp,
+        maxHp: validatedFields.data.maxHp,
         ac: validatedFields.data.ac,
         partyId: partyId,
       })
