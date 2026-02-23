@@ -26,6 +26,7 @@ export const combatants = pgTable("combatants", {
   initiative: integer("initiative").notNull().default(0),
   type: typeEnum("type").notNull().default("enemy"),
   hp: integer("hp").notNull().default(0),
+  maxHp: integer("max_hp").notNull().default(0),
   tmpHp: integer("tmp_hp").notNull().default(0),
   ac: integer("ac").notNull().default(0),
   partyId: integer("party_id")

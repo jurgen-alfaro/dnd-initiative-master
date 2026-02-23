@@ -1,0 +1,1 @@
+ALTER TABLE "combatants" ADD COLUMN "max_hp" integer DEFAULT 0 NOT NULL;
