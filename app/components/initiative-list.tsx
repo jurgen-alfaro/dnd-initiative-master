@@ -1,7 +1,11 @@
 "use client";
 
 import { useTransition } from "react";
-import { updateCombatantStat, updateCombatantInfo } from "@/app/server/actions";
+import {
+  updateCombatantStat,
+  updateCombatantInfo,
+  applyDamageOrHealing,
+} from "@/app/server/actions";
 import type { Combatant } from "@/app/lib/types";
 import CombatantCard from "@/app/components/combatant-card";
 import AddCombatantToPartyDialog from "./ui/AddCombatantToPartyDialog";
@@ -19,18 +23,39 @@ export default function InitiativeList({
 }: InitiativeListProps) {
   const [isPending, startTransition] = useTransition();
 
-  const handleStatChange = (id: number, field: "hp" | "ac" | "tmpHp" | "maxHp" | "initiative", val: string) => {
+  const handleStatChange = (
+    id: number,
+    field: "hp" | "ac" | "tmpHp" | "maxHp" | "initiative",
+    val: string,
+  ): Promise<void> => {
     const numVal = parseInt(val);
-    if (isNaN(numVal)) return;
+    if (isNaN(numVal)) return Promise.resolve();
 
-    startTransition(async () => {
-      await updateCombatantStat(id, field, numVal, partyCode);
+    return new Promise<void>((resolve) => {
+      startTransition(async () => {
+        await updateCombatantStat(id, field, numVal, partyCode);
+        resolve();
+      });
     });
   };
 
-  const handleInfoChange = (id: number, name: string, type: "player" | "enemy") => {
+  const handleInfoChange = (
+    id: number,
+    name: string,
+    type: "player" | "enemy",
+  ) => {
     startTransition(async () => {
       await updateCombatantInfo(id, { name, type }, partyCode);
+    });
+  };
+
+  const handleDamageHeal = (
+    id: number,
+    amount: number,
+    type: "damage" | "healing",
+  ) => {
+    startTransition(async () => {
+      await applyDamageOrHealing(id, amount, type, partyCode);
     });
   };
 
@@ -45,6 +70,7 @@ export default function InitiativeList({
           isPending={isPending}
           onStatChange={handleStatChange}
           onInfoChange={handleInfoChange}
+          onDamageHeal={handleDamageHeal}
         />
       ))}
 

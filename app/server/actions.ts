@@ -35,6 +35,13 @@ const UpdateCombatantInfoSchema = z.object({
   partyCode: z.string(),
 });
 
+const ApplyDamageOrHealingSchema = z.object({
+  combatantId: z.number(),
+  amount: z.number().min(0).max(999),
+  type: z.enum(["damage", "healing"]),
+  partyCode: z.string(),
+});
+
 const JoinPartySchema = z.object({
   code: z.string().length(6, "Code must be 6 characters"),
 });
@@ -137,6 +144,81 @@ export async function updateCombatantStat(
     return { success: true };
   } catch (error) {
     return { error: "Error updating combatant" };
+  }
+}
+
+export async function applyDamageOrHealing(
+  combatantId: number,
+  amount: number,
+  type: "damage" | "healing",
+  partyCode: string,
+) {
+  // Validar input
+  const validated = ApplyDamageOrHealingSchema.safeParse({
+    combatantId,
+    amount,
+    type,
+    partyCode,
+  });
+
+  if (!validated.success) {
+    return { error: "Invalid data" };
+  }
+
+  try {
+    // Obtener el estado actual del combatiente
+    const combatant = await db.query.combatants.findFirst({
+      where: eq(combatants.id, combatantId),
+    });
+
+    if (!combatant) {
+      return { error: "Combatant not found" };
+    }
+
+    let newHp = combatant.hp;
+    let newTmpHp = combatant.tmpHp;
+
+    if (type === "damage") {
+      // Lógica de D&D 5e: Daño se aplica primero a tmpHp, luego overflow a hp
+      const damageAmount = amount;
+
+      if (newTmpHp > 0) {
+        // Hay HP temporales
+        if (damageAmount >= newTmpHp) {
+          // El daño excede los tmpHp - remueve todos los tmpHp y overflow a hp
+          const overflow = damageAmount - newTmpHp;
+          newTmpHp = 0;
+          newHp = Math.max(0, newHp - overflow);
+        } else {
+          // El daño es absorbido completamente por tmpHp
+          newTmpHp = newTmpHp - damageAmount;
+        }
+      } else {
+        // No hay tmpHp, el daño va directamente a hp
+        newHp = Math.max(0, newHp - damageAmount);
+      }
+    } else if (type === "healing") {
+      // Curación: suma a hp actual, cap en maxHp (tmpHp no se afecta)
+      newHp = Math.min(combatant.maxHp, newHp + amount);
+    }
+
+    // Actualizar la base de datos
+    await db
+      .update(combatants)
+      .set({
+        hp: newHp,
+        tmpHp: newTmpHp,
+      })
+      .where(eq(combatants.id, combatantId));
+
+    revalidatePath(`/party/${partyCode}`);
+    return {
+      success: true,
+      newHp,
+      newTmpHp,
+    };
+  } catch (error) {
+    return { error: "Error applying damage/healing" };
   }
 }
 

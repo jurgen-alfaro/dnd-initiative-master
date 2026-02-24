@@ -5,6 +5,7 @@ import {
   AlertDialog,
   AlertDialogCancel,
   AlertDialogContent,
+  AlertDialogDescription,
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
@@ -62,7 +63,7 @@ function NameTypeEditForm({
       {/* Name Input */}
       <div className="flex flex-col gap-2">
         <span className="text-xs uppercase tracking-widest text-muted-foreground font-heading">
-          Combatant Name
+          Name
         </span>
         <Input
           type="text"
@@ -82,7 +83,7 @@ function NameTypeEditForm({
       {/* Type Select */}
       <div className="flex flex-col gap-2">
         <span className="text-xs uppercase tracking-widest text-muted-foreground font-heading">
-          Combatant Type
+          Type
         </span>
         <Select
           value={localType}
@@ -136,6 +137,9 @@ export default function NameTypeEditDialog({
           <AlertDialogTitle className="font-heading text-dnd-gold">
             Edit Combatant Info
           </AlertDialogTitle>
+          <AlertDialogDescription>
+            Set the name and type.
+          </AlertDialogDescription>
         </AlertDialogHeader>
         {open && (
           <NameTypeEditForm

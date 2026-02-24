@@ -1,3 +1,5 @@
+"use client";
+
 import {
   Card,
   CardHeader,
@@ -11,6 +13,9 @@ import InitiativeList from "@/app/components/initiative-list";
 import { Shield, Sword, SwordsIcon } from "lucide-react";
 import CopyableCode from "@/app/components/CopyableCode";
 import type { Combatant } from "@/app/lib/types";
+import { useSearchParams } from "next/navigation";
+import { usePartyPolling } from "@/app/lib/hooks/usePartyPolling";
+import { useMemo } from "react";
 
 type Party = {
   id: number;
@@ -26,13 +31,24 @@ interface PartyPageProps {
 }
 
 export default function PartyPage({ party }: PartyPageProps) {
-  const playerCount = party.combatants.filter(
-    (c) => c.type === "player",
-  ).length;
-  const enemyCount = party.combatants.filter((c) => c.type === "enemy").length;
+  const searchParams = useSearchParams();
+  const isDm = searchParams.get("dm") === "true";
 
-  const sortedCombatants = [...party.combatants].sort(
-    (a, b) => b.initiative - a.initiative,
+  // Poll the API every 3 seconds so all connected sessions stay in sync
+  const liveCombatants = usePartyPolling(party.code, party.combatants);
+
+  const playerCount = useMemo(
+    () => liveCombatants.filter((c) => c.type === "player").length,
+    [liveCombatants],
+  );
+  const enemyCount = useMemo(
+    () => liveCombatants.filter((c) => c.type === "enemy").length,
+    [liveCombatants],
+  );
+
+  const sortedCombatants = useMemo(
+    () => [...liveCombatants].sort((a, b) => b.initiative - a.initiative),
+    [liveCombatants],
   );
 
   return (
@@ -98,7 +114,7 @@ export default function PartyPage({ party }: PartyPageProps) {
       <InitiativeList
         data={sortedCombatants}
         partyCode={party.code}
-        isDm={true}
+        isDm={isDm}
       />
     </main>
   );

@@ -2,10 +2,11 @@
 
 import { Card } from "@/app/components/ui/card";
 import { Badge } from "@/app/components/ui/badge";
-import { Sword, Shield } from "lucide-react";
+import { Sword, Shield, Heart } from "lucide-react";
 import type { Combatant } from "@/app/lib/types";
 import StatEditDialog from "@/app/components/stat-edit-dialog";
 import NameTypeEditDialog from "@/app/components/name-type-edit-dialog";
+import DamageHealDialog from "@/app/components/damage-heal-dialog";
 
 interface CombatantCardProps {
   combatant: Combatant;
@@ -18,6 +19,11 @@ interface CombatantCardProps {
     val: string,
   ) => void;
   onInfoChange: (id: number, name: string, type: "player" | "enemy") => void;
+  onDamageHeal: (
+    id: number,
+    amount: number,
+    type: "damage" | "healing",
+  ) => void;
 }
 
 export default function CombatantCard({
@@ -27,6 +33,7 @@ export default function CombatantCard({
   isPending,
   onStatChange,
   onInfoChange,
+  onDamageHeal,
 }: CombatantCardProps) {
   return (
     <Card
@@ -236,6 +243,36 @@ export default function CombatantCard({
           </div>
         )}
       </div>
+
+      {/* Damage/Heal button (DM only) */}
+      {isDm && (
+        <div className="flex justify-center mt-2 pt-2 border-t border-dnd-gold/10">
+          <DamageHealDialog
+            combatant={combatant}
+            onApply={onDamageHeal}
+            isPending={isPending}
+          >
+            <button className="group relative flex items-stretch rounded-lg overflow-hidden border border-dnd-gold/20 hover:border-dnd-gold/40 transition-all duration-200 hover:scale-[1.03] active:scale-95 shadow-md hover:shadow-lg">
+              {/* Damage half */}
+              <span className="flex items-center gap-1.5 px-4 py-2 bg-dnd-blood/15 hover:bg-dnd-blood/25 transition-colors duration-200">
+                <Sword size={15} className="text-dnd-blood-bright" />
+                <span className="text-xs font-heading font-bold tracking-widest text-dnd-blood-bright uppercase">
+                  Dmg
+                </span>
+              </span>
+              {/* Divider */}
+              <span className="w-px bg-dnd-gold/20 self-stretch" />
+              {/* Heal half */}
+              <span className="flex items-center gap-1.5 px-4 py-2 bg-emerald-900/20 hover:bg-emerald-800/30 transition-colors duration-200">
+                <Heart size={15} className="text-emerald-400" />
+                <span className="text-xs font-heading font-bold tracking-widest text-emerald-400 uppercase">
+                  Heal
+                </span>
+              </span>
+            </button>
+          </DamageHealDialog>
+        </div>
+      )}
     </Card>
   );
 }

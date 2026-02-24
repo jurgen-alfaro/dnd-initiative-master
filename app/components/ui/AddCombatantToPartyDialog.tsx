@@ -176,6 +176,7 @@ const AddCombatantToPartyForm = ({
                 value={ac}
                 onChange={handleNumericChange(setAc)}
                 maxLength={3}
+                max={3}
               />
               <InputGroupAddon align="inline-start">
                 <Dice5Icon className="text-muted-foreground" />
