@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   AlertDialog,
   AlertDialogCancel,
@@ -40,6 +40,22 @@ function DamageHealForm({
 }) {
   const [activeTab, setActiveTab] = useState<ActionType>("damage");
   const [amount, setAmount] = useState(0);
+  const [isApplying, setIsApplying] = useState(false);
+
+  // Reset state when modal opens (component mounts)
+  useEffect(() => {
+    setAmount(0);
+    setIsApplying(false);
+    setActiveTab("damage");
+  }, []);
+
+  // Close modal when operation completes
+  useEffect(() => {
+    if (isApplying && !isPending) {
+      onClose();
+      setIsApplying(false);
+    }
+  }, [isPending, isApplying, onClose]);
 
   // Calcular preview del resultado
   const calculatePreview = () => {
@@ -75,8 +91,8 @@ function DamageHealForm({
 
   const handleApply = () => {
     if (amount <= 0) return;
+    setIsApplying(true);
     onApply(combatant.id, amount, activeTab);
-    onClose();
   };
 
   const quickValues = QUICK_VALUES;
@@ -227,7 +243,11 @@ function DamageHealForm({
               : "bg-emerald-600 hover:bg-emerald-600/90"
           }
         >
-          Apply {activeTab === "damage" ? "Damage" : "Healing"}
+          {isPending
+            ? `${activeTab === "damage" ? "Damaging" : "Healing"}...`
+            : activeTab === "damage"
+              ? "Damage"
+              : "Healing"}
         </Button>
       </AlertDialogFooter>
     </div>

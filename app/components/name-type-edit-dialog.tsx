@@ -26,7 +26,7 @@ import { Shield, Sword } from "lucide-react";
 
 interface NameTypeEditDialogProps {
   combatant: Combatant;
-  onSave: (id: number, name: string, type: "player" | "enemy") => void;
+  onSave: (id: number, name: string, type: "player" | "enemy") => Promise<void>;
   isPending: boolean;
   children: React.ReactNode;
 }
@@ -47,12 +47,12 @@ function NameTypeEditForm({
     combatant.type,
   );
 
-  const handleSave = () => {
+  const handleSave = async () => {
     // Trim and validate name
     const trimmedName = localName.trim();
     if (trimmedName.length < 3) return;
 
-    onSave(combatant.id, trimmedName, localType);
+    await onSave(combatant.id, trimmedName, localType);
     onClose();
   };
 

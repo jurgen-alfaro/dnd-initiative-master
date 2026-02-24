@@ -17,8 +17,12 @@ interface CombatantCardProps {
     id: number,
     field: "hp" | "ac" | "tmpHp" | "maxHp" | "initiative",
     val: string,
-  ) => void;
-  onInfoChange: (id: number, name: string, type: "player" | "enemy") => void;
+  ) => Promise<void>;
+  onInfoChange: (
+    id: number,
+    name: string,
+    type: "player" | "enemy",
+  ) => Promise<void>;
   onDamageHeal: (
     id: number,
     amount: number,
