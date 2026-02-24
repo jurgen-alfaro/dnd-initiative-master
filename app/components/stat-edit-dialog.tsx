@@ -55,7 +55,7 @@ const STAT_CONFIG = {
   },
 } as const;
 
-const QUICK_ADJUST_VALUES = [1, -1, 5, -5, 20, -20];
+const QUICK_ADJUST_VALUES = [1, 5, 20, -1, -5, -20];
 
 function StatEditForm({
   combatant,
@@ -102,39 +102,50 @@ function StatEditForm({
 
   return (
     <div className="flex flex-col gap-4">
-      {/* Current value display and input */}
-      <div className="flex flex-col items-center gap-2">
-        <span className="text-xs uppercase tracking-widest text-muted-foreground font-heading">
-          {config.label}
-        </span>
-        <Input
-          type="number"
-          value={localValue}
-          onChange={(e) => {
-            const val = parseInt(e.target.value);
-            if (!isNaN(val)) setLocalValue(val);
-          }}
-          className="w-24 h-12 text-center font-mono text-2xl font-bold bg-transparent border-dnd-gold/20 focus-visible:ring-dnd-gold/30"
-        />
-      </div>
-
-      {/* Max HP field (HP mode only) */}
-      {config.hasMaxField && (
+      <div className="flex justify-around">
+        {/* Current value display and input */}
         <div className="flex flex-col items-center gap-2">
           <span className="text-xs uppercase tracking-widest text-muted-foreground font-heading">
-            Max HP
+            {config.label}
           </span>
           <Input
             type="number"
-            value={localMaxHp}
+            value={localValue}
             onChange={(e) => {
               const val = parseInt(e.target.value);
-              if (!isNaN(val) && val >= 0) setLocalMaxHp(val);
+              if (!isNaN(val)) {
+                if (statType === "hp") {
+                  setLocalValue(Math.max(0, Math.min(val, localMaxHp)));
+                } else {
+                  setLocalValue(val);
+                }
+              }
             }}
-            className="w-24 h-10 text-center font-mono text-lg font-bold bg-transparent border-dnd-gold/20 focus-visible:ring-dnd-gold/30"
+            className="w-24 h-12 text-center font-mono text-2xl font-bold bg-transparent border-dnd-gold/20 focus-visible:ring-dnd-gold/30"
           />
         </div>
-      )}
+
+        {/* Max HP field (HP mode only) */}
+        {config.hasMaxField && (
+          <div className="flex flex-col items-center gap-2">
+            <span className="text-xs uppercase tracking-widest text-muted-foreground font-heading">
+              Max HP
+            </span>
+            <Input
+              type="number"
+              value={localMaxHp}
+              onChange={(e) => {
+                const val = parseInt(e.target.value);
+                if (!isNaN(val) && val >= 0) {
+                  setLocalMaxHp(val);
+                  setLocalValue((prev) => Math.min(prev, val));
+                }
+              }}
+              className="w-24 h-12 text-center font-mono text-2xl font-bold bg-transparent border-dnd-gold/20 focus-visible:ring-dnd-gold/30"
+            />
+          </div>
+        )}
+      </div>
 
       {/* Quick-adjust buttons */}
       {config.hasQuickAdjust && (

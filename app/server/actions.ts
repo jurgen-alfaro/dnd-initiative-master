@@ -28,6 +28,13 @@ const UpdateInitiativeSchema = z.object({
   partyCode: z.string(),
 });
 
+const UpdateCombatantInfoSchema = z.object({
+  combatantId: z.number(),
+  name: z.string().min(3).max(30).optional(),
+  type: z.enum(["player", "enemy"]).optional(),
+  partyCode: z.string(),
+});
+
 const JoinPartySchema = z.object({
   code: z.string().length(6, "Code must be 6 characters"),
 });
@@ -133,6 +140,40 @@ export async function updateCombatantStat(
   }
 }
 
+export async function updateCombatantInfo(
+  combatantId: number,
+  updates: { name?: string; type?: "player" | "enemy" },
+  partyCode: string,
+) {
+  const validated = UpdateCombatantInfoSchema.safeParse({
+    combatantId,
+    name: updates.name,
+    type: updates.type,
+    partyCode,
+  });
+
+  if (!validated.success) {
+    return { error: "Invalid data" };
+  }
+
+  try {
+    // Build update object with only provided fields
+    const updateData: { name?: string; type?: "player" | "enemy" } = {};
+    if (updates.name !== undefined) updateData.name = updates.name;
+    if (updates.type !== undefined) updateData.type = updates.type;
+
+    await db
+      .update(combatants)
+      .set(updateData)
+      .where(eq(combatants.id, combatantId));
+
+    revalidatePath(`/party/${partyCode}`);
+    return { success: true };
+  } catch (error) {
+    return { error: "Error updating combatant info" };
+  }
+}
+
 export async function getPartyByCode(code: string) {
   return await db.query.parties.findFirst({
     where: eq(parties.code, code),
@@ -151,7 +192,7 @@ export async function addCombatantToParty(prevState: any, formData: FormData) {
     combatantName: formData.get("combatantName"),
     type: formData.get("type"),
     initiative: formData.get("initiative"),
-    maxHp: formData.get("maxHp"),
+    maxHp: formData.get("hp"),
     ac: formData.get("ac"),
     partyCode: formData.get("partyCode"),
   });

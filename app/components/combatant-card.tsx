@@ -5,13 +5,19 @@ import { Badge } from "@/app/components/ui/badge";
 import { Sword, Shield } from "lucide-react";
 import type { Combatant } from "@/app/lib/types";
 import StatEditDialog from "@/app/components/stat-edit-dialog";
+import NameTypeEditDialog from "@/app/components/name-type-edit-dialog";
 
 interface CombatantCardProps {
   combatant: Combatant;
   index: number;
   isDm: boolean;
   isPending: boolean;
-  onStatChange: (id: number, field: "hp" | "ac" | "tmpHp" | "maxHp" | "initiative", val: string) => void;
+  onStatChange: (
+    id: number,
+    field: "hp" | "ac" | "tmpHp" | "maxHp" | "initiative",
+    val: string,
+  ) => void;
+  onInfoChange: (id: number, name: string, type: "player" | "enemy") => void;
 }
 
 export default function CombatantCard({
@@ -20,16 +26,13 @@ export default function CombatantCard({
   isDm,
   isPending,
   onStatChange,
+  onInfoChange,
 }: CombatantCardProps) {
   return (
     <Card
       className={`
         p-4 border-l-4 transition-all duration-300 relative overflow-hidden
-        ${
-          index === 0
-            ? "dnd-active-glow scale-[1.03] z-10"
-            : "dnd-card-ornate"
-        }
+        ${index === 0 ? "dnd-active-glow scale-[1.03] z-10" : "dnd-card-ornate"}
         ${
           combatant.type === "enemy"
             ? `bg-dnd-blood/8 border-l-dnd-blood-bright ${index !== 0 ? "dnd-enemy-menace" : ""}`
@@ -96,14 +99,33 @@ export default function CombatantCard({
 
         {/* Name and type badge */}
         <div className="w-full flex justify-between items-center">
-          <h3
-            className={`
-              text-lg font-heading font-bold flex items-center gap-2
-              ${index === 0 ? "text-dnd-gold" : "text-foreground"}
-            `}
-          >
-            {combatant.name}
-          </h3>
+          {isDm ? (
+            <NameTypeEditDialog
+              combatant={combatant}
+              onSave={onInfoChange}
+              isPending={isPending}
+            >
+              <button
+                className={`
+                  text-lg font-heading font-bold flex items-center gap-2
+                  cursor-pointer transition-all duration-200
+                  hover:text-dnd-gold-bright active:scale-95
+                  ${index === 0 ? "text-dnd-gold" : "text-foreground hover:text-dnd-gold/80"}
+                `}
+              >
+                {combatant.name}
+              </button>
+            </NameTypeEditDialog>
+          ) : (
+            <h3
+              className={`
+                text-lg font-heading font-bold flex items-center gap-2
+                ${index === 0 ? "text-dnd-gold" : "text-foreground"}
+              `}
+            >
+              {combatant.name}
+            </h3>
+          )}
           <Badge
             variant="outline"
             className={`
@@ -165,9 +187,11 @@ export default function CombatantCard({
               <span className="text-[10px] uppercase tracking-widest text-dnd-blood-bright font-heading mb-1">
                 HP
               </span>
-              <div className="text-center font-mono text-xl font-bold text-dnd-parchment">
+              <div className="w-16 text-center font-mono text-xl font-bold text-dnd-parchment">
                 {combatant.hp}
-                <span className="text-sm text-muted-foreground">/{combatant.maxHp}</span>
+                <span className="text-sm text-muted-foreground">
+                  /{combatant.maxHp}
+                </span>
               </div>
             </button>
           </StatEditDialog>
@@ -178,7 +202,9 @@ export default function CombatantCard({
             </span>
             <div className="text-center font-mono text-xl font-bold text-dnd-parchment">
               {combatant.hp}
-              <span className="text-sm text-muted-foreground">/{combatant.maxHp}</span>
+              <span className="text-sm text-muted-foreground">
+                /{combatant.maxHp}
+              </span>
             </div>
           </div>
         )}

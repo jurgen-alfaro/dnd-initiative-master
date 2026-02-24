@@ -22,6 +22,8 @@ import {
   Dice4Icon,
   Dice5Icon,
   PlusIcon,
+  Shield,
+  Sword,
 } from "lucide-react";
 import { Button } from "@/app/components/ui/button";
 import { useActionState, useState, useEffect } from "react";
@@ -108,8 +110,18 @@ const AddCombatantToPartyForm = ({
             <SelectContent>
               <SelectGroup>
                 <SelectLabel>Type</SelectLabel>
-                <SelectItem value="player">Hero</SelectItem>
-                <SelectItem value="enemy">Enemy</SelectItem>
+                <SelectItem value="player">
+                  <span className="flex items-center gap-2">
+                    <Shield size={16} className="text-dnd-hero-blue" />
+                    <span>Hero</span>
+                  </span>
+                </SelectItem>
+                <SelectItem value="enemy">
+                  <span className="flex items-center gap-2">
+                    <Sword size={16} className="text-dnd-blood" />
+                    <span>Enemy</span>
+                  </span>
+                </SelectItem>
               </SelectGroup>
             </SelectContent>
           </Select>
@@ -135,7 +147,7 @@ const AddCombatantToPartyForm = ({
             </InputGroup>
           </Field>
           <Field>
-            <FieldLabel htmlFor="hp">HP</FieldLabel>
+            <FieldLabel htmlFor="hp">Max HP</FieldLabel>
             <InputGroup>
               <InputGroupInput
                 type="text"

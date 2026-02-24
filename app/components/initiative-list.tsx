@@ -1,7 +1,7 @@
 "use client";
 
 import { useTransition } from "react";
-import { updateCombatantStat } from "@/app/server/actions";
+import { updateCombatantStat, updateCombatantInfo } from "@/app/server/actions";
 import type { Combatant } from "@/app/lib/types";
 import CombatantCard from "@/app/components/combatant-card";
 import AddCombatantToPartyDialog from "./ui/AddCombatantToPartyDialog";
@@ -28,6 +28,12 @@ export default function InitiativeList({
     });
   };
 
+  const handleInfoChange = (id: number, name: string, type: "player" | "enemy") => {
+    startTransition(async () => {
+      await updateCombatantInfo(id, { name, type }, partyCode);
+    });
+  };
+
   return (
     <div className="space-y-3 max-w-2xl mx-auto p-4">
       {data.map((char, index) => (
@@ -38,6 +44,7 @@ export default function InitiativeList({
           isDm={isDm}
           isPending={isPending}
           onStatChange={handleStatChange}
+          onInfoChange={handleInfoChange}
         />
       ))}
 
