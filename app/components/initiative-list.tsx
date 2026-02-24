@@ -19,7 +19,7 @@ export default function InitiativeList({
 }: InitiativeListProps) {
   const [isPending, startTransition] = useTransition();
 
-  const handleStatChange = (id: number, field: "hp" | "ac" | "tmpHp", val: string) => {
+  const handleStatChange = (id: number, field: "hp" | "ac" | "tmpHp" | "maxHp" | "initiative", val: string) => {
     const numVal = parseInt(val);
     if (isNaN(numVal)) return;
 

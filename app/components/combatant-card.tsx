@@ -2,16 +2,16 @@
 
 import { Card } from "@/app/components/ui/card";
 import { Badge } from "@/app/components/ui/badge";
-import { Input } from "@/app/components/ui/input";
 import { Sword, Shield } from "lucide-react";
 import type { Combatant } from "@/app/lib/types";
+import StatEditDialog from "@/app/components/stat-edit-dialog";
 
 interface CombatantCardProps {
   combatant: Combatant;
   index: number;
   isDm: boolean;
   isPending: boolean;
-  onStatChange: (id: number, field: "hp" | "ac" | "tmpHp", val: string) => void;
+  onStatChange: (id: number, field: "hp" | "ac" | "tmpHp" | "maxHp" | "initiative", val: string) => void;
 }
 
 export default function CombatantCard({
@@ -53,21 +53,46 @@ export default function CombatantCard({
 
       <div className="flex items-center justify-center gap-4">
         {/* Initiative circle */}
-        <div
-          className={`
-            flex flex-col items-center justify-center w-16 h-16 rounded-full font-heading font-bold
-            ${
-              index === 0
-                ? "dnd-initiative-circle-active text-dnd-gold-bright text-xl"
-                : "dnd-initiative-circle text-dnd-parchment-dim text-lg"
-            }
-          `}
-        >
-          {combatant.initiative}
-          <span className="text-[10px] uppercase tracking-widest text-muted-foreground font-sans font-normal">
-            Init
-          </span>
-        </div>
+        {isDm ? (
+          <StatEditDialog
+            combatant={combatant}
+            statType="initiative"
+            onSave={onStatChange}
+            isPending={isPending}
+          >
+            <button
+              className={`
+                flex flex-col items-center justify-center w-16 h-16 rounded-full font-heading font-bold cursor-pointer transition-all duration-200 hover:ring-2 hover:ring-dnd-gold/40 active:scale-95
+                ${
+                  index === 0
+                    ? "dnd-initiative-circle-active text-dnd-gold-bright text-xl"
+                    : "dnd-initiative-circle text-dnd-parchment-dim text-lg"
+                }
+              `}
+            >
+              {combatant.initiative}
+              <span className="text-[10px] uppercase tracking-widest text-muted-foreground font-sans font-normal">
+                Init
+              </span>
+            </button>
+          </StatEditDialog>
+        ) : (
+          <div
+            className={`
+              flex flex-col items-center justify-center w-16 h-16 rounded-full font-heading font-bold
+              ${
+                index === 0
+                  ? "dnd-initiative-circle-active text-dnd-gold-bright text-xl"
+                  : "dnd-initiative-circle text-dnd-parchment-dim text-lg"
+              }
+            `}
+          >
+            {combatant.initiative}
+            <span className="text-[10px] uppercase tracking-widest text-muted-foreground font-sans font-normal">
+              Init
+            </span>
+          </div>
+        )}
 
         {/* Name and type badge */}
         <div className="w-full flex justify-between items-center">
@@ -102,73 +127,88 @@ export default function CombatantCard({
 
       {/* Stat display: AC, HP, Tmp HP */}
       <div className="flex w-full justify-center gap-3 mt-3 pt-3 border-t border-dnd-gold/10">
-        <div className="dnd-stat-block flex flex-col items-center justify-center">
-          <span className="text-[10px] uppercase tracking-widest text-dnd-gold-dim font-heading mb-1">
-            AC
-          </span>
-          {isDm ? (
-            <Input
-              type="number"
-              defaultValue={combatant.ac}
-              className="w-16 h-8 text-center font-mono text-base font-bold bg-transparent border-dnd-gold/20 focus-visible:ring-dnd-gold/30 focus-visible:border-dnd-gold/40"
-              onBlur={(e) =>
-                onStatChange(combatant.id, "ac", e.target.value)
-              }
-              disabled={isPending}
-            />
-          ) : (
+        {isDm ? (
+          <StatEditDialog
+            combatant={combatant}
+            statType="ac"
+            onSave={onStatChange}
+            isPending={isPending}
+          >
+            <button className="dnd-stat-block dnd-stat-block-interactive flex flex-col items-center justify-center">
+              <span className="text-[10px] uppercase tracking-widest text-dnd-gold-dim font-heading mb-1">
+                AC
+              </span>
+              <div className="w-16 text-center font-mono text-xl font-bold text-dnd-parchment">
+                {combatant.ac}
+              </div>
+            </button>
+          </StatEditDialog>
+        ) : (
+          <div className="dnd-stat-block flex flex-col items-center justify-center">
+            <span className="text-[10px] uppercase tracking-widest text-dnd-gold-dim font-heading mb-1">
+              AC
+            </span>
             <div className="w-16 text-center font-mono text-xl font-bold text-dnd-parchment">
               {combatant.ac}
             </div>
-          )}
-        </div>
-        <div className="dnd-stat-block flex flex-col items-center justify-center">
-          <span className="text-[10px] uppercase tracking-widest text-dnd-blood-bright font-heading mb-1">
-            HP
-          </span>
-          {isDm ? (
-            <div className="flex items-center gap-0.5">
-              <Input
-                type="number"
-                defaultValue={combatant.hp}
-                className="w-14 h-8 text-center font-mono text-base font-bold bg-transparent border-dnd-blood/20 focus-visible:ring-dnd-blood/30 focus-visible:border-dnd-blood/40"
-                onBlur={(e) =>
-                  onStatChange(combatant.id, "hp", e.target.value)
-                }
-                disabled={isPending}
-              />
-              <span className="font-mono text-sm text-muted-foreground">/</span>
-              <span className="font-mono text-sm font-bold text-dnd-parchment-dim">
-                {combatant.maxHp}
+          </div>
+        )}
+
+        {isDm ? (
+          <StatEditDialog
+            combatant={combatant}
+            statType="hp"
+            onSave={onStatChange}
+            isPending={isPending}
+          >
+            <button className="dnd-stat-block dnd-stat-block-interactive flex flex-col items-center justify-center">
+              <span className="text-[10px] uppercase tracking-widest text-dnd-blood-bright font-heading mb-1">
+                HP
               </span>
-            </div>
-          ) : (
+              <div className="text-center font-mono text-xl font-bold text-dnd-parchment">
+                {combatant.hp}
+                <span className="text-sm text-muted-foreground">/{combatant.maxHp}</span>
+              </div>
+            </button>
+          </StatEditDialog>
+        ) : (
+          <div className="dnd-stat-block flex flex-col items-center justify-center">
+            <span className="text-[10px] uppercase tracking-widest text-dnd-blood-bright font-heading mb-1">
+              HP
+            </span>
             <div className="text-center font-mono text-xl font-bold text-dnd-parchment">
               {combatant.hp}
               <span className="text-sm text-muted-foreground">/{combatant.maxHp}</span>
             </div>
-          )}
-        </div>
-        <div className="dnd-stat-block flex flex-col items-center justify-center">
-          <span className="text-[10px] uppercase tracking-widest text-dnd-gold font-heading mb-1">
-            Tmp
-          </span>
-          {isDm ? (
-            <Input
-              type="number"
-              defaultValue={combatant.tmpHp}
-              className="w-16 h-8 text-center font-mono text-base font-bold bg-transparent border-dnd-gold/20 focus-visible:ring-dnd-gold/30 focus-visible:border-dnd-gold/40"
-              onBlur={(e) =>
-                onStatChange(combatant.id, "tmpHp", e.target.value)
-              }
-              disabled={isPending}
-            />
-          ) : (
+          </div>
+        )}
+
+        {isDm ? (
+          <StatEditDialog
+            combatant={combatant}
+            statType="tmpHp"
+            onSave={onStatChange}
+            isPending={isPending}
+          >
+            <button className="dnd-stat-block dnd-stat-block-interactive flex flex-col items-center justify-center">
+              <span className="text-[10px] uppercase tracking-widest text-dnd-gold font-heading mb-1">
+                Tmp
+              </span>
+              <div className="w-16 text-center font-mono text-xl font-bold text-dnd-parchment">
+                {combatant.tmpHp}
+              </div>
+            </button>
+          </StatEditDialog>
+        ) : (
+          <div className="dnd-stat-block flex flex-col items-center justify-center">
+            <span className="text-[10px] uppercase tracking-widest text-dnd-gold font-heading mb-1">
+              Tmp
+            </span>
             <div className="w-16 text-center font-mono text-xl font-bold text-dnd-parchment">
               {combatant.tmpHp}
             </div>
-          )}
-        </div>
+          </div>
+        )}
       </div>
     </Card>
   );

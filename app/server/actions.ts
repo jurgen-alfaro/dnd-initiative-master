@@ -113,7 +113,7 @@ export async function updateInitiative(
 
 export async function updateCombatantStat(
   combatantId: number,
-  field: "hp" | "ac" | "tmpHp",
+  field: "hp" | "ac" | "tmpHp" | "maxHp" | "initiative",
   value: number,
   partyCode: string,
 ) {
