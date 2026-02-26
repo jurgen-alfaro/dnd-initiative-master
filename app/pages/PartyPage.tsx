@@ -38,6 +38,10 @@ export default function PartyPage({ party }: PartyPageProps) {
     optimisticPreviousTurn,
     optimisticNextRound,
     optimisticApplyDamageHeal,
+    optimisticUpdateAC,
+    optimisticUpdateTmpHP,
+    optimisticUpdateInitiative,
+    optimisticUpdateNameType,
   } = usePartyPolling(
     party.code,
     party.combatants,
@@ -74,6 +78,10 @@ export default function PartyPage({ party }: PartyPageProps) {
         isDm={isDm}
         currentTurnIndex={currentTurnIndex}
         onDamageHeal={optimisticApplyDamageHeal}
+        onUpdateAC={optimisticUpdateAC}
+        onUpdateTmpHP={optimisticUpdateTmpHP}
+        onUpdateInitiative={optimisticUpdateInitiative}
+        onUpdateNameType={optimisticUpdateNameType}
       />
 
       <TurnControls

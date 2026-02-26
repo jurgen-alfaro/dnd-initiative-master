@@ -5,6 +5,8 @@ import {
   previousTurn,
   nextRound,
   applyDamageOrHealing,
+  updateCombatantStat,
+  updateCombatantInfo,
 } from "@/app/server/actions";
 
 /**
@@ -29,6 +31,20 @@ export function usePartyPolling(
     combatantId: number,
     amount: number,
     type: "damage" | "healing",
+  ) => Promise<void>;
+  optimisticUpdateAC: (combatantId: number, newAC: number) => Promise<void>;
+  optimisticUpdateTmpHP: (
+    combatantId: number,
+    newTmpHP: number,
+  ) => Promise<void>;
+  optimisticUpdateInitiative: (
+    combatantId: number,
+    newInitiative: number,
+  ) => Promise<void>;
+  optimisticUpdateNameType: (
+    combatantId: number,
+    newName: string,
+    newType: "player" | "enemy",
   ) => Promise<void>;
 } {
   const [combatants, setCombatants] = useState<Combatant[]>(initialCombatants);
@@ -299,6 +315,241 @@ export function usePartyPolling(
     [partyCode, combatants, currentTurnIndex, currentRound, pendingOperations],
   );
 
+  // Optimistic update function for AC
+  const optimisticUpdateAC = useCallback(
+    async (combatantId: number, newAC: number) => {
+      const opId = `update-ac-${combatantId}`;
+      if (pendingOperations.has(opId)) return;
+
+      // Save current state for rollback
+      previousStateRef.current = {
+        turnIndex: currentTurnIndex,
+        round: currentRound,
+        combatants: combatants,
+      };
+
+      // Update optimistically
+      const updatedCombatants = combatants.map((c) =>
+        c.id === combatantId ? { ...c, ac: newAC } : c,
+      );
+      setCombatants(updatedCombatants);
+
+      // Mark operation as pending
+      setPendingOperations((prev) => new Set(prev).add(opId));
+
+      try {
+        // Call server action in background
+        const result = await updateCombatantStat(
+          combatantId,
+          "ac",
+          newAC,
+          partyCode,
+        );
+
+        if (!result.success) {
+          // Rollback on error
+          if (previousStateRef.current) {
+            setCombatants(previousStateRef.current.combatants);
+          }
+          console.error("Failed to update AC:", result.error);
+        }
+      } catch (error) {
+        // Rollback on exception
+        if (previousStateRef.current) {
+          setCombatants(previousStateRef.current.combatants);
+        }
+        console.error("Error updating AC:", error);
+      } finally {
+        // Clear pending after brief delay to prevent spam
+        setTimeout(() => {
+          setPendingOperations((prev) => {
+            const next = new Set(prev);
+            next.delete(opId);
+            return next;
+          });
+        }, 500);
+      }
+    },
+    [partyCode, combatants, currentTurnIndex, currentRound, pendingOperations],
+  );
+
+  // Optimistic update function for Temporary HP
+  const optimisticUpdateTmpHP = useCallback(
+    async (combatantId: number, newTmpHP: number) => {
+      const opId = `update-tmphp-${combatantId}`;
+      if (pendingOperations.has(opId)) return;
+
+      // Save current state for rollback
+      previousStateRef.current = {
+        turnIndex: currentTurnIndex,
+        round: currentRound,
+        combatants: combatants,
+      };
+
+      // Update optimistically
+      const updatedCombatants = combatants.map((c) =>
+        c.id === combatantId ? { ...c, tmpHp: newTmpHP } : c,
+      );
+      setCombatants(updatedCombatants);
+
+      // Mark operation as pending
+      setPendingOperations((prev) => new Set(prev).add(opId));
+
+      try {
+        // Call server action in background
+        const result = await updateCombatantStat(
+          combatantId,
+          "tmpHp",
+          newTmpHP,
+          partyCode,
+        );
+
+        if (!result.success) {
+          // Rollback on error
+          if (previousStateRef.current) {
+            setCombatants(previousStateRef.current.combatants);
+          }
+          console.error("Failed to update temporary HP:", result.error);
+        }
+      } catch (error) {
+        // Rollback on exception
+        if (previousStateRef.current) {
+          setCombatants(previousStateRef.current.combatants);
+        }
+        console.error("Error updating temporary HP:", error);
+      } finally {
+        // Clear pending after brief delay to prevent spam
+        setTimeout(() => {
+          setPendingOperations((prev) => {
+            const next = new Set(prev);
+            next.delete(opId);
+            return next;
+          });
+        }, 500);
+      }
+    },
+    [partyCode, combatants, currentTurnIndex, currentRound, pendingOperations],
+  );
+
+  // Optimistic update function for Initiative
+  const optimisticUpdateInitiative = useCallback(
+    async (combatantId: number, newInitiative: number) => {
+      const opId = `update-initiative-${combatantId}`;
+      if (pendingOperations.has(opId)) return;
+
+      // Save current state for rollback
+      previousStateRef.current = {
+        turnIndex: currentTurnIndex,
+        round: currentRound,
+        combatants: combatants,
+      };
+
+      // Update optimistically
+      const updatedCombatants = combatants.map((c) =>
+        c.id === combatantId ? { ...c, initiative: newInitiative } : c,
+      );
+      setCombatants(updatedCombatants);
+
+      // Mark operation as pending
+      setPendingOperations((prev) => new Set(prev).add(opId));
+
+      try {
+        // Call server action in background
+        const result = await updateCombatantStat(
+          combatantId,
+          "initiative",
+          newInitiative,
+          partyCode,
+        );
+
+        if (!result.success) {
+          // Rollback on error
+          if (previousStateRef.current) {
+            setCombatants(previousStateRef.current.combatants);
+          }
+          console.error("Failed to update initiative:", result.error);
+        }
+      } catch (error) {
+        // Rollback on exception
+        if (previousStateRef.current) {
+          setCombatants(previousStateRef.current.combatants);
+        }
+        console.error("Error updating initiative:", error);
+      } finally {
+        // Clear pending after brief delay to prevent spam
+        setTimeout(() => {
+          setPendingOperations((prev) => {
+            const next = new Set(prev);
+            next.delete(opId);
+            return next;
+          });
+        }, 500);
+      }
+    },
+    [partyCode, combatants, currentTurnIndex, currentRound, pendingOperations],
+  );
+
+  // Optimistic update function for Name and Type
+  const optimisticUpdateNameType = useCallback(
+    async (
+      combatantId: number,
+      newName: string,
+      newType: "player" | "enemy",
+    ) => {
+      const opId = `update-name-type-${combatantId}`;
+      if (pendingOperations.has(opId)) return;
+
+      // Save current state for rollback
+      previousStateRef.current = {
+        turnIndex: currentTurnIndex,
+        round: currentRound,
+        combatants: combatants,
+      };
+
+      // Update optimistically
+      const updatedCombatants = combatants.map((c) =>
+        c.id === combatantId ? { ...c, name: newName, type: newType } : c,
+      );
+      setCombatants(updatedCombatants);
+
+      // Mark operation as pending
+      setPendingOperations((prev) => new Set(prev).add(opId));
+
+      try {
+        // Call server action in background
+        const result = await updateCombatantInfo(
+          combatantId,
+          { name: newName, type: newType },
+          partyCode,
+        );
+
+        if (!result.success) {
+          // Rollback on error
+          if (previousStateRef.current) {
+            setCombatants(previousStateRef.current.combatants);
+          }
+          console.error("Failed to update name/type:", result.error);
+        }
+      } catch (error) {
+        // Rollback on exception
+        if (previousStateRef.current) {
+          setCombatants(previousStateRef.current.combatants);
+        }
+        console.error("Error updating name/type:", error);
+      } finally {
+        // Clear pending after brief delay to prevent spam
+        setTimeout(() => {
+          setPendingOperations((prev) => {
+            const next = new Set(prev);
+            next.delete(opId);
+            return next;
+          });
+        }, 500);
+      }
+    },
+    [partyCode, combatants, currentTurnIndex, currentRound, pendingOperations],
+  );
+
   useEffect(() => {
     let cancelled = false;
 
@@ -351,5 +602,9 @@ export function usePartyPolling(
     optimisticPreviousTurn,
     optimisticNextRound,
     optimisticApplyDamageHeal,
+    optimisticUpdateAC,
+    optimisticUpdateTmpHP,
+    optimisticUpdateInitiative,
+    optimisticUpdateNameType,
   };
 }

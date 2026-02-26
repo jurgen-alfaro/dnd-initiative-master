@@ -56,6 +56,10 @@ export function TurnControls({
     setLocalPending(true);
     try {
       await onNextRound();
+      window.scroll({
+        behavior: "smooth",
+        top: 0,
+      });
     } finally {
       setTimeout(() => setLocalPending(false), 300);
     }
