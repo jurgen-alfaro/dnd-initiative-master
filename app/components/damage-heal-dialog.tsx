@@ -40,22 +40,14 @@ function DamageHealForm({
 }) {
   const [activeTab, setActiveTab] = useState<ActionType>("damage");
   const [amount, setAmount] = useState(0);
-  const [isApplying, setIsApplying] = useState(false);
+  const [localPending, setLocalPending] = useState(false);
 
   // Reset state when modal opens (component mounts)
   useEffect(() => {
     setAmount(0);
-    setIsApplying(false);
+    setLocalPending(false);
     setActiveTab("damage");
   }, []);
-
-  // Close modal when operation completes
-  useEffect(() => {
-    if (isApplying && !isPending) {
-      onClose();
-      setIsApplying(false);
-    }
-  }, [isPending, isApplying, onClose]);
 
   // Calcular preview del resultado
   const calculatePreview = () => {
@@ -89,10 +81,19 @@ function DamageHealForm({
     setAmount((prev) => Math.max(0, prev + value));
   };
 
-  const handleApply = () => {
+  const handleApply = async () => {
     if (amount <= 0) return;
-    setIsApplying(true);
-    onApply(combatant.id, amount, activeTab);
+    setLocalPending(true);
+    try {
+      onApply(combatant.id, amount, activeTab);
+      // Brief delay to show feedback before closing
+      setTimeout(() => {
+        setLocalPending(false);
+        onClose();
+      }, 300);
+    } catch (error) {
+      setLocalPending(false);
+    }
   };
 
   const quickValues = QUICK_VALUES;
@@ -180,7 +181,7 @@ function DamageHealForm({
             variant="outline"
             size="sm"
             onClick={() => handleQuickAdjust(value)}
-            disabled={isPending}
+            disabled={localPending}
             className={
               activeTab === "damage"
                 ? "border-dnd-blood/30 text-dnd-blood-bright hover:bg-dnd-blood/10 font-mono font-bold"
@@ -233,17 +234,17 @@ function DamageHealForm({
       )}
 
       <AlertDialogFooter>
-        <AlertDialogCancel>Cancel</AlertDialogCancel>
+        <AlertDialogCancel disabled={localPending}>Cancel</AlertDialogCancel>
         <Button
           onClick={handleApply}
-          disabled={isPending || amount <= 0}
+          disabled={localPending || amount <= 0}
           className={
             activeTab === "damage"
               ? "bg-dnd-blood hover:bg-dnd-blood/90"
               : "bg-emerald-600 hover:bg-emerald-600/90"
           }
         >
-          {isPending
+          {localPending
             ? `${activeTab === "damage" ? "Damaging" : "Healing"}...`
             : activeTab === "damage"
               ? "Damage"

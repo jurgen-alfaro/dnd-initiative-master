@@ -93,67 +93,13 @@ const HomePage = () => {
       <div className="relative z-10 flex gap-4 justify-center">
         <CreatePartyDialog />
         <JoinPartyDialog />
-      </div>{" "}
+      </div>
       <div
         aria-hidden="true"
         className="absolute text-[150px] bottom-5 opacity-20"
       >
         🐉
       </div>
-      {/* Add/Edit Modal */}
-      {/* <Modal
-        isOpen={showForm}
-        onClose={closeForm}
-        title={editingVehicle ? "Edit Vehicle" : "Join Party"}
-      >
-        <form onSubmit={handleSubmit} className="space-y-4">
-          {formError && (
-            <div className="rounded-md bg-red-50 p-4">
-              <p className="text-sm text-red-800">{formError}</p>
-            </div>
-          )}
-
-          <div>
-            <label
-              htmlFor="make"
-              className="block text-sm font-medium text-gray-700"
-            >
-              Enter Party Code
-            </label>
-            <input
-              id="code"
-              type="text"
-              value={code}
-              onChange={(e) => setCode(e.target.value)}
-              placeholder="e.g. AB12"
-              className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-gray-900 placeholder-gray-500 focus:border-indigo-500 focus:outline-none focus:ring-indigo-500 sm:text-sm"
-              maxLength={4}
-            />
-            {formErrors.code && (
-              <p className="mt-1 text-sm text-red-600">{formErrors.make}</p>
-            )}
-          </div>
-
-          <div className="flex justify-end space-x-3 pt-4 border-t border-gray-200">
-            <Button
-              type="button"
-              onClick={closeForm}
-              disabled={formLoading}
-              className="cursor-pointer rounded-md border border-gray-300  px-4 py-2 text-sm font-medium  shadow-sm disabled:opacity-50"
-            >
-              Cancel
-            </Button>
-
-            <Button
-              type="submit"
-              disabled={formLoading}
-              className="cursor-pointer rounded-md border border-gray-300  px-4 py-2 text-sm font-medium  shadow-sm disabled:opacity-50"
-            >
-              {formLoading ? "Joining..." : "Join Party"}
-            </Button>
-          </div>
-        </form>
-      </Modal> */}
     </section>
   );
 };

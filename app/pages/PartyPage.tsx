@@ -12,6 +12,7 @@ import { Separator } from "@/app/components/ui/separator";
 import InitiativeList from "@/app/components/initiative-list";
 import { Shield, Sword, SwordsIcon } from "lucide-react";
 import CopyableCode from "@/app/components/CopyableCode";
+import { TurnControls } from "@/app/components/turn-controls";
 import type { Combatant } from "@/app/lib/types";
 import { useSearchParams } from "next/navigation";
 import { usePartyPolling } from "@/app/lib/hooks/usePartyPolling";
@@ -23,6 +24,8 @@ type Party = {
   code: string;
   isActive: boolean | null;
   createdAt: Date;
+  currentTurnIndex: number;
+  currentRound: number;
   combatants: (Combatant & { partyId: number; createdAt: Date })[];
 };
 
@@ -35,7 +38,21 @@ export default function PartyPage({ party }: PartyPageProps) {
   const isDm = searchParams.get("dm") === "true";
 
   // Poll the API every 3 seconds so all connected sessions stay in sync
-  const liveCombatants = usePartyPolling(party.code, party.combatants);
+  const {
+    combatants: liveCombatants,
+    currentTurnIndex,
+    currentRound,
+    optimisticAdvanceTurn,
+    optimisticPreviousTurn,
+    optimisticNextRound,
+    optimisticApplyDamageHeal,
+  } = usePartyPolling(
+    party.code,
+    party.combatants,
+    party.currentTurnIndex,
+    party.currentRound,
+    3000,
+  );
 
   const playerCount = useMemo(
     () => liveCombatants.filter((c) => c.type === "player").length,
@@ -52,7 +69,7 @@ export default function PartyPage({ party }: PartyPageProps) {
   );
 
   return (
-    <main className="min-h-screen py-10 px-4 dnd-page-bg">
+    <main className="min-h-screen py-10 px-4 pb-24 dnd-page-bg">
       <div className="max-w-2xl mx-auto mb-8">
         <Card className="dnd-card-ornate dnd-parchment-texture overflow-hidden">
           <CardHeader>
@@ -72,16 +89,23 @@ export default function PartyPage({ party }: PartyPageProps) {
                   </CardDescription>
                 </div>
               </div>
-              <Badge
-                variant="outline"
-                className={
-                  party.isActive
-                    ? "dnd-badge-active font-heading text-xs tracking-wider"
-                    : "dnd-badge-inactive font-heading text-xs tracking-wider"
-                }
-              >
-                {party.isActive ? "Active" : "Inactive"}
-              </Badge>
+              <div className="flex flex-col gap-2 items-end">
+                <Badge
+                  className="dnd-badge-active font-heading text-xs tracking-wider"
+                >
+                  Round {currentRound}
+                </Badge>
+                <Badge
+                  variant="outline"
+                  className={
+                    party.isActive
+                      ? "dnd-badge-active font-heading text-xs tracking-wider"
+                      : "dnd-badge-inactive font-heading text-xs tracking-wider"
+                  }
+                >
+                  {party.isActive ? "Active" : "Inactive"}
+                </Badge>
+              </div>
             </div>
           </CardHeader>
           <CardContent>
@@ -115,6 +139,19 @@ export default function PartyPage({ party }: PartyPageProps) {
         data={sortedCombatants}
         partyCode={party.code}
         isDm={isDm}
+        currentTurnIndex={currentTurnIndex}
+        onDamageHeal={optimisticApplyDamageHeal}
+      />
+
+      <TurnControls
+        partyCode={party.code}
+        currentTurnIndex={currentTurnIndex}
+        currentRound={currentRound}
+        totalCombatants={sortedCombatants.length}
+        isDm={isDm}
+        onAdvanceTurn={optimisticAdvanceTurn}
+        onPreviousTurn={optimisticPreviousTurn}
+        onNextRound={optimisticNextRound}
       />
     </main>
   );

@@ -14,12 +14,20 @@ interface InitiativeListProps {
   data: Combatant[];
   partyCode: string;
   isDm: boolean;
+  currentTurnIndex: number;
+  onDamageHeal?: (
+    id: number,
+    amount: number,
+    type: "damage" | "healing",
+  ) => Promise<void>;
 }
 
 export default function InitiativeList({
   data,
   partyCode,
   isDm,
+  currentTurnIndex,
+  onDamageHeal,
 }: InitiativeListProps) {
   const [isPending, startTransition] = useTransition();
 
@@ -43,19 +51,31 @@ export default function InitiativeList({
     id: number,
     name: string,
     type: "player" | "enemy",
-  ) => {
-    startTransition(async () => {
-      await updateCombatantInfo(id, { name, type }, partyCode);
+  ): Promise<void> => {
+    return new Promise<void>((resolve) => {
+      startTransition(async () => {
+        await updateCombatantInfo(id, { name, type }, partyCode);
+        resolve();
+      });
     });
   };
 
-  const handleDamageHeal = (
+  const handleDamageHeal = async (
     id: number,
     amount: number,
     type: "damage" | "healing",
-  ) => {
-    startTransition(async () => {
-      await applyDamageOrHealing(id, amount, type, partyCode);
+  ): Promise<void> => {
+    // If optimistic function provided, use it; otherwise fallback to direct server action
+    if (onDamageHeal) {
+      return onDamageHeal(id, amount, type);
+    }
+
+    // Fallback for backward compatibility
+    return new Promise<void>((resolve) => {
+      startTransition(async () => {
+        await applyDamageOrHealing(id, amount, type, partyCode);
+        resolve();
+      });
     });
   };
 
@@ -68,6 +88,7 @@ export default function InitiativeList({
           index={index}
           isDm={isDm}
           isPending={isPending}
+          currentTurnIndex={currentTurnIndex}
           onStatChange={handleStatChange}
           onInfoChange={handleInfoChange}
           onDamageHeal={handleDamageHeal}

@@ -13,6 +13,7 @@ interface CombatantCardProps {
   index: number;
   isDm: boolean;
   isPending: boolean;
+  currentTurnIndex: number;
   onStatChange: (
     id: number,
     field: "hp" | "ac" | "tmpHp" | "maxHp" | "initiative",
@@ -35,6 +36,7 @@ export default function CombatantCard({
   index,
   isDm,
   isPending,
+  currentTurnIndex,
   onStatChange,
   onInfoChange,
   onDamageHeal,
@@ -43,19 +45,19 @@ export default function CombatantCard({
     <Card
       className={`
         p-4 border-l-4 transition-all duration-300 relative overflow-hidden
-        ${index === 0 ? "dnd-active-glow scale-[1.03] z-10" : "dnd-card-ornate"}
+        ${index === currentTurnIndex ? "dnd-active-glow scale-[1.03] z-10" : "dnd-card-ornate"}
         ${
           combatant.type === "enemy"
-            ? `bg-dnd-blood/8 border-l-dnd-blood-bright ${index !== 0 ? "dnd-enemy-menace" : ""}`
-            : `bg-dnd-hero-blue/6 border-l-dnd-hero-blue-bright ${index !== 0 ? "dnd-hero-aura" : ""}`
+            ? `bg-dnd-blood/8 border-l-dnd-blood-bright ${index !== currentTurnIndex ? "dnd-enemy-menace" : ""}`
+            : `bg-dnd-hero-blue/6 border-l-dnd-hero-blue-bright ${index !== currentTurnIndex ? "dnd-hero-aura" : ""}`
         }
-        ${index === 0 && combatant.type === "enemy" ? "bg-dnd-blood/12" : ""}
-        ${index === 0 && combatant.type === "player" ? "bg-dnd-hero-blue/10" : ""}
+        ${index === currentTurnIndex && combatant.type === "enemy" ? "bg-dnd-blood/12" : ""}
+        ${index === currentTurnIndex && combatant.type === "player" ? "bg-dnd-hero-blue/10" : ""}
       `}
     >
       {/* Turn position indicator */}
       <div className="absolute top-2 right-3 text-xs font-heading text-dnd-gold-dim/60 tracking-wider">
-        {index === 0 ? (
+        {index === currentTurnIndex ? (
           <span className="text-dnd-gold font-bold text-sm flex items-center gap-1">
             <span className="inline-block w-2 h-2 rounded-full bg-dnd-gold animate-pulse" />
             ACTIVE
@@ -78,7 +80,7 @@ export default function CombatantCard({
               className={`
                 flex flex-col items-center justify-center w-16 h-16 rounded-full font-heading font-bold cursor-pointer transition-all duration-200 hover:ring-2 hover:ring-dnd-gold/40 active:scale-95
                 ${
-                  index === 0
+                  index === currentTurnIndex
                     ? "dnd-initiative-circle-active text-dnd-gold-bright text-xl"
                     : "dnd-initiative-circle text-dnd-parchment-dim text-lg"
                 }
@@ -95,7 +97,7 @@ export default function CombatantCard({
             className={`
               flex flex-col items-center justify-center w-16 h-16 rounded-full font-heading font-bold
               ${
-                index === 0
+                index === currentTurnIndex
                   ? "dnd-initiative-circle-active text-dnd-gold-bright text-xl"
                   : "dnd-initiative-circle text-dnd-parchment-dim text-lg"
               }
@@ -121,7 +123,7 @@ export default function CombatantCard({
                   text-lg font-heading font-bold flex items-center gap-2
                   cursor-pointer transition-all duration-200
                   hover:text-dnd-gold-bright active:scale-95
-                  ${index === 0 ? "text-dnd-gold" : "text-foreground hover:text-dnd-gold/80"}
+                  ${index === currentTurnIndex ? "text-dnd-gold" : "text-foreground hover:text-dnd-gold/80"}
                 `}
               >
                 {combatant.name}
@@ -131,7 +133,7 @@ export default function CombatantCard({
             <h3
               className={`
                 text-lg font-heading font-bold flex items-center gap-2
-                ${index === 0 ? "text-dnd-gold" : "text-foreground"}
+                ${index === currentTurnIndex ? "text-dnd-gold" : "text-foreground"}
               `}
             >
               {combatant.name}

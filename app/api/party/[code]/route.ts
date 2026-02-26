@@ -20,7 +20,11 @@ export async function GET(_req: NextRequest, { params }: Params) {
   }
 
   return NextResponse.json(
-    { combatants: party.combatants },
+    {
+      combatants: party.combatants,
+      currentTurnIndex: party.currentTurnIndex,
+      currentRound: party.currentRound,
+    },
     {
       headers: {
         "Cache-Control": "no-store",

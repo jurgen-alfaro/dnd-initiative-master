@@ -17,6 +17,8 @@ export const parties = pgTable("parties", {
   name: text("name").notNull(),
   code: text("code").notNull().unique(), // Código de 6 caracteres
   isActive: boolean("is_active").default(true),
+  currentTurnIndex: integer("current_turn_index").default(0).notNull(),
+  currentRound: integer("current_round").default(1).notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 

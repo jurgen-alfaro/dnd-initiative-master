@@ -46,6 +46,10 @@ const JoinPartySchema = z.object({
   code: z.string().length(6, "Code must be 6 characters"),
 });
 
+const TurnActionSchema = z.object({
+  partyCode: z.string().length(6),
+});
+
 // --- Actions ---
 
 export async function createParty(prevState: any, formData: FormData) {
@@ -314,4 +318,106 @@ export async function addCombatantToParty(prevState: any, formData: FormData) {
 
   revalidatePath(`/party/${party.code}`);
   return { success: true };
+}
+
+// --- Turn Management Actions ---
+
+export async function advanceTurn(partyCode: string) {
+  const validated = TurnActionSchema.safeParse({ partyCode });
+  if (!validated.success) {
+    return { error: "Invalid party code" };
+  }
+
+  try {
+    // Get party with combatants to determine max index
+    const party = await db.query.parties.findFirst({
+      where: eq(parties.code, partyCode),
+      with: { combatants: true },
+    });
+
+    if (!party) {
+      return { error: "Party not found" };
+    }
+
+    // Sort combatants by initiative (descending) to match display order
+    const sorted = [...party.combatants].sort(
+      (a, b) => b.initiative - a.initiative,
+    );
+    const maxIndex = Math.max(0, sorted.length - 1);
+
+    // Increment turn index, clamped to max
+    const nextIndex = Math.min(party.currentTurnIndex + 1, maxIndex);
+
+    // Update turn index in database
+    await db
+      .update(parties)
+      .set({ currentTurnIndex: nextIndex })
+      .where(eq(parties.id, party.id));
+
+    revalidatePath(`/party/${partyCode}`);
+    return { success: true, newIndex: nextIndex };
+  } catch (error) {
+    return { error: "Error advancing turn" };
+  }
+}
+
+export async function previousTurn(partyCode: string) {
+  const validated = TurnActionSchema.safeParse({ partyCode });
+  if (!validated.success) {
+    return { error: "Invalid party code" };
+  }
+
+  try {
+    const party = await db.query.parties.findFirst({
+      where: eq(parties.code, partyCode),
+    });
+
+    if (!party) {
+      return { error: "Party not found" };
+    }
+
+    // Decrement turn index, clamped to 0
+    const prevIndex = Math.max(0, party.currentTurnIndex - 1);
+
+    await db
+      .update(parties)
+      .set({ currentTurnIndex: prevIndex })
+      .where(eq(parties.id, party.id));
+
+    revalidatePath(`/party/${partyCode}`);
+    return { success: true, newIndex: prevIndex };
+  } catch (error) {
+    return { error: "Error going to previous turn" };
+  }
+}
+
+export async function nextRound(partyCode: string) {
+  const validated = TurnActionSchema.safeParse({ partyCode });
+  if (!validated.success) {
+    return { error: "Invalid party code" };
+  }
+
+  try {
+    const party = await db.query.parties.findFirst({
+      where: eq(parties.code, partyCode),
+    });
+
+    if (!party) {
+      return { error: "Party not found" };
+    }
+
+    // Increment round and reset turn to first combatant
+    await db
+      .update(parties)
+      .set({
+        currentRound: party.currentRound + 1,
+        currentTurnIndex: 0,
+      })
+      .where(eq(parties.id, party.id));
+
+    revalidatePath(`/party/${partyCode}`);
+    return { success: true, newRound: party.currentRound + 1 };
+  } catch (error) {
+    return { error: "Error advancing round" };
+  }
 }
