@@ -3,12 +3,15 @@
 import InitiativeList from "@/app/components/initiative-list";
 import { TurnControls } from "@/app/components/turn-controls";
 import type { Combatant } from "@/app/lib/types";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { usePartyPolling } from "@/app/lib/hooks/usePartyPolling";
-import { useMemo } from "react";
+import { useMemo, useEffect } from "react";
+import { useRecentParty } from "@/app/lib/hooks/useRecentParty";
 import PartyInfoCard from "../components/PartyInfoCard";
 import AddCombatantDialog from "../components/ui/AddCombatantToPartyDialog";
 import AddCombatantToPartyDialog from "../components/ui/AddCombatantToPartyDialog";
+import { useBackNavigationGuard } from "@/app/lib/hooks/useBackNavigationGuard";
+import BackNavigationDialog from "@/app/components/BackNavigationDialog";
 
 type Party = {
   id: number;
@@ -28,6 +31,7 @@ interface PartyPageProps {
 export default function PartyPage({ party }: PartyPageProps) {
   const searchParams = useSearchParams();
   const isDm = searchParams.get("dm") === "true";
+  const router = useRouter();
 
   // Poll the API every 3 seconds so all connected sessions stay in sync
   const {
@@ -49,6 +53,28 @@ export default function PartyPage({ party }: PartyPageProps) {
     party.currentRound,
     3000,
   );
+
+  // Guard against accidental back navigation
+  const {
+    showConfirmation,
+    setShowConfirmation,
+    handleConfirmNavigation,
+    handleCancelNavigation,
+  } = useBackNavigationGuard({
+    enabled: true,
+    onNavigateAway: () => {
+      router.push("/");
+    },
+  });
+
+  // Save party to localStorage for quick resume
+  const { saveRecentParty } = useRecentParty();
+
+  useEffect(() => {
+    if (party?.code && party?.name) {
+      saveRecentParty(party.code, party.name);
+    }
+  }, [party.code, party.name, saveRecentParty]);
 
   const playerCount = useMemo(
     () => liveCombatants.filter((c) => c.type === "player").length,
@@ -95,6 +121,13 @@ export default function PartyPage({ party }: PartyPageProps) {
         onNextRound={optimisticNextRound}
       />
       {isDm && <AddCombatantToPartyDialog floating />}
+
+      <BackNavigationDialog
+        open={showConfirmation}
+        onOpenChange={setShowConfirmation}
+        onConfirm={handleConfirmNavigation}
+        onCancel={handleCancelNavigation}
+      />
     </main>
   );
 }

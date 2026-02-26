@@ -1,5 +1,8 @@
 "use client";
-import { type FormEvent } from "react";
+import { type FormEvent, useEffect, useState } from "react";
+import { useRecentParty } from "@/app/lib/hooks/useRecentParty";
+import { RecentPartyCard } from "@/app/components/RecentPartyCard";
+import type { RecentPartyData } from "@/app/lib/types";
 import {
   Card,
   CardContent,
@@ -10,7 +13,6 @@ import {
 import { Button } from "../components/ui/button";
 import { SwordsIcon, HandshakeIcon } from "lucide-react";
 import Link from "next/link";
-import { useState } from "react";
 import Modal from "../components/Modal";
 import JoinPartyDialog from "../components/JoinPartyDialog";
 import CreatePartyDialog from "../components/CreatePartyDialog";
@@ -18,6 +20,21 @@ import CreatePartyDialog from "../components/CreatePartyDialog";
 const HomePage = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+
+  // Recent party management
+  const { getRecentParty, clearRecentParty } = useRecentParty();
+  const [recentParty, setRecentParty] = useState<RecentPartyData | null>(null);
+
+  // Load recent party on mount (client-side only)
+  useEffect(() => {
+    const party = getRecentParty();
+    setRecentParty(party);
+  }, [getRecentParty]);
+
+  const handleDismiss = () => {
+    clearRecentParty();
+    setRecentParty(null);
+  };
 
   // Form modal state
   const [showForm, setShowForm] = useState(false);
@@ -90,6 +107,11 @@ const HomePage = () => {
       <h1 className="relative z-10 text-center text-5xl font-extrabold tracking-tight mb-8">
         D&D Initiative Tracker
       </h1>
+      {recentParty && (
+        <div className="relative z-10 w-full max-w-2xl px-4">
+          <RecentPartyCard partyData={recentParty} onDismiss={handleDismiss} />
+        </div>
+      )}
       <div className="relative z-10 flex gap-4 justify-center">
         <CreatePartyDialog />
         <JoinPartyDialog />

@@ -19,3 +19,9 @@ export type Party = {
   currentRound: number;
   combatants: (Combatant & { partyId: number; createdAt: Date })[];
 };
+
+export type RecentPartyData = {
+  code: string;
+  name: string;
+  lastAccessedAt: string; // ISO 8601 timestamp
+};
