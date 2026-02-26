@@ -1,5 +1,6 @@
 "use client";
 
+import { forwardRef } from "react";
 import { Card } from "@/app/components/ui/card";
 import { Badge } from "@/app/components/ui/badge";
 import { Sword, Shield, Heart } from "lucide-react";
@@ -31,19 +32,24 @@ interface CombatantCardProps {
   ) => void;
 }
 
-export default function CombatantCard({
-  combatant,
-  index,
-  isDm,
-  isPending,
-  currentTurnIndex,
-  onStatChange,
-  onInfoChange,
-  onDamageHeal,
-}: CombatantCardProps) {
-  return (
-    <Card
-      className={`
+const CombatantCard = forwardRef<HTMLDivElement, CombatantCardProps>(
+  (
+    {
+      combatant,
+      index,
+      isDm,
+      isPending,
+      currentTurnIndex,
+      onStatChange,
+      onInfoChange,
+      onDamageHeal,
+    },
+    ref
+  ) => {
+    return (
+      <Card
+        ref={ref}
+        className={`
         p-4 border-l-4 transition-all duration-300 relative overflow-hidden
         ${index === currentTurnIndex ? "dnd-active-glow scale-[1.03] z-10" : "dnd-card-ornate"}
         ${
@@ -281,4 +287,9 @@ export default function CombatantCard({
       )}
     </Card>
   );
-}
+  }
+);
+
+CombatantCard.displayName = "CombatantCard";
+
+export default CombatantCard;

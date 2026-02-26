@@ -1,6 +1,6 @@
 "use client";
 
-import { useTransition } from "react";
+import { useTransition, useRef, useEffect } from "react";
 import {
   updateCombatantStat,
   updateCombatantInfo,
@@ -20,6 +20,14 @@ interface InitiativeListProps {
     amount: number,
     type: "damage" | "healing",
   ) => Promise<void>;
+  onUpdateAC?: (id: number, newAC: number) => Promise<void>;
+  onUpdateTmpHP?: (id: number, newTmpHP: number) => Promise<void>;
+  onUpdateInitiative?: (id: number, newInitiative: number) => Promise<void>;
+  onUpdateNameType?: (
+    id: number,
+    newName: string,
+    newType: "player" | "enemy",
+  ) => Promise<void>;
 }
 
 export default function InitiativeList({
@@ -28,8 +36,29 @@ export default function InitiativeList({
   isDm,
   currentTurnIndex,
   onDamageHeal,
+  onUpdateAC,
+  onUpdateTmpHP,
+  onUpdateInitiative,
+  onUpdateNameType,
 }: InitiativeListProps) {
   const [isPending, startTransition] = useTransition();
+  const activeCardRef = useRef<HTMLDivElement | null>(null);
+
+  // Auto-scroll to active combatant when turn changes
+  useEffect(() => {
+    if (activeCardRef.current) {
+      // Small delay to ensure ref is attached after render
+      const timeoutId = setTimeout(() => {
+        activeCardRef.current?.scrollIntoView({
+          behavior: 'smooth',
+          block: 'center',
+          inline: 'nearest'
+        });
+      }, 100);
+
+      return () => clearTimeout(timeoutId);
+    }
+  }, [currentTurnIndex]);
 
   const handleStatChange = (
     id: number,
@@ -39,6 +68,18 @@ export default function InitiativeList({
     const numVal = parseInt(val);
     if (isNaN(numVal)) return Promise.resolve();
 
+    // Use optimistic functions when available
+    if (field === "ac" && onUpdateAC) {
+      return onUpdateAC(id, numVal);
+    }
+    if (field === "tmpHp" && onUpdateTmpHP) {
+      return onUpdateTmpHP(id, numVal);
+    }
+    if (field === "initiative" && onUpdateInitiative) {
+      return onUpdateInitiative(id, numVal);
+    }
+
+    // Fallback for hp and maxHp (no optimistic update yet)
     return new Promise<void>((resolve) => {
       startTransition(async () => {
         await updateCombatantStat(id, field, numVal, partyCode);
@@ -52,6 +93,12 @@ export default function InitiativeList({
     name: string,
     type: "player" | "enemy",
   ): Promise<void> => {
+    // Use optimistic function when available
+    if (onUpdateNameType) {
+      return onUpdateNameType(id, name, type);
+    }
+
+    // Fallback for backward compatibility
     return new Promise<void>((resolve) => {
       startTransition(async () => {
         await updateCombatantInfo(id, { name, type }, partyCode);
@@ -84,6 +131,7 @@ export default function InitiativeList({
       {data.map((char, index) => (
         <CombatantCard
           key={char.id}
+          ref={index === currentTurnIndex ? activeCardRef : null}
           combatant={char}
           index={index}
           isDm={isDm}
