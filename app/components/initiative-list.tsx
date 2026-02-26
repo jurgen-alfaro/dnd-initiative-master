@@ -95,7 +95,7 @@ export default function InitiativeList({
         />
       ))}
 
-      {data.length === 0 ? (
+      {data.length === 0 && (
         <div className="flex flex-col items-center py-16">
           <div className="text-6xl mb-6 opacity-30">&#x2694;&#xFE0F;</div>
           <h3 className="font-heading text-xl text-dnd-gold-dim mb-2">
@@ -107,8 +107,6 @@ export default function InitiativeList({
           </p>
           <AddCombatantToPartyDialog />
         </div>
-      ) : (
-        <AddCombatantToPartyDialog floating />
       )}
     </div>
   );
