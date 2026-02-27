@@ -22,6 +22,7 @@ interface DamageHealDialogProps {
   onApply: (id: number, amount: number, type: ActionType) => void;
   isPending: boolean;
   children: React.ReactNode;
+  defaultTab?: ActionType;
 }
 
 // Valores rápidos para daño y curación
@@ -32,11 +33,13 @@ function DamageHealForm({
   onApply,
   isPending,
   onClose,
+  defaultTab = "damage",
 }: {
   combatant: Combatant;
   onApply: DamageHealDialogProps["onApply"];
   isPending: boolean;
   onClose: () => void;
+  defaultTab?: ActionType;
 }) {
   const [activeTab, setActiveTab] = useState<ActionType>("damage");
   const [amount, setAmount] = useState(0);
@@ -46,8 +49,8 @@ function DamageHealForm({
   useEffect(() => {
     setAmount(0);
     setLocalPending(false);
-    setActiveTab("damage");
-  }, []);
+    setActiveTab(defaultTab);
+  }, [defaultTab]);
 
   // Calcular preview del resultado
   const calculatePreview = () => {
@@ -260,6 +263,7 @@ export default function DamageHealDialog({
   onApply,
   isPending,
   children,
+  defaultTab,
 }: DamageHealDialogProps) {
   const [open, setOpen] = useState(false);
 
@@ -281,6 +285,7 @@ export default function DamageHealDialog({
             onApply={onApply}
             isPending={isPending}
             onClose={() => setOpen(false)}
+            defaultTab={defaultTab}
           />
         )}
       </AlertDialogContent>

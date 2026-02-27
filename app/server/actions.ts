@@ -35,6 +35,11 @@ const UpdateCombatantInfoSchema = z.object({
   partyCode: z.string(),
 });
 
+const DeleteCombatantSchema = z.object({
+  combatantId: z.number(),
+  partyCode: z.string(),
+});
+
 const ApplyDamageOrHealingSchema = z.object({
   combatantId: z.number(),
   amount: z.number().min(0).max(999),
@@ -257,6 +262,83 @@ export async function updateCombatantInfo(
     return { success: true };
   } catch (error) {
     return { error: "Error updating combatant info" };
+  }
+}
+
+export async function deleteCombatant(
+  combatantId: number,
+  partyCode: string,
+) {
+  const validated = DeleteCombatantSchema.safeParse({
+    combatantId,
+    partyCode,
+  });
+
+  if (!validated.success) {
+    return { error: "Invalid data" };
+  }
+
+  try {
+    // Get party with combatants to calculate new turnIndex
+    const party = await db.query.parties.findFirst({
+      where: eq(parties.code, partyCode),
+      with: { combatants: true },
+    });
+
+    if (!party) {
+      return { error: "Party not found" };
+    }
+
+    // Verify combatant exists
+    const combatantExists = party.combatants.find((c) => c.id === combatantId);
+    if (!combatantExists) {
+      return { error: "Combatant not found" };
+    }
+
+    // Sort combatants by initiative (descending) to match frontend display
+    const sorted = [...party.combatants].sort(
+      (a, b) => b.initiative - a.initiative,
+    );
+
+    // Find index of combatant to delete
+    const deletedIndex = sorted.findIndex((c) => c.id === combatantId);
+
+    // Delete the combatant from database
+    await db.delete(combatants).where(eq(combatants.id, combatantId));
+
+    // Calculate new turn index
+    let newTurnIndex = party.currentTurnIndex;
+
+    // Case 1: Deleting the last combatant
+    if (sorted.length === 1) {
+      newTurnIndex = 0;
+    }
+    // Case 2: Deleted combatant before active turn
+    else if (deletedIndex < party.currentTurnIndex) {
+      newTurnIndex = Math.max(0, party.currentTurnIndex - 1);
+    }
+    // Case 3: Deleted the active combatant
+    else if (deletedIndex === party.currentTurnIndex) {
+      const newLength = sorted.length - 1;
+      if (newTurnIndex >= newLength) {
+        newTurnIndex = Math.max(0, newLength - 1);
+      }
+    }
+    // Case 4: Deleted after active turn - no change needed
+
+    // Update party turn index if it changed
+    if (newTurnIndex !== party.currentTurnIndex) {
+      await db
+        .update(parties)
+        .set({ currentTurnIndex: newTurnIndex })
+        .where(eq(parties.id, party.id));
+    }
+
+    revalidatePath(`/party/${partyCode}`);
+    return { success: true, newTurnIndex };
+  } catch (error) {
+    console.error("Error deleting combatant:", error);
+    return { error: "Error deleting combatant" };
   }
 }
 

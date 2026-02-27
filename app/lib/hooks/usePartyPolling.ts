@@ -7,6 +7,7 @@ import {
   applyDamageOrHealing,
   updateCombatantStat,
   updateCombatantInfo,
+  deleteCombatant,
 } from "@/app/server/actions";
 
 /**
@@ -46,6 +47,7 @@ export function usePartyPolling(
     newName: string,
     newType: "player" | "enemy",
   ) => Promise<void>;
+  optimisticDeleteCombatant: (combatantId: number) => Promise<void>;
 } {
   const [combatants, setCombatants] = useState<Combatant[]>(initialCombatants);
   const [currentTurnIndex, setCurrentTurnIndex] = useState(initialTurnIndex);
@@ -550,6 +552,83 @@ export function usePartyPolling(
     [partyCode, combatants, currentTurnIndex, currentRound, pendingOperations],
   );
 
+  // Optimistic update function for deleting combatant
+  const optimisticDeleteCombatant = useCallback(
+    async (combatantId: number) => {
+      const opId = `delete-combatant-${combatantId}`;
+      if (pendingOperations.has(opId)) return;
+
+      // Save current state for rollback
+      previousStateRef.current = {
+        turnIndex: currentTurnIndex,
+        round: currentRound,
+        combatants: combatants,
+      };
+
+      // Find the combatant being deleted to calculate new turn index
+      const sorted = [...combatants].sort((a, b) => b.initiative - a.initiative);
+      const deletedIndex = sorted.findIndex((c) => c.id === combatantId);
+
+      // Calculate new turn index
+      let newTurnIndex = currentTurnIndex;
+
+      if (sorted.length === 1) {
+        // Last combatant - reset to 0
+        newTurnIndex = 0;
+      } else if (deletedIndex < currentTurnIndex) {
+        // Deleted before active - decrement index
+        newTurnIndex = Math.max(0, currentTurnIndex - 1);
+      } else if (deletedIndex === currentTurnIndex) {
+        // Deleted the active combatant
+        const newLength = sorted.length - 1;
+        if (newTurnIndex >= newLength) {
+          newTurnIndex = Math.max(0, newLength - 1);
+        }
+      }
+
+      // Update optimistically - remove combatant and adjust turn index
+      const updatedCombatants = combatants.filter((c) => c.id !== combatantId);
+      setCombatants(updatedCombatants);
+      setCurrentTurnIndex(newTurnIndex);
+
+      // Mark operation as pending
+      setPendingOperations((prev) => new Set(prev).add(opId));
+
+      try {
+        // Call server action in background
+        const result = await deleteCombatant(combatantId, partyCode);
+
+        if (!result.success) {
+          // Rollback on error
+          if (previousStateRef.current) {
+            setCombatants(previousStateRef.current.combatants);
+            setCurrentTurnIndex(previousStateRef.current.turnIndex);
+            setCurrentRound(previousStateRef.current.round);
+          }
+          console.error("Failed to delete combatant:", result.error);
+        }
+      } catch (error) {
+        // Rollback on exception
+        if (previousStateRef.current) {
+          setCombatants(previousStateRef.current.combatants);
+          setCurrentTurnIndex(previousStateRef.current.turnIndex);
+          setCurrentRound(previousStateRef.current.round);
+        }
+        console.error("Error deleting combatant:", error);
+      } finally {
+        // Clear pending after brief delay to prevent spam
+        setTimeout(() => {
+          setPendingOperations((prev) => {
+            const next = new Set(prev);
+            next.delete(opId);
+            return next;
+          });
+        }, 500);
+      }
+    },
+    [partyCode, combatants, currentTurnIndex, currentRound, pendingOperations],
+  );
+
   useEffect(() => {
     let cancelled = false;
 
@@ -606,5 +685,6 @@ export function usePartyPolling(
     optimisticUpdateTmpHP,
     optimisticUpdateInitiative,
     optimisticUpdateNameType,
+    optimisticDeleteCombatant,
   };
 }

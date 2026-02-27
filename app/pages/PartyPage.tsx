@@ -5,13 +5,14 @@ import { TurnControls } from "@/app/components/turn-controls";
 import type { Combatant } from "@/app/lib/types";
 import { useRouter, useSearchParams } from "next/navigation";
 import { usePartyPolling } from "@/app/lib/hooks/usePartyPolling";
-import { useMemo, useEffect } from "react";
+import { useMemo, useEffect, useState } from "react";
 import { useRecentParty } from "@/app/lib/hooks/useRecentParty";
 import PartyInfoCard from "../components/PartyInfoCard";
 import AddCombatantDialog from "../components/ui/AddCombatantToPartyDialog";
 import AddCombatantToPartyDialog from "../components/ui/AddCombatantToPartyDialog";
 import { useBackNavigationGuard } from "@/app/lib/hooks/useBackNavigationGuard";
 import BackNavigationDialog from "@/app/components/BackNavigationDialog";
+import DeleteCombatantDialog from "@/app/components/DeleteCombatantDialog";
 
 type Party = {
   id: number;
@@ -46,6 +47,7 @@ export default function PartyPage({ party }: PartyPageProps) {
     optimisticUpdateTmpHP,
     optimisticUpdateInitiative,
     optimisticUpdateNameType,
+    optimisticDeleteCombatant,
   } = usePartyPolling(
     party.code,
     party.combatants,
@@ -69,6 +71,33 @@ export default function PartyPage({ party }: PartyPageProps) {
 
   // Save party to localStorage for quick resume
   const { saveRecentParty } = useRecentParty();
+
+  // Delete combatant confirmation dialog state
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [combatantToDelete, setCombatantToDelete] = useState<Combatant | null>(
+    null,
+  );
+
+  const handleDeleteRequest = (combatantId: number) => {
+    const combatant = liveCombatants.find((c) => c.id === combatantId);
+    if (combatant) {
+      setCombatantToDelete(combatant);
+      setDeleteDialogOpen(true);
+    }
+  };
+
+  const handleConfirmDelete = async () => {
+    if (combatantToDelete) {
+      await optimisticDeleteCombatant(combatantToDelete.id);
+      setDeleteDialogOpen(false);
+      setCombatantToDelete(null);
+    }
+  };
+
+  const handleCancelDelete = () => {
+    setDeleteDialogOpen(false);
+    setCombatantToDelete(null);
+  };
 
   useEffect(() => {
     if (party?.code && party?.name) {
@@ -108,6 +137,7 @@ export default function PartyPage({ party }: PartyPageProps) {
         onUpdateTmpHP={optimisticUpdateTmpHP}
         onUpdateInitiative={optimisticUpdateInitiative}
         onUpdateNameType={optimisticUpdateNameType}
+        onDelete={handleDeleteRequest}
       />
 
       <TurnControls
@@ -128,6 +158,16 @@ export default function PartyPage({ party }: PartyPageProps) {
         onConfirm={handleConfirmNavigation}
         onCancel={handleCancelNavigation}
       />
+
+      {combatantToDelete && (
+        <DeleteCombatantDialog
+          open={deleteDialogOpen}
+          onOpenChange={setDeleteDialogOpen}
+          onConfirm={handleConfirmDelete}
+          onCancel={handleCancelDelete}
+          combatant={combatantToDelete}
+        />
+      )}
     </main>
   );
 }

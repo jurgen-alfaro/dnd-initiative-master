@@ -28,6 +28,7 @@ interface InitiativeListProps {
     newName: string,
     newType: "player" | "enemy",
   ) => Promise<void>;
+  onDelete?: (id: number) => void;
 }
 
 export default function InitiativeList({
@@ -40,6 +41,7 @@ export default function InitiativeList({
   onUpdateTmpHP,
   onUpdateInitiative,
   onUpdateNameType,
+  onDelete,
 }: InitiativeListProps) {
   const [isPending, startTransition] = useTransition();
   const activeCardRef = useRef<HTMLDivElement | null>(null);
@@ -50,9 +52,9 @@ export default function InitiativeList({
       // Small delay to ensure ref is attached after render
       const timeoutId = setTimeout(() => {
         activeCardRef.current?.scrollIntoView({
-          behavior: 'smooth',
-          block: 'center',
-          inline: 'nearest'
+          behavior: "smooth",
+          block: "center",
+          inline: "nearest",
         });
       }, 100);
 
@@ -127,7 +129,7 @@ export default function InitiativeList({
   };
 
   return (
-    <div className="space-y-3 max-w-2xl mx-auto p-4">
+    <div className="space-y-4 max-w-2xl mx-auto p-4">
       {data.map((char, index) => (
         <CombatantCard
           key={char.id}
@@ -140,6 +142,7 @@ export default function InitiativeList({
           onStatChange={handleStatChange}
           onInfoChange={handleInfoChange}
           onDamageHeal={handleDamageHeal}
+          onDelete={onDelete || (() => {})}
         />
       ))}
 
