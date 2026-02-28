@@ -48,6 +48,7 @@ export default function PartyPage({ party }: PartyPageProps) {
     optimisticUpdateInitiative,
     optimisticUpdateNameType,
     optimisticDeleteCombatant,
+    optimisticUpdateConditions,
   } = usePartyPolling(
     party.code,
     party.combatants,
@@ -138,6 +139,7 @@ export default function PartyPage({ party }: PartyPageProps) {
         onUpdateInitiative={optimisticUpdateInitiative}
         onUpdateNameType={optimisticUpdateNameType}
         onDelete={handleDeleteRequest}
+        onUpdateConditions={optimisticUpdateConditions}
       />
 
       <TurnControls

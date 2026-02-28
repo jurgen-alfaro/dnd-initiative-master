@@ -1,0 +1,1 @@
+ALTER TABLE "combatants" ADD COLUMN "conditions" text[] DEFAULT '{}' NOT NULL;

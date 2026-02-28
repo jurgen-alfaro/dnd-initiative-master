@@ -7,6 +7,7 @@ import { eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
+import type { Condition } from "@/app/lib/types";
 
 // Esquemas de validación Zod
 const CreatePartySchema = z.object({
@@ -53,6 +54,29 @@ const JoinPartySchema = z.object({
 
 const TurnActionSchema = z.object({
   partyCode: z.string().length(6),
+});
+
+const UpdateConditionsSchema = z.object({
+  combatantId: z.number(),
+  conditions: z.array(
+    z.enum([
+      "Blinded",
+      "Charmed",
+      "Deafened",
+      "Frightened",
+      "Grappled",
+      "Incapacitated",
+      "Invisible",
+      "Paralyzed",
+      "Petrified",
+      "Poisoned",
+      "Prone",
+      "Restrained",
+      "Stunned",
+      "Unconscious",
+    ]),
+  ),
+  partyCode: z.string(),
 });
 
 // --- Actions ---
@@ -153,6 +177,34 @@ export async function updateCombatantStat(
     return { success: true };
   } catch (error) {
     return { error: "Error updating combatant" };
+  }
+}
+
+export async function updateCombatantConditions(
+  combatantId: number,
+  conditions: Condition[],
+  partyCode: string,
+) {
+  const validated = UpdateConditionsSchema.safeParse({
+    combatantId,
+    conditions,
+    partyCode,
+  });
+
+  if (!validated.success) {
+    return { error: "Invalid data" };
+  }
+
+  try {
+    await db
+      .update(combatants)
+      .set({ conditions })
+      .where(eq(combatants.id, combatantId));
+
+    revalidatePath(`/party/${partyCode}`);
+    return { success: true };
+  } catch (error) {
+    return { error: "Error updating conditions" };
   }
 }
 

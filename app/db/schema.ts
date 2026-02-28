@@ -31,6 +31,7 @@ export const combatants = pgTable("combatants", {
   maxHp: integer("max_hp").notNull().default(0),
   tmpHp: integer("tmp_hp").notNull().default(0),
   ac: integer("ac").notNull().default(0),
+  conditions: text("conditions").array().notNull().default([]),
   partyId: integer("party_id")
     .references(() => parties.id, { onDelete: "cascade" })
     .notNull(),

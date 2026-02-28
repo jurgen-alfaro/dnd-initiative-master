@@ -6,7 +6,7 @@ import {
   updateCombatantInfo,
   applyDamageOrHealing,
 } from "@/app/server/actions";
-import type { Combatant } from "@/app/lib/types";
+import type { Combatant, Condition } from "@/app/lib/types";
 import CombatantCard from "@/app/components/combatant-card";
 import AddCombatantToPartyDialog from "./ui/AddCombatantToPartyDialog";
 
@@ -29,6 +29,7 @@ interface InitiativeListProps {
     newType: "player" | "enemy",
   ) => Promise<void>;
   onDelete?: (id: number) => void;
+  onUpdateConditions?: (id: number, conditions: Condition[]) => Promise<void>;
 }
 
 export default function InitiativeList({
@@ -42,6 +43,7 @@ export default function InitiativeList({
   onUpdateInitiative,
   onUpdateNameType,
   onDelete,
+  onUpdateConditions,
 }: InitiativeListProps) {
   const [isPending, startTransition] = useTransition();
   const activeCardRef = useRef<HTMLDivElement | null>(null);
@@ -128,6 +130,19 @@ export default function InitiativeList({
     });
   };
 
+  const handleConditionsChange = async (
+    id: number,
+    conditions: Condition[],
+  ): Promise<void> => {
+    // Use optimistic function when available
+    if (onUpdateConditions) {
+      return onUpdateConditions(id, conditions);
+    }
+
+    // Fallback for backward compatibility
+    return Promise.resolve();
+  };
+
   return (
     <div className="space-y-4 max-w-2xl mx-auto p-4">
       {data.map((char, index) => (
@@ -143,6 +158,7 @@ export default function InitiativeList({
           onInfoChange={handleInfoChange}
           onDamageHeal={handleDamageHeal}
           onDelete={onDelete || (() => {})}
+          onConditionsChange={handleConditionsChange}
         />
       ))}
 

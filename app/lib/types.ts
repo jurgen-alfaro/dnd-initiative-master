@@ -1,3 +1,36 @@
+export type Condition =
+  | "Blinded"
+  | "Charmed"
+  | "Deafened"
+  | "Frightened"
+  | "Grappled"
+  | "Incapacitated"
+  | "Invisible"
+  | "Paralyzed"
+  | "Petrified"
+  | "Poisoned"
+  | "Prone"
+  | "Restrained"
+  | "Stunned"
+  | "Unconscious";
+
+export const ALL_CONDITIONS: readonly Condition[] = [
+  "Blinded",
+  "Charmed",
+  "Deafened",
+  "Frightened",
+  "Grappled",
+  "Incapacitated",
+  "Invisible",
+  "Paralyzed",
+  "Petrified",
+  "Poisoned",
+  "Prone",
+  "Restrained",
+  "Stunned",
+  "Unconscious",
+] as const;
+
 export type Combatant = {
   id: number;
   name: string;
@@ -7,6 +40,7 @@ export type Combatant = {
   tmpHp: number;
   ac: number;
   type: "player" | "enemy";
+  conditions: Condition[];
 };
 
 export type Party = {

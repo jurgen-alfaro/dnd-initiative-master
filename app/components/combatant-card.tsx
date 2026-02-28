@@ -3,11 +3,16 @@
 import { forwardRef } from "react";
 import { Card } from "@/app/components/ui/card";
 import { Badge } from "@/app/components/ui/badge";
-import { Sword, Shield, Heart, Trash2 } from "lucide-react";
-import type { Combatant } from "@/app/lib/types";
+import { Sword, Shield, Heart, Trash2, Activity } from "lucide-react";
+import type { Combatant, Condition } from "@/app/lib/types";
 import StatEditDialog from "@/app/components/stat-edit-dialog";
 import NameTypeEditDialog from "@/app/components/name-type-edit-dialog";
 import DamageHealDialog from "@/app/components/damage-heal-dialog";
+import ConditionsEditDialog from "@/app/components/conditions-edit-dialog";
+import {
+  CONDITION_ICONS,
+  CONDITION_COLORS,
+} from "@/app/lib/condition-icons";
 
 interface CombatantCardProps {
   combatant: Combatant;
@@ -31,6 +36,7 @@ interface CombatantCardProps {
     type: "damage" | "healing",
   ) => void;
   onDelete: (id: number) => void;
+  onConditionsChange: (id: number, conditions: Condition[]) => Promise<void>;
 }
 
 const CombatantCard = forwardRef<HTMLDivElement, CombatantCardProps>(
@@ -45,6 +51,7 @@ const CombatantCard = forwardRef<HTMLDivElement, CombatantCardProps>(
       onInfoChange,
       onDamageHeal,
       onDelete,
+      onConditionsChange,
     },
     ref,
   ) => {
@@ -167,6 +174,35 @@ const CombatantCard = forwardRef<HTMLDivElement, CombatantCardProps>(
             </Badge>
           </div>
         </div>
+
+        {/* Conditions Display */}
+        {combatant.conditions && combatant.conditions.length > 0 && (
+          <div className="flex flex-wrap gap-1 pt-2">
+            {combatant.conditions.slice(0, 4).map((condition) => {
+              const Icon = CONDITION_ICONS[condition];
+              const colorClass = CONDITION_COLORS[condition];
+              return (
+                <div
+                  key={condition}
+                  className="flex items-center gap-1 px-2 py-1 rounded bg-dnd-parchment/10 border border-dnd-gold/20"
+                  title={condition}
+                >
+                  <Icon size={12} className={colorClass} />
+                  <span className="text-[10px] font-heading uppercase tracking-wider text-muted-foreground">
+                    {condition.slice(0, 3)}
+                  </span>
+                </div>
+              );
+            })}
+            {combatant.conditions.length > 4 && (
+              <div className="flex items-center px-2 py-1 rounded bg-dnd-parchment/10 border border-dnd-gold/20">
+                <span className="text-[10px] font-heading text-muted-foreground">
+                  +{combatant.conditions.length - 4}
+                </span>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Stat display: AC, HP, Tmp HP */}
         <div className="flex w-full items-center justify-center gap-3 pt-2 border-t border-dnd-gold/10">
@@ -302,6 +338,20 @@ const CombatantCard = forwardRef<HTMLDivElement, CombatantCardProps>(
                 </span>
               </button>
             </DamageHealDialog>
+
+            {/* Conditions button */}
+            <ConditionsEditDialog
+              combatant={combatant}
+              onSave={onConditionsChange}
+              isPending={isPending}
+            >
+              <button className="group relative flex items-center gap-1.5 px-4 py-2 rounded-lg border border-dnd-gold/20 hover:border-dnd-gold/40 transition-all duration-200 hover:scale-[1.03] active:scale-95 shadow-md hover:shadow-lg bg-indigo-900/20 hover:bg-indigo-800/30">
+                <Activity size={15} className="text-indigo-400" />
+                <span className="text-xs font-heading font-bold tracking-widest text-indigo-400 uppercase">
+                  Status
+                </span>
+              </button>
+            </ConditionsEditDialog>
           </div>
         )}
 
