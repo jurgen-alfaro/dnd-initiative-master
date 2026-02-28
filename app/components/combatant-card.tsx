@@ -9,6 +9,7 @@ import StatEditDialog from "@/app/components/stat-edit-dialog";
 import NameTypeEditDialog from "@/app/components/name-type-edit-dialog";
 import DamageHealDialog from "@/app/components/damage-heal-dialog";
 import ConditionsEditDialog from "@/app/components/conditions-edit-dialog";
+import ConditionDescriptionDialog from "@/app/components/condition-description-dialog";
 import {
   CONDITION_ICONS,
   CONDITION_COLORS,
@@ -182,16 +183,16 @@ const CombatantCard = forwardRef<HTMLDivElement, CombatantCardProps>(
               const Icon = CONDITION_ICONS[condition];
               const colorClass = CONDITION_COLORS[condition];
               return (
-                <div
-                  key={condition}
-                  className="flex items-center gap-1 px-2 py-1 rounded bg-dnd-parchment/10 border border-dnd-gold/20"
-                  title={condition}
-                >
-                  <Icon size={12} className={colorClass} />
-                  <span className="text-[10px] font-heading uppercase tracking-wider text-muted-foreground">
-                    {condition.slice(0, 3)}
-                  </span>
-                </div>
+                <ConditionDescriptionDialog key={condition} condition={condition}>
+                  <button
+                    className="flex items-center gap-1 px-2 py-1 rounded bg-dnd-parchment/10 border border-dnd-gold/20 hover:bg-dnd-parchment/15 hover:border-dnd-gold/30 transition-all duration-200 cursor-pointer active:scale-95"
+                  >
+                    <Icon size={12} className={colorClass} />
+                    <span className="text-[10px] font-heading uppercase tracking-wider text-muted-foreground">
+                      {condition.slice(0, 3)}
+                    </span>
+                  </button>
+                </ConditionDescriptionDialog>
               );
             })}
             {combatant.conditions.length > 4 && (

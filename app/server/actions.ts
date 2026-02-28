@@ -401,10 +401,21 @@ export async function getPartyByCode(code: string) {
 }
 
 export async function getPartyWithCombatants(code: string) {
-  return await db.query.parties.findFirst({
+  const party = await db.query.parties.findFirst({
     where: eq(parties.code, code),
     with: { combatants: true },
   });
+
+  if (!party) return null;
+
+  // Cast conditions from string[] to Condition[]
+  return {
+    ...party,
+    combatants: party.combatants.map((c) => ({
+      ...c,
+      conditions: c.conditions as Condition[],
+    })),
+  };
 }
 
 export async function addCombatantToParty(prevState: any, formData: FormData) {
