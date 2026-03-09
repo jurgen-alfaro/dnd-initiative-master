@@ -79,6 +79,19 @@ const UpdateConditionsSchema = z.object({
   partyCode: z.string(),
 });
 
+const SetRoundSchema = z.object({
+  partyCode: z.string().length(6),
+  newRound: z.number().min(1).max(999),
+});
+
+const UpdatePartyNameSchema = z.object({
+  partyCode: z.string().length(6),
+  newName: z
+    .string()
+    .min(3, "Name must be at least 3 characters")
+    .max(50, "Name must be less than 50 characters"),
+});
+
 // --- Actions ---
 
 export async function createParty(prevState: any, formData: FormData) {
@@ -564,5 +577,65 @@ export async function nextRound(partyCode: string) {
     return { success: true, newRound: party.currentRound + 1 };
   } catch (error) {
     return { error: "Error advancing round" };
+  }
+}
+
+export async function setRound(partyCode: string, newRound: number) {
+  const validated = SetRoundSchema.safeParse({ partyCode, newRound });
+  if (!validated.success) {
+    return { error: "Invalid data" };
+  }
+
+  try {
+    const party = await db.query.parties.findFirst({
+      where: eq(parties.code, partyCode),
+    });
+
+    if (!party) {
+      return { error: "Party not found" };
+    }
+
+    // Update ONLY the round, keep turnIndex unchanged
+    await db
+      .update(parties)
+      .set({
+        currentRound: newRound,
+      })
+      .where(eq(parties.id, party.id));
+
+    revalidatePath(`/party/${partyCode}`);
+    return { success: true, newRound };
+  } catch (error) {
+    return { error: "Error setting round" };
+  }
+}
+
+export async function updatePartyName(partyCode: string, newName: string) {
+  const validated = UpdatePartyNameSchema.safeParse({ partyCode, newName });
+  if (!validated.success) {
+    return { error: "Invalid data" };
+  }
+
+  try {
+    const party = await db.query.parties.findFirst({
+      where: eq(parties.code, partyCode),
+    });
+
+    if (!party) {
+      return { error: "Party not found" };
+    }
+
+    // Update only the name
+    await db
+      .update(parties)
+      .set({
+        name: newName,
+      })
+      .where(eq(parties.id, party.id));
+
+    revalidatePath(`/party/${partyCode}`);
+    return { success: true, newName };
+  } catch (error) {
+    return { error: "Error updating party name" };
   }
 }

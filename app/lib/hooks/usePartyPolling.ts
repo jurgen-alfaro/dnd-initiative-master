@@ -4,6 +4,8 @@ import {
   advanceTurn,
   previousTurn,
   nextRound,
+  setRound,
+  updatePartyName,
   applyDamageOrHealing,
   updateCombatantStat,
   updateCombatantInfo,
@@ -21,14 +23,18 @@ export function usePartyPolling(
   initialCombatants: Combatant[],
   initialTurnIndex = 0,
   initialRound = 1,
+  initialPartyName: string,
   intervalMs = 3000,
 ): {
   combatants: Combatant[];
   currentTurnIndex: number;
   currentRound: number;
+  partyName: string;
   optimisticAdvanceTurn: () => Promise<void>;
   optimisticPreviousTurn: () => Promise<void>;
   optimisticNextRound: () => Promise<void>;
+  optimisticSetRound: (newRound: number) => Promise<void>;
+  optimisticUpdatePartyName: (newName: string) => Promise<void>;
   optimisticApplyDamageHeal: (
     combatantId: number,
     amount: number,
@@ -57,6 +63,7 @@ export function usePartyPolling(
   const [combatants, setCombatants] = useState<Combatant[]>(initialCombatants);
   const [currentTurnIndex, setCurrentTurnIndex] = useState(initialTurnIndex);
   const [currentRound, setCurrentRound] = useState(initialRound);
+  const [partyName, setPartyName] = useState(initialPartyName);
   const [pendingOperations, setPendingOperations] = useState<Set<string>>(
     new Set(),
   );
@@ -238,6 +245,99 @@ export function usePartyPolling(
     combatants,
     pendingOperations,
   ]);
+
+  // Optimistic update function for setting round manually
+  const optimisticSetRound = useCallback(
+    async (newRound: number) => {
+      const opId = "set-round";
+      if (pendingOperations.has(opId)) return;
+
+      // Save current state for rollback
+      previousStateRef.current = {
+        turnIndex: currentTurnIndex,
+        round: currentRound,
+        combatants: combatants,
+      };
+
+      // Optimistically update UI (instant) - only round, keep turnIndex
+      setCurrentRound(newRound);
+
+      // Mark operation as pending
+      setPendingOperations((prev) => new Set(prev).add(opId));
+
+      try {
+        const result = await setRound(partyCode, newRound);
+
+        if (!result.success) {
+          // Rollback on error
+          if (previousStateRef.current) {
+            setCurrentRound(previousStateRef.current.round);
+          }
+          console.error("Failed to set round:", result.error);
+        }
+      } catch (error) {
+        // Rollback on exception
+        if (previousStateRef.current) {
+          setCurrentRound(previousStateRef.current.round);
+        }
+        console.error("Error setting round:", error);
+      } finally {
+        setTimeout(() => {
+          setPendingOperations((prev) => {
+            const next = new Set(prev);
+            next.delete(opId);
+            return next;
+          });
+        }, 500);
+      }
+    },
+    [partyCode, currentTurnIndex, currentRound, combatants, pendingOperations],
+  );
+
+  // Optimistic update function for party name
+  const optimisticUpdatePartyName = useCallback(
+    async (newName: string) => {
+      const opId = "update-party-name";
+      if (pendingOperations.has(opId)) return;
+
+      // Save current state for rollback
+      const previousName = partyName;
+      previousStateRef.current = {
+        turnIndex: currentTurnIndex,
+        round: currentRound,
+        combatants: combatants,
+      };
+
+      // Optimistically update UI (instant)
+      setPartyName(newName);
+
+      // Mark operation as pending
+      setPendingOperations((prev) => new Set(prev).add(opId));
+
+      try {
+        const result = await updatePartyName(partyCode, newName);
+
+        if (!result.success) {
+          // Rollback on error
+          setPartyName(previousName);
+          console.error("Failed to update party name:", result.error);
+        }
+      } catch (error) {
+        // Rollback on exception
+        setPartyName(previousName);
+        console.error("Error updating party name:", error);
+      } finally {
+        setTimeout(() => {
+          setPendingOperations((prev) => {
+            const next = new Set(prev);
+            next.delete(opId);
+            return next;
+          });
+        }, 500);
+      }
+    },
+    [partyCode, partyName, currentTurnIndex, currentRound, combatants, pendingOperations],
+  );
 
   // Optimistic update function for damage/healing
   const optimisticApplyDamageHeal = useCallback(
@@ -739,9 +839,12 @@ export function usePartyPolling(
     combatants,
     currentTurnIndex,
     currentRound,
+    partyName,
     optimisticAdvanceTurn,
     optimisticPreviousTurn,
     optimisticNextRound,
+    optimisticSetRound,
+    optimisticUpdatePartyName,
     optimisticApplyDamageHeal,
     optimisticUpdateAC,
     optimisticUpdateTmpHP,

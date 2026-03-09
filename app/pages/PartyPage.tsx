@@ -39,9 +39,12 @@ export default function PartyPage({ party }: PartyPageProps) {
     combatants: liveCombatants,
     currentTurnIndex,
     currentRound,
+    partyName,
     optimisticAdvanceTurn,
     optimisticPreviousTurn,
     optimisticNextRound,
+    optimisticSetRound,
+    optimisticUpdatePartyName,
     optimisticApplyDamageHeal,
     optimisticUpdateAC,
     optimisticUpdateTmpHP,
@@ -54,8 +57,17 @@ export default function PartyPage({ party }: PartyPageProps) {
     party.combatants,
     party.currentTurnIndex,
     party.currentRound,
+    party.name,
     3000,
   );
+
+  // Create updated party object with optimistic name
+  const displayParty = {
+    ...party,
+    name: partyName,
+    currentTurnIndex,
+    currentRound,
+  };
 
   // Guard against accidental back navigation
   const {
@@ -101,8 +113,8 @@ export default function PartyPage({ party }: PartyPageProps) {
   };
 
   useEffect(() => {
-    if (party?.code && party?.name) {
-      saveRecentParty(party.code, party.name);
+    if (party?.code && partyName) {
+      saveRecentParty(party.code, partyName);
     }
   }, [party.code, party.name, saveRecentParty]);
 
@@ -123,9 +135,11 @@ export default function PartyPage({ party }: PartyPageProps) {
   return (
     <main className="min-h-screen py-10 px-4 pb-24 dnd-page-bg">
       <PartyInfoCard
-        party={party}
+        party={displayParty}
         playerCount={playerCount}
         enemyCount={enemyCount}
+        onRoundEdit={optimisticSetRound}
+        onPartyNameEdit={optimisticUpdatePartyName}
       />
 
       <InitiativeList
