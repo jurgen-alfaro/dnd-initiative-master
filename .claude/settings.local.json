@@ -18,7 +18,17 @@
       "Bash(git -C \"c:\\\\Users\\\\gkuke\\\\Documents\\\\Projects\\\\dnd-initiative-master\" log --oneline -5)",
       "Bash(npm run dev:*)",
       "Bash(timeout 5 tail -f:*)",
-      "Bash(git reset:*)"
+      "Bash(git reset:*)",
+      "Bash(xargs:*)",
+      "Bash(git -C \"c:\\\\Users\\\\gkuke\\\\Documents\\\\Projects\\\\dnd-initiative-master\" mv app/components/condition-description-dialog.tsx app/components/ConditionDescriptionDialog.tsx)",
+      "Bash(git -C \"c:\\\\Users\\\\gkuke\\\\Documents\\\\Projects\\\\dnd-initiative-master\" mv app/components/damage-heal-dialog.tsx app/components/DamageHealDialog.tsx)",
+      "Bash(git -C \"c:\\\\Users\\\\gkuke\\\\Documents\\\\Projects\\\\dnd-initiative-master\" mv app/components/stat-edit-dialog.tsx app/components/StatEditDialog.tsx)",
+      "Bash(git -C \"c:\\\\Users\\\\gkuke\\\\Documents\\\\Projects\\\\dnd-initiative-master\" mv app/components/name-type-edit-dialog.tsx app/components/NameTypeEditDialog.tsx)",
+      "Bash(git -C \"c:\\\\Users\\\\gkuke\\\\Documents\\\\Projects\\\\dnd-initiative-master\" mv app/components/conditions-edit-dialog.tsx app/components/ConditionsEditDialog.tsx)",
+      "Bash(git -C \"c:\\\\Users\\\\gkuke\\\\Documents\\\\Projects\\\\dnd-initiative-master\" mv app/components/combatant-card.tsx app/components/CombatantCard.tsx)",
+      "Bash(git -C \"c:\\\\Users\\\\gkuke\\\\Documents\\\\Projects\\\\dnd-initiative-master\" mv app/components/turn-controls.tsx app/components/TurnControls.tsx)",
+      "Bash(git -C \"c:\\\\Users\\\\gkuke\\\\Documents\\\\Projects\\\\dnd-initiative-master\" mv app/components/initiative-list.tsx app/components/InitiativeList.tsx)",
+      "Bash(pnpm build:*)"
     ]
   }
 }
