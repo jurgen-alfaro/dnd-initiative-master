@@ -12,6 +12,11 @@ import {
   deleteCombatant,
   updateCombatantConditions,
 } from "@/app/server/actions";
+import {
+  calculateDamageResult,
+  calculateHealingResult,
+} from "@/app/lib/combat/damageCalculator";
+import { recalculateTurnIndexAfterDeletion } from "@/app/lib/combat/turnCalculator";
 
 /**
  * Polls `/api/party/[code]` every `intervalMs` milliseconds and keeps
@@ -352,32 +357,21 @@ export function usePartyPolling(
         combatants: combatants,
       };
 
-      // Calculate new HP/tmpHP optimistically using D&D 5e rules
+      // Calculate new HP/tmpHP optimistically using pure functions
       const updatedCombatants = combatants.map((c) => {
         if (c.id !== combatantId) return c;
 
-        let newHp = c.hp;
-        let newTmpHp = c.tmpHp;
-
         if (type === "damage") {
-          // Damage logic: Temp HP absorbs first, overflow goes to HP
-          if (newTmpHp > 0) {
-            if (amount >= newTmpHp) {
-              const overflow = amount - newTmpHp;
-              newTmpHp = 0;
-              newHp = Math.max(0, newHp - overflow);
-            } else {
-              newTmpHp = newTmpHp - amount;
-            }
-          } else {
-            newHp = Math.max(0, newHp - amount);
-          }
+          // Use pure function for damage calculation
+          const result = calculateDamageResult(c.hp, c.tmpHp, amount);
+          return { ...c, hp: result.hp, tmpHp: result.tmpHp };
         } else if (type === "healing") {
-          // Healing logic: Add to HP, capped at maxHp
-          newHp = Math.min(c.maxHp, newHp + amount);
+          // Use pure function for healing calculation
+          const newHp = calculateHealingResult(c.hp, c.maxHp, amount);
+          return { ...c, hp: newHp };
         }
 
-        return { ...c, hp: newHp, tmpHp: newTmpHp };
+        return c;
       });
 
       // Update UI immediately
@@ -674,25 +668,16 @@ export function usePartyPolling(
       const sorted = [...combatants].sort((a, b) => b.initiative - a.initiative);
       const deletedIndex = sorted.findIndex((c) => c.id === combatantId);
 
-      // Calculate new turn index
-      let newTurnIndex = currentTurnIndex;
-
-      if (sorted.length === 1) {
-        // Last combatant - reset to 0
-        newTurnIndex = 0;
-      } else if (deletedIndex < currentTurnIndex) {
-        // Deleted before active - decrement index
-        newTurnIndex = Math.max(0, currentTurnIndex - 1);
-      } else if (deletedIndex === currentTurnIndex) {
-        // Deleted the active combatant
-        const newLength = sorted.length - 1;
-        if (newTurnIndex >= newLength) {
-          newTurnIndex = Math.max(0, newLength - 1);
-        }
-      }
-
-      // Update optimistically - remove combatant and adjust turn index
+      // Update optimistically - remove combatant
       const updatedCombatants = combatants.filter((c) => c.id !== combatantId);
+
+      // Use pure function to recalculate turn index
+      const newTurnIndex = recalculateTurnIndexAfterDeletion(
+        currentTurnIndex,
+        deletedIndex,
+        updatedCombatants.length,
+      );
+
       setCombatants(updatedCombatants);
       setCurrentTurnIndex(newTurnIndex);
 

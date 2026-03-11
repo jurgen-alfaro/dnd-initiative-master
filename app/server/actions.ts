@@ -8,6 +8,11 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import type { Condition } from "@/app/lib/types";
+import {
+  calculateDamageResult,
+  calculateHealingResult,
+} from "@/app/lib/combat/damageCalculator";
+import { recalculateTurnIndexAfterDeletion } from "@/app/lib/combat/turnCalculator";
 
 // Esquemas de validación Zod
 const CreatePartySchema = z.object({
@@ -253,27 +258,13 @@ export async function applyDamageOrHealing(
     let newTmpHp = combatant.tmpHp;
 
     if (type === "damage") {
-      // Lógica de D&D 5e: Daño se aplica primero a tmpHp, luego overflow a hp
-      const damageAmount = amount;
-
-      if (newTmpHp > 0) {
-        // Hay HP temporales
-        if (damageAmount >= newTmpHp) {
-          // El daño excede los tmpHp - remueve todos los tmpHp y overflow a hp
-          const overflow = damageAmount - newTmpHp;
-          newTmpHp = 0;
-          newHp = Math.max(0, newHp - overflow);
-        } else {
-          // El daño es absorbido completamente por tmpHp
-          newTmpHp = newTmpHp - damageAmount;
-        }
-      } else {
-        // No hay tmpHp, el daño va directamente a hp
-        newHp = Math.max(0, newHp - damageAmount);
-      }
+      // Use pure function for damage calculation
+      const result = calculateDamageResult(combatant.hp, combatant.tmpHp, amount);
+      newHp = result.hp;
+      newTmpHp = result.tmpHp;
     } else if (type === "healing") {
-      // Curación: suma a hp actual, cap en maxHp (tmpHp no se afecta)
-      newHp = Math.min(combatant.maxHp, newHp + amount);
+      // Use pure function for healing calculation
+      newHp = calculateHealingResult(combatant.hp, combatant.maxHp, amount);
     }
 
     // Actualizar la base de datos
@@ -371,25 +362,13 @@ export async function deleteCombatant(
     // Delete the combatant from database
     await db.delete(combatants).where(eq(combatants.id, combatantId));
 
-    // Calculate new turn index
-    let newTurnIndex = party.currentTurnIndex;
-
-    // Case 1: Deleting the last combatant
-    if (sorted.length === 1) {
-      newTurnIndex = 0;
-    }
-    // Case 2: Deleted combatant before active turn
-    else if (deletedIndex < party.currentTurnIndex) {
-      newTurnIndex = Math.max(0, party.currentTurnIndex - 1);
-    }
-    // Case 3: Deleted the active combatant
-    else if (deletedIndex === party.currentTurnIndex) {
-      const newLength = sorted.length - 1;
-      if (newTurnIndex >= newLength) {
-        newTurnIndex = Math.max(0, newLength - 1);
-      }
-    }
-    // Case 4: Deleted after active turn - no change needed
+    // Use pure function to recalculate turn index
+    const remainingCombatantsCount = sorted.length - 1;
+    const newTurnIndex = recalculateTurnIndexAfterDeletion(
+      party.currentTurnIndex,
+      deletedIndex,
+      remainingCombatantsCount,
+    );
 
     // Update party turn index if it changed
     if (newTurnIndex !== party.currentTurnIndex) {
