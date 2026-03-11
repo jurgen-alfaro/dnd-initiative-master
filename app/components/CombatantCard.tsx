@@ -5,11 +5,11 @@ import { Card } from "@/app/components/ui/card";
 import { Badge } from "@/app/components/ui/badge";
 import { Sword, Shield, Heart, Trash2, Activity } from "lucide-react";
 import type { Combatant, Condition } from "@/app/lib/types";
-import StatEditDialog from "@/app/components/stat-edit-dialog";
-import NameTypeEditDialog from "@/app/components/name-type-edit-dialog";
-import DamageHealDialog from "@/app/components/damage-heal-dialog";
-import ConditionsEditDialog from "@/app/components/conditions-edit-dialog";
-import ConditionDescriptionDialog from "@/app/components/condition-description-dialog";
+import StatEditDialog from "@/app/components/StatEditDialog";
+import NameTypeEditDialog from "@/app/components/NameTypeEditDialog";
+import DamageHealDialog from "@/app/components/DamageHealDialog";
+import ConditionsEditDialog from "@/app/components/ConditionsEditDialog";
+import ConditionDescriptionDialog from "@/app/components/ConditionDescriptionDialog";
 import {
   CONDITION_ICONS,
   CONDITION_COLORS,

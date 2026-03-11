@@ -1,7 +1,7 @@
 "use client";
 
-import InitiativeList from "@/app/components/initiative-list";
-import { TurnControls } from "@/app/components/turn-controls";
+import InitiativeList from "@/app/components/InitiativeList";
+import { TurnControls } from "@/app/components/TurnControls";
 import type { Combatant } from "@/app/lib/types";
 import { useRouter, useSearchParams } from "next/navigation";
 import { usePartyPolling } from "@/app/lib/hooks/usePartyPolling";

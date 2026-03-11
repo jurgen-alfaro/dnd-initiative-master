@@ -7,7 +7,7 @@ import {
   applyDamageOrHealing,
 } from "@/app/server/actions";
 import type { Combatant, Condition } from "@/app/lib/types";
-import CombatantCard from "@/app/components/combatant-card";
+import CombatantCard from "@/app/components/CombatantCard";
 import AddCombatantToPartyDialog from "./ui/AddCombatantToPartyDialog";
 
 interface InitiativeListProps {
