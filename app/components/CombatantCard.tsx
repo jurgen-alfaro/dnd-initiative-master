@@ -3,13 +3,23 @@
 import { forwardRef } from "react";
 import { Card } from "@/app/components/ui/card";
 import { Badge } from "@/app/components/ui/badge";
-import { Sword, Shield, Heart, Trash2, Activity } from "lucide-react";
+import {
+  Sword,
+  Shield,
+  Heart,
+  Trash2,
+  Activity,
+  ShieldPlus,
+  Skull,
+} from "lucide-react";
 import type { Combatant, Condition } from "@/app/lib/types";
 import StatEditDialog from "@/app/components/StatEditDialog";
-import NameTypeEditDialog from "@/app/components/NameTypeEditDialog";
+import NameEditDialog from "@/app/components/NameEditDialog";
+import TypeEditDialog from "@/app/components/TypeEditDialog";
 import DamageHealDialog from "@/app/components/DamageHealDialog";
 import ConditionsEditDialog from "@/app/components/ConditionsEditDialog";
 import ConditionDescriptionDialog from "@/app/components/ConditionDescriptionDialog";
+import BuffsDetailDialog from "@/app/components/BuffsDetailDialog";
 import {
   CONDITION_ICONS,
   CONDITION_COLORS,
@@ -38,6 +48,7 @@ interface CombatantCardProps {
   ) => void;
   onDelete: (id: number) => void;
   onConditionsChange: (id: number, conditions: Condition[]) => Promise<void>;
+  onRemoveBuff: (combatantId: number, buffId: string) => Promise<void>;
 }
 
 const CombatantCard = forwardRef<HTMLDivElement, CombatantCardProps>(
@@ -53,9 +64,11 @@ const CombatantCard = forwardRef<HTMLDivElement, CombatantCardProps>(
       onDamageHeal,
       onDelete,
       onConditionsChange,
+      onRemoveBuff,
     },
     ref,
   ) => {
+    const buffs = combatant.buffs ?? [];
     return (
       <Card
         ref={ref}
@@ -129,7 +142,7 @@ const CombatantCard = forwardRef<HTMLDivElement, CombatantCardProps>(
           {/* Name and type badge */}
           <div className="w-full flex justify-between items-center">
             {isDm ? (
-              <NameTypeEditDialog
+              <NameEditDialog
                 combatant={combatant}
                 onSave={onInfoChange}
                 isPending={isPending}
@@ -144,7 +157,7 @@ const CombatantCard = forwardRef<HTMLDivElement, CombatantCardProps>(
                 >
                   {combatant.name}
                 </button>
-              </NameTypeEditDialog>
+              </NameEditDialog>
             ) : (
               <h3
                 className={`
@@ -155,24 +168,56 @@ const CombatantCard = forwardRef<HTMLDivElement, CombatantCardProps>(
                 {combatant.name}
               </h3>
             )}
-            <Badge
-              variant="outline"
-              className={`
-              text-xs font-heading tracking-wider border
-              ${
-                combatant.type === "enemy"
-                  ? "border-dnd-blood/40 text-dnd-blood-bright bg-dnd-blood/10"
-                  : "border-dnd-hero-blue/40 text-dnd-hero-blue-bright bg-dnd-hero-blue/10"
-              }
-            `}
-            >
-              {combatant.type === "enemy" ? "Enemy" : "Hero"}
-              {combatant.type === "enemy" ? (
-                <Sword size={14} className="text-dnd-blood-bright" />
-              ) : (
-                <Shield size={14} className="text-dnd-hero-blue-bright" />
-              )}
-            </Badge>
+            {isDm ? (
+              <TypeEditDialog
+                combatant={combatant}
+                onSave={onInfoChange}
+                isPending={isPending}
+              >
+                <Badge
+                  asChild
+                  variant="outline"
+                  className={`
+                  text-xs font-heading tracking-wider border
+                  cursor-pointer transition-all duration-200
+                  hover:border-dnd-gold/40 active:scale-95
+                  ${
+                    combatant.type === "enemy"
+                      ? "border-dnd-blood/40 text-dnd-blood-bright bg-dnd-blood/10"
+                      : "border-dnd-hero-blue/40 text-dnd-hero-blue-bright bg-dnd-hero-blue/10"
+                  }
+                `}
+                >
+                  <button>
+                    {combatant.type === "enemy" ? "Enemy" : "Hero"}
+                    {combatant.type === "enemy" ? (
+                      <Sword size={14} className="text-dnd-blood-bright" />
+                    ) : (
+                      <Shield size={14} className="text-dnd-hero-blue-bright" />
+                    )}
+                  </button>
+                </Badge>
+              </TypeEditDialog>
+            ) : (
+              <Badge
+                variant="outline"
+                className={`
+                text-xs font-heading tracking-wider border
+                ${
+                  combatant.type === "enemy"
+                    ? "border-dnd-blood/40 text-dnd-blood-bright bg-dnd-blood/10"
+                    : "border-dnd-hero-blue/40 text-dnd-hero-blue-bright bg-dnd-hero-blue/10"
+                }
+              `}
+              >
+                {combatant.type === "enemy" ? "Enemy" : "Hero"}
+                {combatant.type === "enemy" ? (
+                  <Sword size={14} className="text-dnd-blood-bright" />
+                ) : (
+                  <Shield size={14} className="text-dnd-hero-blue-bright" />
+                )}
+              </Badge>
+            )}
           </div>
         </div>
 
@@ -203,6 +248,57 @@ const CombatantCard = forwardRef<HTMLDivElement, CombatantCardProps>(
               </div>
             )}
           </div>
+        )}
+
+        {/* Buffs / Debuffs Display (visible to everyone) */}
+        {buffs.length > 0 && (
+          <BuffsDetailDialog
+            combatant={combatant}
+            isDm={isDm}
+            isPending={isPending}
+            onRemoveBuff={onRemoveBuff}
+          >
+            <button className="flex flex-wrap gap-1 pt-2 w-full cursor-pointer">
+              {buffs.slice(0, 4).map((buff) => {
+                const isBuff = buff.kind === "buff";
+                const Icon = isBuff ? ShieldPlus : Skull;
+                return (
+                  <span
+                    key={buff.id}
+                    className={`flex items-center gap-1 px-2 py-1 rounded border transition-all duration-200 ${
+                      isBuff
+                        ? "bg-emerald-900/20 border-emerald-500/30 hover:bg-emerald-900/30"
+                        : "bg-dnd-blood/10 border-dnd-blood/30 hover:bg-dnd-blood/20"
+                    }`}
+                  >
+                    <Icon
+                      size={12}
+                      className={
+                        isBuff ? "text-emerald-400" : "text-dnd-blood-bright"
+                      }
+                    />
+                    <span className="text-[10px] font-heading uppercase tracking-wider text-muted-foreground max-w-20 truncate">
+                      {buff.name}
+                    </span>
+                    <span
+                      className={`text-[10px] font-heading font-bold ${
+                        isBuff ? "text-emerald-400" : "text-dnd-blood-bright"
+                      }`}
+                    >
+                      {buff.remainingRounds}
+                    </span>
+                  </span>
+                );
+              })}
+              {buffs.length > 4 && (
+                <span className="flex items-center px-2 py-1 rounded bg-dnd-parchment/10 border border-dnd-gold/20">
+                  <span className="text-[10px] font-heading text-muted-foreground">
+                    +{buffs.length - 4}
+                  </span>
+                </span>
+              )}
+            </button>
+          </BuffsDetailDialog>
         )}
 
         {/* Stat display: AC, HP, Tmp HP */}

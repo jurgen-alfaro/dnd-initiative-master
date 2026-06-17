@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, useCallback } from "react";
-import type { Combatant, Condition } from "@/app/lib/types";
+import type { Buff, BuffKind, Combatant, Condition } from "@/app/lib/types";
 import {
   advanceTurn,
   previousTurn,
@@ -11,6 +11,8 @@ import {
   updateCombatantInfo,
   deleteCombatant,
   updateCombatantConditions,
+  addBuffToCombatants,
+  removeBuffFromCombatant,
 } from "@/app/server/actions";
 import {
   calculateDamageResult,
@@ -63,6 +65,16 @@ export function usePartyPolling(
   optimisticUpdateConditions: (
     combatantId: number,
     conditions: Condition[],
+  ) => Promise<void>;
+  optimisticAddBuff: (
+    combatantIds: number[],
+    name: string,
+    kind: BuffKind,
+    rounds: number,
+  ) => Promise<void>;
+  optimisticRemoveBuff: (
+    combatantId: number,
+    buffId: string,
   ) => Promise<void>;
 } {
   const [combatants, setCombatants] = useState<Combatant[]>(initialCombatants);
@@ -210,6 +222,15 @@ export function usePartyPolling(
     // Optimistically update UI (instant)
     setCurrentRound(currentRound + 1);
     setCurrentTurnIndex(0); // Reset to first combatant
+    // Decrement buff durations and drop expired ones
+    setCombatants((prev) =>
+      prev.map((c) => ({
+        ...c,
+        buffs: (c.buffs ?? [])
+          .map((b) => ({ ...b, remainingRounds: b.remainingRounds - 1 }))
+          .filter((b) => b.remainingRounds > 0),
+      })),
+    );
 
     // Mark operation as pending
     setPendingOperations((prev) => new Set(prev).add(opId));
@@ -776,6 +797,131 @@ export function usePartyPolling(
     [partyCode, combatants, currentTurnIndex, currentRound, pendingOperations],
   );
 
+  // Optimistic update function for adding a buff/debuff to combatants
+  const optimisticAddBuff = useCallback(
+    async (
+      combatantIds: number[],
+      name: string,
+      kind: BuffKind,
+      rounds: number,
+    ) => {
+      const opId = `add-buff-${combatantIds.join("-")}-${Date.now()}`;
+      if (pendingOperations.has(opId)) return;
+
+      // Save current state for rollback
+      previousStateRef.current = {
+        turnIndex: currentTurnIndex,
+        round: currentRound,
+        combatants: combatants,
+      };
+
+      const newBuff: Buff = {
+        id: crypto.randomUUID(),
+        name,
+        kind,
+        remainingRounds: rounds,
+      };
+
+      // Update optimistically
+      const idSet = new Set(combatantIds);
+      setCombatants((prev) =>
+        prev.map((c) =>
+          idSet.has(c.id) ? { ...c, buffs: [...(c.buffs ?? []), newBuff] } : c,
+        ),
+      );
+
+      // Mark operation as pending
+      setPendingOperations((prev) => new Set(prev).add(opId));
+
+      try {
+        const result = await addBuffToCombatants(
+          partyCode,
+          combatantIds,
+          name,
+          kind,
+          rounds,
+        );
+
+        if (!result.success) {
+          if (previousStateRef.current) {
+            setCombatants(previousStateRef.current.combatants);
+          }
+          console.error("Failed to add buff:", result.error);
+        }
+      } catch (error) {
+        if (previousStateRef.current) {
+          setCombatants(previousStateRef.current.combatants);
+        }
+        console.error("Error adding buff:", error);
+      } finally {
+        setTimeout(() => {
+          setPendingOperations((prev) => {
+            const next = new Set(prev);
+            next.delete(opId);
+            return next;
+          });
+        }, 500);
+      }
+    },
+    [partyCode, combatants, currentTurnIndex, currentRound, pendingOperations],
+  );
+
+  // Optimistic update function for removing a buff/debuff from a combatant
+  const optimisticRemoveBuff = useCallback(
+    async (combatantId: number, buffId: string) => {
+      const opId = `remove-buff-${combatantId}-${buffId}`;
+      if (pendingOperations.has(opId)) return;
+
+      // Save current state for rollback
+      previousStateRef.current = {
+        turnIndex: currentTurnIndex,
+        round: currentRound,
+        combatants: combatants,
+      };
+
+      // Update optimistically
+      setCombatants((prev) =>
+        prev.map((c) =>
+          c.id === combatantId
+            ? { ...c, buffs: (c.buffs ?? []).filter((b) => b.id !== buffId) }
+            : c,
+        ),
+      );
+
+      // Mark operation as pending
+      setPendingOperations((prev) => new Set(prev).add(opId));
+
+      try {
+        const result = await removeBuffFromCombatant(
+          partyCode,
+          combatantId,
+          buffId,
+        );
+
+        if (!result.success) {
+          if (previousStateRef.current) {
+            setCombatants(previousStateRef.current.combatants);
+          }
+          console.error("Failed to remove buff:", result.error);
+        }
+      } catch (error) {
+        if (previousStateRef.current) {
+          setCombatants(previousStateRef.current.combatants);
+        }
+        console.error("Error removing buff:", error);
+      } finally {
+        setTimeout(() => {
+          setPendingOperations((prev) => {
+            const next = new Set(prev);
+            next.delete(opId);
+            return next;
+          });
+        }, 500);
+      }
+    },
+    [partyCode, combatants, currentTurnIndex, currentRound, pendingOperations],
+  );
+
   useEffect(() => {
     let cancelled = false;
 
@@ -837,5 +983,7 @@ export function usePartyPolling(
     optimisticUpdateNameType,
     optimisticDeleteCombatant,
     optimisticUpdateConditions,
+    optimisticAddBuff,
+    optimisticRemoveBuff,
   };
 }

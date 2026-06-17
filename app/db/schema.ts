@@ -6,8 +6,10 @@ import {
   timestamp,
   boolean,
   pgEnum,
+  jsonb,
 } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
+import type { Buff } from "../lib/types";
 
 // Definimos el tipo de combatiente
 export const typeEnum = pgEnum("type", ["player", "enemy"]);
@@ -32,6 +34,7 @@ export const combatants = pgTable("combatants", {
   tmpHp: integer("tmp_hp").notNull().default(0),
   ac: integer("ac").notNull().default(0),
   conditions: text("conditions").array().notNull().default([]),
+  buffs: jsonb("buffs").$type<Buff[]>().notNull().default([]),
   partyId: integer("party_id")
     .references(() => parties.id, { onDelete: "cascade" })
     .notNull(),

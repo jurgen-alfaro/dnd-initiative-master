@@ -30,6 +30,7 @@ interface InitiativeListProps {
   ) => Promise<void>;
   onDelete?: (id: number) => void;
   onUpdateConditions?: (id: number, conditions: Condition[]) => Promise<void>;
+  onRemoveBuff?: (combatantId: number, buffId: string) => Promise<void>;
 }
 
 export default function InitiativeList({
@@ -44,6 +45,7 @@ export default function InitiativeList({
   onUpdateNameType,
   onDelete,
   onUpdateConditions,
+  onRemoveBuff,
 }: InitiativeListProps) {
   const [isPending, startTransition] = useTransition();
   const activeCardRef = useRef<HTMLDivElement | null>(null);
@@ -143,6 +145,19 @@ export default function InitiativeList({
     return Promise.resolve();
   };
 
+  const handleRemoveBuff = async (
+    combatantId: number,
+    buffId: string,
+  ): Promise<void> => {
+    // Use optimistic function when available
+    if (onRemoveBuff) {
+      return onRemoveBuff(combatantId, buffId);
+    }
+
+    // Fallback for backward compatibility
+    return Promise.resolve();
+  };
+
   return (
     <div className="space-y-4 max-w-2xl mx-auto p-4">
       {data.map((char, index) => (
@@ -159,6 +174,7 @@ export default function InitiativeList({
           onDamageHeal={handleDamageHeal}
           onDelete={onDelete || (() => {})}
           onConditionsChange={handleConditionsChange}
+          onRemoveBuff={handleRemoveBuff}
         />
       ))}
 

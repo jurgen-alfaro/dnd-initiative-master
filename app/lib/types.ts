@@ -31,6 +31,15 @@ export const ALL_CONDITIONS: readonly Condition[] = [
   "Unconscious",
 ] as const;
 
+export type BuffKind = "buff" | "debuff";
+
+export type Buff = {
+  id: string; // crypto.randomUUID() — key estable y borrado individual
+  name: string;
+  kind: BuffKind;
+  remainingRounds: number;
+};
+
 export type Combatant = {
   id: number;
   name: string;
@@ -41,6 +50,7 @@ export type Combatant = {
   ac: number;
   type: "player" | "enemy";
   conditions: Condition[];
+  buffs: Buff[];
 };
 
 export type Party = {

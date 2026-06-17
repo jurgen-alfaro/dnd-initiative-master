@@ -3,11 +3,11 @@
 import { db } from "@/app/db/";
 import { parties, combatants } from "@/app/db/schema";
 import { generatePartyCode } from "@/app/lib/code-gen";
-import { eq } from "drizzle-orm";
+import { eq, inArray } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
-import type { Condition } from "@/app/lib/types";
+import type { Buff, Condition } from "@/app/lib/types";
 import {
   calculateDamageResult,
   calculateHealingResult,
@@ -82,6 +82,20 @@ const UpdateConditionsSchema = z.object({
     ]),
   ),
   partyCode: z.string(),
+});
+
+const AddBuffSchema = z.object({
+  partyCode: z.string(),
+  combatantIds: z.array(z.number()).min(1, "Select at least one combatant"),
+  name: z.string().min(1).max(30),
+  kind: z.enum(["buff", "debuff"]),
+  rounds: z.number().int().min(1).max(999),
+});
+
+const RemoveBuffSchema = z.object({
+  partyCode: z.string(),
+  combatantId: z.number(),
+  buffId: z.string(),
 });
 
 const SetRoundSchema = z.object({
@@ -223,6 +237,93 @@ export async function updateCombatantConditions(
     return { success: true };
   } catch (error) {
     return { error: "Error updating conditions" };
+  }
+}
+
+export async function addBuffToCombatants(
+  partyCode: string,
+  combatantIds: number[],
+  name: string,
+  kind: Buff["kind"],
+  rounds: number,
+) {
+  const validated = AddBuffSchema.safeParse({
+    partyCode,
+    combatantIds,
+    name,
+    kind,
+    rounds,
+  });
+
+  if (!validated.success) {
+    return { error: "Invalid data" };
+  }
+
+  const newBuff: Buff = {
+    id: crypto.randomUUID(),
+    name: validated.data.name,
+    kind: validated.data.kind,
+    remainingRounds: validated.data.rounds,
+  };
+
+  try {
+    const affected = await db.query.combatants.findMany({
+      where: inArray(combatants.id, validated.data.combatantIds),
+    });
+
+    await Promise.all(
+      affected.map((c) =>
+        db
+          .update(combatants)
+          .set({ buffs: [...((c.buffs as Buff[]) ?? []), newBuff] })
+          .where(eq(combatants.id, c.id)),
+      ),
+    );
+
+    revalidatePath(`/party/${partyCode}`);
+    return { success: true };
+  } catch (error) {
+    return { error: "Error adding buff" };
+  }
+}
+
+export async function removeBuffFromCombatant(
+  partyCode: string,
+  combatantId: number,
+  buffId: string,
+) {
+  const validated = RemoveBuffSchema.safeParse({
+    partyCode,
+    combatantId,
+    buffId,
+  });
+
+  if (!validated.success) {
+    return { error: "Invalid data" };
+  }
+
+  try {
+    const combatant = await db.query.combatants.findFirst({
+      where: eq(combatants.id, combatantId),
+    });
+
+    if (!combatant) {
+      return { error: "Combatant not found" };
+    }
+
+    const nextBuffs = ((combatant.buffs as Buff[]) ?? []).filter(
+      (b) => b.id !== buffId,
+    );
+
+    await db
+      .update(combatants)
+      .set({ buffs: nextBuffs })
+      .where(eq(combatants.id, combatantId));
+
+    revalidatePath(`/party/${partyCode}`);
+    return { success: true };
+  } catch (error) {
+    return { error: "Error removing buff" };
   }
 }
 
@@ -400,12 +501,13 @@ export async function getPartyWithCombatants(code: string) {
 
   if (!party) return null;
 
-  // Cast conditions from string[] to Condition[]
+  // Cast conditions from string[] to Condition[] and buffs from jsonb to Buff[]
   return {
     ...party,
     combatants: party.combatants.map((c) => ({
       ...c,
       conditions: c.conditions as Condition[],
+      buffs: (c.buffs as Buff[]) ?? [],
     })),
   };
 }
@@ -537,11 +639,29 @@ export async function nextRound(partyCode: string) {
   try {
     const party = await db.query.parties.findFirst({
       where: eq(parties.code, partyCode),
+      with: { combatants: true },
     });
 
     if (!party) {
       return { error: "Party not found" };
     }
+
+    // Decrement buff durations and drop expired ones for each combatant
+    await Promise.all(
+      party.combatants.map((c) => {
+        const current = (c.buffs as Buff[]) ?? [];
+        if (current.length === 0) return null;
+
+        const nextBuffs = current
+          .map((b) => ({ ...b, remainingRounds: b.remainingRounds - 1 }))
+          .filter((b) => b.remainingRounds > 0);
+
+        return db
+          .update(combatants)
+          .set({ buffs: nextBuffs })
+          .where(eq(combatants.id, c.id));
+      }),
+    );
 
     // Increment round and reset turn to first combatant
     await db
