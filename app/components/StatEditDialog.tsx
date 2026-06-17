@@ -111,13 +111,20 @@ function StatEditForm({
             {config.label}
           </span>
           <Input
-            type="number"
+            type="text"
+            inputMode="numeric"
+            pattern="[0-9]*"
             value={localValue}
             onChange={(e) => {
-              const val = parseInt(e.target.value);
-              if (!isNaN(val)) setLocalValue(Math.max(0, val));
+              const digits = e.target.value
+                .replace(/\D/g, "")
+                .slice(0, config.maxLength);
+              setLocalValue(digits === "" ? 0 : parseInt(digits, 10));
             }}
-            maxLength={config.maxLength}
+            onFocus={(e) => {
+              const len = e.target.value.length;
+              e.target.setSelectionRange(len, len);
+            }}
             className="w-24 h-12 text-center font-mono text-2xl font-bold bg-transparent border-dnd-gold/20 focus-visible:ring-dnd-gold/30"
           />
         </div>
