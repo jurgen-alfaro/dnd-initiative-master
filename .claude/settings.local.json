@@ -28,7 +28,10 @@
       "Bash(git -C \"c:\\\\Users\\\\gkuke\\\\Documents\\\\Projects\\\\dnd-initiative-master\" mv app/components/combatant-card.tsx app/components/CombatantCard.tsx)",
       "Bash(git -C \"c:\\\\Users\\\\gkuke\\\\Documents\\\\Projects\\\\dnd-initiative-master\" mv app/components/turn-controls.tsx app/components/TurnControls.tsx)",
       "Bash(git -C \"c:\\\\Users\\\\gkuke\\\\Documents\\\\Projects\\\\dnd-initiative-master\" mv app/components/initiative-list.tsx app/components/InitiativeList.tsx)",
-      "Bash(pnpm build:*)"
+      "Bash(pnpm build:*)",
+      "PowerShell(pnpm lint)",
+      "PowerShell(pnpm exec tsc --noEmit)",
+      "PowerShell(pnpm db:push)"
     ]
   }
 }
