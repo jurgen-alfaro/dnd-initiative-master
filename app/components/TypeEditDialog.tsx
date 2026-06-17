@@ -12,7 +12,6 @@ import {
   AlertDialogTrigger,
 } from "@/app/components/ui/alert-dialog";
 import { Button } from "@/app/components/ui/button";
-import { Input } from "@/app/components/ui/input";
 import {
   Select,
   SelectContent,
@@ -24,62 +23,35 @@ import {
 import type { Combatant } from "@/app/lib/types";
 import { Shield, Sword } from "lucide-react";
 
-interface NameTypeEditDialogProps {
+interface TypeEditDialogProps {
   combatant: Combatant;
   onSave: (id: number, name: string, type: "player" | "enemy") => Promise<void>;
   isPending: boolean;
   children: React.ReactNode;
 }
 
-function NameTypeEditForm({
+function TypeEditForm({
   combatant,
   onSave,
   isPending,
   onClose,
 }: {
   combatant: Combatant;
-  onSave: NameTypeEditDialogProps["onSave"];
+  onSave: TypeEditDialogProps["onSave"];
   isPending: boolean;
   onClose: () => void;
 }) {
-  const [localName, setLocalName] = useState(combatant.name);
   const [localType, setLocalType] = useState<"player" | "enemy">(
     combatant.type,
   );
 
   const handleSave = async () => {
-    // Trim and validate name
-    const trimmedName = localName.trim();
-    if (trimmedName.length < 3) return;
-
-    await onSave(combatant.id, trimmedName, localType);
+    await onSave(combatant.id, combatant.name, localType);
     onClose();
   };
 
-  const isValid = localName.trim().length >= 3;
-
   return (
     <div className="flex flex-col gap-4">
-      {/* Name Input */}
-      <div className="flex flex-col gap-2">
-        <span className="text-xs uppercase tracking-widest text-muted-foreground font-heading">
-          Name
-        </span>
-        <Input
-          type="text"
-          value={localName}
-          onChange={(e) => setLocalName(e.target.value)}
-          maxLength={30}
-          className="text-lg font-heading font-bold bg-transparent border-dnd-gold/20 focus-visible:ring-dnd-gold/30"
-          placeholder="Enter name..."
-        />
-        {localName.trim().length > 0 && localName.trim().length < 3 && (
-          <span className="text-xs text-dnd-blood-bright">
-            Name must be at least 3 characters
-          </span>
-        )}
-      </div>
-
       {/* Type Select */}
       <div className="flex flex-col gap-2">
         <span className="text-xs uppercase tracking-widest text-muted-foreground font-heading">
@@ -113,7 +85,7 @@ function NameTypeEditForm({
 
       <AlertDialogFooter>
         <AlertDialogCancel>Cancel</AlertDialogCancel>
-        <Button onClick={handleSave} disabled={isPending || !isValid}>
+        <Button onClick={handleSave} disabled={isPending}>
           Save
         </Button>
       </AlertDialogFooter>
@@ -121,12 +93,12 @@ function NameTypeEditForm({
   );
 }
 
-export default function NameTypeEditDialog({
+export default function TypeEditDialog({
   combatant,
   onSave,
   isPending,
   children,
-}: NameTypeEditDialogProps) {
+}: TypeEditDialogProps) {
   const [open, setOpen] = useState(false);
 
   return (
@@ -135,14 +107,14 @@ export default function NameTypeEditDialog({
       <AlertDialogContent size="sm">
         <AlertDialogHeader>
           <AlertDialogTitle className="font-heading text-dnd-gold">
-            Edit Combatant Info
+            Edit Type
           </AlertDialogTitle>
           <AlertDialogDescription>
-            Set the name and type.
+            Set the combatant type.
           </AlertDialogDescription>
         </AlertDialogHeader>
         {open && (
-          <NameTypeEditForm
+          <TypeEditForm
             combatant={combatant}
             onSave={onSave}
             isPending={isPending}
