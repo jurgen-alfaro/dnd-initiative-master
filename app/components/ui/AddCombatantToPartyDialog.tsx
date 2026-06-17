@@ -204,28 +204,46 @@ const AddCombatantToPartyForm = ({
   );
 };
 
-const AddCombatantDialog = ({ floating = false }: { floating?: boolean }) => {
-  const [open, setOpen] = useState(false);
+const AddCombatantDialog = ({
+  floating = false,
+  open: controlledOpen,
+  onOpenChange: controlledOnOpenChange,
+}: {
+  floating?: boolean;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+}) => {
+  const [internalOpen, setInternalOpen] = useState(false);
   const params = useParams();
   const partyCode = params.code as string;
 
+  // Controlled mode when open/onOpenChange are provided (e.g. driven by a menu);
+  // otherwise the dialog owns its state and renders its own trigger button.
+  const isControlled = controlledOpen !== undefined;
+  const open = isControlled ? controlledOpen : internalOpen;
+  const setOpen = isControlled
+    ? (controlledOnOpenChange ?? (() => {}))
+    : setInternalOpen;
+
   return (
     <AlertDialog open={open} onOpenChange={setOpen}>
-      <AlertDialogTrigger asChild>
-        {floating ? (
-          <Button
-            size="icon"
-            className="fixed bottom-20 right-6 rounded-full w-14 h-14 shadow-lg cursor-pointer z-50"
-          >
-            <PlusIcon className="w-7 h-7" />
-          </Button>
-        ) : (
-          <Button size="lg" className="cursor-pointer">
-            Add Combatant
-            <PlusIcon />
-          </Button>
-        )}
-      </AlertDialogTrigger>
+      {!isControlled && (
+        <AlertDialogTrigger asChild>
+          {floating ? (
+            <Button
+              size="icon"
+              className="fixed bottom-20 right-6 rounded-full w-14 h-14 shadow-lg cursor-pointer z-50"
+            >
+              <PlusIcon className="w-7 h-7" />
+            </Button>
+          ) : (
+            <Button size="lg" className="cursor-pointer">
+              Add Combatant
+              <PlusIcon />
+            </Button>
+          )}
+        </AlertDialogTrigger>
+      )}
       <AlertDialogContent>
         <AlertDialogHeader>
           <AlertDialogTitle>Add Combatant</AlertDialogTitle>

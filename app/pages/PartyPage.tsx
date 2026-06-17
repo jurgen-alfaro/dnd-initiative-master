@@ -8,11 +8,10 @@ import { usePartyPolling } from "@/app/lib/hooks/usePartyPolling";
 import { useMemo, useEffect, useState } from "react";
 import { useRecentParty } from "@/app/lib/hooks/useRecentParty";
 import PartyInfoCard from "../components/PartyInfoCard";
-import AddCombatantDialog from "../components/ui/AddCombatantToPartyDialog";
-import AddCombatantToPartyDialog from "../components/ui/AddCombatantToPartyDialog";
 import { useBackNavigationGuard } from "@/app/lib/hooks/useBackNavigationGuard";
 import BackNavigationDialog from "@/app/components/BackNavigationDialog";
 import DeleteCombatantDialog from "@/app/components/DeleteCombatantDialog";
+import AddActionsMenu from "@/app/components/AddActionsMenu";
 
 type Party = {
   id: number;
@@ -52,6 +51,8 @@ export default function PartyPage({ party }: PartyPageProps) {
     optimisticUpdateNameType,
     optimisticDeleteCombatant,
     optimisticUpdateConditions,
+    optimisticAddBuff,
+    optimisticRemoveBuff,
   } = usePartyPolling(
     party.code,
     party.combatants,
@@ -154,6 +155,7 @@ export default function PartyPage({ party }: PartyPageProps) {
         onUpdateNameType={optimisticUpdateNameType}
         onDelete={handleDeleteRequest}
         onUpdateConditions={optimisticUpdateConditions}
+        onRemoveBuff={optimisticRemoveBuff}
       />
 
       <TurnControls
@@ -166,7 +168,13 @@ export default function PartyPage({ party }: PartyPageProps) {
         onPreviousTurn={optimisticPreviousTurn}
         onNextRound={optimisticNextRound}
       />
-      {isDm && <AddCombatantToPartyDialog floating />}
+      {isDm && (
+        <AddActionsMenu
+          combatants={liveCombatants}
+          onAddBuff={optimisticAddBuff}
+          isPending={false}
+        />
+      )}
 
       <BackNavigationDialog
         open={showConfirmation}
