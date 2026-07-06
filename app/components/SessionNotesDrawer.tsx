@@ -138,7 +138,7 @@ export default function SessionNotesDrawer({
               if (e.target === e.currentTarget) setOpen(false);
             }}
           >
-            <aside className="flex h-full w-full max-w-md flex-col dnd-card-ornate dnd-parchment-texture shadow-2xl">
+            <aside className="flex h-full w-full max-w-md flex-col bg-card dnd-card-ornate dnd-parchment-texture shadow-2xl">
               {/* Header */}
               <div className="flex items-center justify-between border-b border-dnd-gold/20 px-5 py-4">
                 <div className="flex items-center gap-2">
