@@ -18,6 +18,31 @@ export const typeEnum = pgEnum("type", ["player", "enemy"]);
 // privada (solo el DM, validado por dmToken en el servidor)
 export const visibilityEnum = pgEnum("visibility", ["public", "private"]);
 
+// Identidad portátil del DM. No es auth real: se identifica por dispositivos
+// (dm_devices) y se puede recuperar en otro dispositivo con recoveryCode.
+export const dungeonMasters = pgTable("dungeon_masters", {
+  id: serial("id").primaryKey(),
+  // Secreto legible para recuperar la identidad en otro dispositivo.
+  recoveryCode: text("recovery_code")
+    .notNull()
+    .unique()
+    .default(sql`gen_random_uuid()::text`),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+// Dispositivos ligados a un DM (1 DM → N dispositivos).
+export const dmDevices = pgTable("dm_devices", {
+  id: serial("id").primaryKey(),
+  // UUID aleatorio guardado en el localStorage del dispositivo.
+  deviceId: text("device_id").notNull().unique(),
+  dmId: integer("dm_id")
+    .references(() => dungeonMasters.id, { onDelete: "cascade" })
+    .notNull(),
+  // Etiqueta cosmética derivada del userAgent (Android/iPhone/Mac/...).
+  label: text("label"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
 export const parties = pgTable("parties", {
   id: serial("id").primaryKey(),
   name: text("name").notNull(),
@@ -31,6 +56,11 @@ export const parties = pgTable("parties", {
   dmToken: text("dm_token")
     .notNull()
     .default(sql`gen_random_uuid()::text`),
+  // Dueño de la party. Nullable para no romper parties creadas antes de esta
+  // feature (simplemente no aparecen en la lista de ningún DM).
+  dmId: integer("dm_id").references(() => dungeonMasters.id, {
+    onDelete: "set null",
+  }),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
@@ -64,9 +94,28 @@ export const combatants = pgTable("combatants", {
 });
 
 // Relaciones para Drizzle Queries
-export const partiesRelations = relations(parties, ({ many }) => ({
+export const dungeonMastersRelations = relations(
+  dungeonMasters,
+  ({ many }) => ({
+    devices: many(dmDevices),
+    parties: many(parties),
+  }),
+);
+
+export const dmDevicesRelations = relations(dmDevices, ({ one }) => ({
+  dm: one(dungeonMasters, {
+    fields: [dmDevices.dmId],
+    references: [dungeonMasters.id],
+  }),
+}));
+
+export const partiesRelations = relations(parties, ({ one, many }) => ({
   combatants: many(combatants),
   notes: many(notes),
+  dm: one(dungeonMasters, {
+    fields: [parties.dmId],
+    references: [dungeonMasters.id],
+  }),
 }));
 
 export const combatantsRelations = relations(combatants, ({ one }) => ({

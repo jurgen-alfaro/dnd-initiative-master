@@ -8,6 +8,7 @@ import { usePartyPolling } from "@/app/lib/hooks/usePartyPolling";
 import { useMemo, useEffect, useState } from "react";
 import { useRecentParty } from "@/app/lib/hooks/useRecentParty";
 import { useDmToken } from "@/app/lib/hooks/useDmToken";
+import { isPartyDm } from "@/app/server/actions";
 import PartyInfoCard from "../components/PartyInfoCard";
 import { useBackNavigationGuard } from "@/app/lib/hooks/useBackNavigationGuard";
 import BackNavigationDialog from "@/app/components/BackNavigationDialog";
@@ -30,13 +31,24 @@ interface PartyPageProps {
 }
 
 export default function PartyPage({ party }: PartyPageProps) {
-  // DM status comes solely from the token stored in localStorage at party
-  // creation. It is never derived from the URL, so tampering with query params
-  // (e.g. `?dm=true`) cannot grant DM access. The server also validates the
-  // token for any note operation.
+  // DM status comes from the token stored in localStorage, verified against the
+  // party's real token on the server. It is never derived from the URL, so
+  // tampering with query params (e.g. `?dm=true`) cannot grant DM access.
   const dmToken = useDmToken(party.code);
-  const isDm = dmToken !== null;
+  const [isDm, setIsDm] = useState(false);
   const router = useRouter();
+
+  useEffect(() => {
+    let cancelled = false;
+    // isPartyDm returns false for an empty/invalid token, so this covers the
+    // "not a DM" case too. setState only happens in the async callback.
+    isPartyDm(party.code, dmToken ?? "").then((ok) => {
+      if (!cancelled) setIsDm(ok);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [dmToken, party.code]);
 
   // Poll the API every 3 seconds so all connected sessions stay in sync
   const {

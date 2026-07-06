@@ -25,3 +25,23 @@ export function readDmToken(code: string): string | null {
     return null;
   }
 }
+
+// The DM's recovery code lets them re-adopt their identity (and parties) on
+// another device. Stored once, on the DM's device.
+const RECOVERY_CODE_KEY = "dnd-dm-recovery";
+
+export function storeRecoveryCode(code: string): void {
+  try {
+    localStorage.setItem(RECOVERY_CODE_KEY, code);
+  } catch {
+    // localStorage unavailable — recovery code just won't persist.
+  }
+}
+
+export function readRecoveryCode(): string | null {
+  try {
+    return localStorage.getItem(RECOVERY_CODE_KEY);
+  } catch {
+    return null;
+  }
+}

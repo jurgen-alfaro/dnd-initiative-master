@@ -1,13 +1,25 @@
 "use server";
 
 import { db } from "@/app/db/";
-import { parties, combatants, notes } from "@/app/db/schema";
-import { generatePartyCode } from "@/app/lib/code-gen";
+import {
+  parties,
+  combatants,
+  notes,
+  dungeonMasters,
+  dmDevices,
+} from "@/app/db/schema";
+import { generatePartyCode, generateRecoveryCode } from "@/app/lib/code-gen";
 import { and, desc, eq, inArray } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
-import type { Buff, Condition, Note, NoteVisibility } from "@/app/lib/types";
+import type {
+  Buff,
+  Condition,
+  DmParty,
+  Note,
+  NoteVisibility,
+} from "@/app/lib/types";
 import {
   calculateDamageResult,
   calculateHealingResult,
@@ -134,26 +146,45 @@ export async function createParty(prevState: any, formData: FormData) {
   }
 
   const code = generatePartyCode();
+  const deviceIdRaw = formData.get("deviceId");
+  const deviceLabelRaw = formData.get("deviceLabel");
+  const deviceId = typeof deviceIdRaw === "string" ? deviceIdRaw : "";
+  const deviceLabel =
+    typeof deviceLabelRaw === "string" ? deviceLabelRaw : null;
 
-  let dmToken: string;
   try {
+    // Link the party to the DM identity of the creating device (creating both
+    // the DM and the device row on first use). Falls back to no owner if the
+    // client didn't provide a device id.
+    let dmId: number | null = null;
+    let recoveryCode: string | null = null;
+    if (deviceId) {
+      const resolved = await resolveDmForDevice(deviceId, deviceLabel);
+      dmId = resolved.dmId;
+      recoveryCode = resolved.recoveryCode;
+    }
+
     const [newParty] = await db
       .insert(parties)
       .values({
         name: validatedFields.data.partyName,
         code: code,
+        dmId,
       })
       .returning({ code: parties.code, dmToken: parties.dmToken });
 
-    dmToken = newParty.dmToken;
+    // El creador es el DM. Devolvemos el token (nunca viaja en la URL) y, en la
+    // primera creación desde un dispositivo nuevo, la frase de recuperación,
+    // para que el cliente los guarde y luego navegue a la party.
+    return {
+      success: true as const,
+      code: newParty.code,
+      dmToken: newParty.dmToken,
+      recoveryCode,
+    };
   } catch (error) {
     return { error: "Error al crear la base de datos" };
   }
-
-  // El creador es el DM. Devolvemos el token (nunca viaja en la URL) para que
-  // el cliente lo guarde en localStorage y luego navegue a la party. Los
-  // jugadores que se unen por código nunca lo reciben.
-  return { success: true as const, code, dmToken };
 }
 
 export async function joinParty(prevState: any, formData: FormData) {
@@ -505,6 +536,125 @@ export async function getPartyByCode(code: string) {
   return await db.query.parties.findFirst({
     where: eq(parties.code, code),
   });
+}
+
+// --- DM Identity Actions ---
+
+/**
+ * Returns the DM id for a device, creating the DM identity and the device row
+ * on first use. Not a server action (internal helper).
+ */
+async function resolveDmForDevice(
+  deviceId: string,
+  label: string | null,
+): Promise<{ dmId: number; recoveryCode: string }> {
+  const existingDevice = await db.query.dmDevices.findFirst({
+    where: eq(dmDevices.deviceId, deviceId),
+    with: { dm: true },
+  });
+
+  if (existingDevice) {
+    return {
+      dmId: existingDevice.dmId,
+      recoveryCode: existingDevice.dm.recoveryCode,
+    };
+  }
+
+  const [dm] = await db
+    .insert(dungeonMasters)
+    .values({ recoveryCode: generateRecoveryCode() })
+    .returning({
+      id: dungeonMasters.id,
+      recoveryCode: dungeonMasters.recoveryCode,
+    });
+
+  await db.insert(dmDevices).values({ deviceId, dmId: dm.id, label });
+
+  return { dmId: dm.id, recoveryCode: dm.recoveryCode };
+}
+
+/** Lists a DM's parties (internal helper). */
+async function listPartiesForDm(dmId: number): Promise<DmParty[]> {
+  const rows = await db
+    .select({
+      code: parties.code,
+      name: parties.name,
+      dmToken: parties.dmToken,
+      createdAt: parties.createdAt,
+    })
+    .from(parties)
+    .where(eq(parties.dmId, dmId))
+    .orderBy(desc(parties.createdAt));
+
+  return rows.map((p) => ({
+    code: p.code,
+    name: p.name,
+    dmToken: p.dmToken,
+    createdAt: p.createdAt.toISOString(),
+  }));
+}
+
+/**
+ * Returns the parties owned by the DM associated with this device. The dmToken
+ * is included because possession of the (secret) device id proves ownership.
+ */
+export async function getPartiesForDevice(
+  deviceId: string,
+): Promise<DmParty[]> {
+  if (!deviceId) return [];
+
+  const device = await db.query.dmDevices.findFirst({
+    where: eq(dmDevices.deviceId, deviceId),
+  });
+  if (!device) return [];
+
+  return listPartiesForDm(device.dmId);
+}
+
+/**
+ * Re-adopts a DM identity on a new device using the recovery code. Links the
+ * device to the DM and returns its parties.
+ */
+export async function recoverDm(
+  recoveryCode: string,
+  deviceId: string,
+  deviceLabel: string,
+): Promise<{ parties: DmParty[] } | { error: string }> {
+  const code = recoveryCode.trim();
+  if (!code) return { error: "Ingresá tu frase de recuperación" };
+
+  const dm = await db.query.dungeonMasters.findFirst({
+    where: eq(dungeonMasters.recoveryCode, code),
+  });
+  if (!dm) return { error: "Frase de recuperación inválida" };
+
+  if (deviceId) {
+    const existing = await db.query.dmDevices.findFirst({
+      where: eq(dmDevices.deviceId, deviceId),
+    });
+    if (!existing) {
+      await db
+        .insert(dmDevices)
+        .values({ deviceId, dmId: dm.id, label: deviceLabel || null });
+    } else if (existing.dmId !== dm.id) {
+      await db
+        .update(dmDevices)
+        .set({ dmId: dm.id, label: deviceLabel || null })
+        .where(eq(dmDevices.deviceId, deviceId));
+    }
+  }
+
+  return { parties: await listPartiesForDm(dm.id) };
+}
+
+/**
+ * Server-side check that a token matches a party's DM token, without ever
+ * exposing the real token to the client. Used to gate the DM UI.
+ */
+export async function isPartyDm(code: string, token: string): Promise<boolean> {
+  if (!token) return false;
+  const party = await getPartyByCode(code);
+  return !!party && party.dmToken === token;
 }
 
 export async function getPartyWithCombatants(code: string) {
