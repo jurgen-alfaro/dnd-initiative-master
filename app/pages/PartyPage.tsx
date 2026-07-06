@@ -7,6 +7,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { usePartyPolling } from "@/app/lib/hooks/usePartyPolling";
 import { useMemo, useEffect, useState } from "react";
 import { useRecentParty } from "@/app/lib/hooks/useRecentParty";
+import { useDmToken } from "@/app/lib/hooks/useDmToken";
 import PartyInfoCard from "../components/PartyInfoCard";
 import { useBackNavigationGuard } from "@/app/lib/hooks/useBackNavigationGuard";
 import BackNavigationDialog from "@/app/components/BackNavigationDialog";
@@ -31,12 +32,13 @@ interface PartyPageProps {
 export default function PartyPage({ party }: PartyPageProps) {
   const searchParams = useSearchParams();
   // The DM link carries a value in `?dm=`: the literal "true" (legacy UI-only
-  // DM link) or the secret dmToken (grants access to private notes). Any
-  // non-empty value enables the DM UI; only the real token unlocks private
-  // notes, which the server validates.
+  // DM link) or the secret dmToken (grants access to private notes). The token
+  // is resolved from the URL or from localStorage (persisted across visits), so
+  // a returning DM keeps their role. Only the real token unlocks private notes,
+  // which the server validates.
   const dmParam = searchParams.get("dm");
-  const isDm = dmParam !== null && dmParam !== "";
-  const dmToken = isDm ? dmParam : null;
+  const dmToken = useDmToken(party.code, dmParam);
+  const isDm = dmToken !== null || dmParam === "true";
   const router = useRouter();
 
   // Poll the API every 3 seconds so all connected sessions stay in sync
