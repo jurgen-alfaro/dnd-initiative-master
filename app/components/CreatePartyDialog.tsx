@@ -18,12 +18,24 @@ import {
 import { SearchIcon } from "lucide-react";
 import { Button } from "@/app/components/ui/button";
 import { HeartHandshakeIcon, SwordIcon } from "lucide-react";
-import { useActionState, useState } from "react";
+import { useActionState, useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { createParty } from "@/app/server/actions";
+import { storeDmToken } from "@/app/lib/dm-token";
 
 // Sub-componente del formulario para aislar el estado
 const CreatePartyForm = () => {
   const [state, formAction, isPending] = useActionState(createParty, null);
+  const router = useRouter();
+
+  // On success, persist the DM token on this device (never in the URL) and
+  // navigate to the party. localStorage is now the only thing that grants DM.
+  useEffect(() => {
+    if (state && "success" in state && state.success) {
+      storeDmToken(state.code, state.dmToken);
+      router.push(`/party/${state.code}`);
+    }
+  }, [state, router]);
 
   return (
     <form action={formAction}>

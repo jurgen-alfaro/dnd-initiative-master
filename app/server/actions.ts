@@ -150,10 +150,10 @@ export async function createParty(prevState: any, formData: FormData) {
     return { error: "Error al crear la base de datos" };
   }
 
-  // El creador es el DM: su link lleva el token secreto, que autoriza la
-  // creación de notas y la lectura de notas privadas. Los jugadores que se
-  // unen por código nunca reciben el token.
-  redirect(`/party/${code}?dm=${dmToken}`);
+  // El creador es el DM. Devolvemos el token (nunca viaja en la URL) para que
+  // el cliente lo guarde en localStorage y luego navegue a la party. Los
+  // jugadores que se unen por código nunca lo reciben.
+  return { success: true as const, code, dmToken };
 }
 
 export async function joinParty(prevState: any, formData: FormData) {

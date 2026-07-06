@@ -3,7 +3,7 @@
 import InitiativeList from "@/app/components/InitiativeList";
 import { TurnControls } from "@/app/components/TurnControls";
 import type { Combatant } from "@/app/lib/types";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { usePartyPolling } from "@/app/lib/hooks/usePartyPolling";
 import { useMemo, useEffect, useState } from "react";
 import { useRecentParty } from "@/app/lib/hooks/useRecentParty";
@@ -30,15 +30,12 @@ interface PartyPageProps {
 }
 
 export default function PartyPage({ party }: PartyPageProps) {
-  const searchParams = useSearchParams();
-  // The DM link carries a value in `?dm=`: the literal "true" (legacy UI-only
-  // DM link) or the secret dmToken (grants access to private notes). The token
-  // is resolved from the URL or from localStorage (persisted across visits), so
-  // a returning DM keeps their role. Only the real token unlocks private notes,
-  // which the server validates.
-  const dmParam = searchParams.get("dm");
-  const dmToken = useDmToken(party.code, dmParam);
-  const isDm = dmToken !== null || dmParam === "true";
+  // DM status comes solely from the token stored in localStorage at party
+  // creation. It is never derived from the URL, so tampering with query params
+  // (e.g. `?dm=true`) cannot grant DM access. The server also validates the
+  // token for any note operation.
+  const dmToken = useDmToken(party.code);
+  const isDm = dmToken !== null;
   const router = useRouter();
 
   // Poll the API every 3 seconds so all connected sessions stay in sync
