@@ -30,7 +30,13 @@ interface PartyPageProps {
 
 export default function PartyPage({ party }: PartyPageProps) {
   const searchParams = useSearchParams();
-  const isDm = searchParams.get("dm") === "true";
+  // The DM link carries a value in `?dm=`: the literal "true" (legacy UI-only
+  // DM link) or the secret dmToken (grants access to private notes). Any
+  // non-empty value enables the DM UI; only the real token unlocks private
+  // notes, which the server validates.
+  const dmParam = searchParams.get("dm");
+  const isDm = dmParam !== null && dmParam !== "";
+  const dmToken = isDm ? dmParam : null;
   const router = useRouter();
 
   // Poll the API every 3 seconds so all connected sessions stay in sync
@@ -141,6 +147,8 @@ export default function PartyPage({ party }: PartyPageProps) {
         enemyCount={enemyCount}
         onRoundEdit={optimisticSetRound}
         onPartyNameEdit={optimisticUpdatePartyName}
+        isDm={isDm}
+        dmToken={dmToken}
       />
 
       <InitiativeList

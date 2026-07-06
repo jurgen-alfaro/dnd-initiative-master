@@ -69,3 +69,13 @@ export type RecentPartyData = {
   name: string;
   lastAccessedAt: string; // ISO 8601 timestamp
 };
+
+export type NoteVisibility = "public" | "private";
+
+export type Note = {
+  id: number;
+  content: string;
+  visibility: NoteVisibility;
+  sessionDate: string; // ISO 8601 timestamp
+  createdAt: string; // ISO 8601 timestamp
+};

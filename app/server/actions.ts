@@ -1,13 +1,13 @@
 "use server";
 
 import { db } from "@/app/db/";
-import { parties, combatants } from "@/app/db/schema";
+import { parties, combatants, notes } from "@/app/db/schema";
 import { generatePartyCode } from "@/app/lib/code-gen";
-import { eq, inArray } from "drizzle-orm";
+import { and, desc, eq, inArray } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
-import type { Buff, Condition } from "@/app/lib/types";
+import type { Buff, Condition, Note, NoteVisibility } from "@/app/lib/types";
 import {
   calculateDamageResult,
   calculateHealingResult,
@@ -111,6 +111,17 @@ const UpdatePartyNameSchema = z.object({
     .max(50, "Name must be less than 50 characters"),
 });
 
+const AddNoteSchema = z.object({
+  partyCode: z.string().length(6),
+  dmToken: z.string().min(1),
+  content: z
+    .string()
+    .min(1, "La nota no puede estar vacía")
+    .max(5000, "La nota es demasiado larga"),
+  visibility: z.enum(["public", "private"]),
+  sessionDate: z.coerce.date(),
+});
+
 // --- Actions ---
 
 export async function createParty(prevState: any, formData: FormData) {
@@ -124,22 +135,25 @@ export async function createParty(prevState: any, formData: FormData) {
 
   const code = generatePartyCode();
 
+  let dmToken: string;
   try {
-    const newParty = await db
+    const [newParty] = await db
       .insert(parties)
       .values({
         name: validatedFields.data.partyName,
         code: code,
       })
-      .returning({ code: parties.code });
+      .returning({ code: parties.code, dmToken: parties.dmToken });
 
-    // Redirigimos a la vista de la party creada
-    // Nota: En una app real, aquí setearías una cookie de sesión para identificar al DM
+    dmToken = newParty.dmToken;
   } catch (error) {
     return { error: "Error al crear la base de datos" };
   }
 
-  redirect(`/party/${code}`);
+  // El creador es el DM: su link lleva el token secreto, que autoriza la
+  // creación de notas y la lectura de notas privadas. Los jugadores que se
+  // unen por código nunca reciben el token.
+  redirect(`/party/${code}?dm=${dmToken}`);
 }
 
 export async function joinParty(prevState: any, formData: FormData) {
@@ -501,15 +515,106 @@ export async function getPartyWithCombatants(code: string) {
 
   if (!party) return null;
 
+  // Never expose the DM secret to the client that renders the party view.
+  const { dmToken: _dmToken, ...safeParty } = party;
+
   // Cast conditions from string[] to Condition[] and buffs from jsonb to Buff[]
   return {
-    ...party,
+    ...safeParty,
     combatants: party.combatants.map((c) => ({
       ...c,
       conditions: c.conditions as Condition[],
       buffs: (c.buffs as Buff[]) ?? [],
     })),
   };
+}
+
+// --- Session Notes Actions ---
+
+/**
+ * Creates a session note. Only the DM (holder of a valid dmToken) may add
+ * notes; visibility controls whether players can later read them.
+ */
+export async function addNote(
+  partyCode: string,
+  dmToken: string,
+  content: string,
+  visibility: NoteVisibility,
+  sessionDate: string,
+): Promise<{ success: true } | { error: string }> {
+  const validated = AddNoteSchema.safeParse({
+    partyCode,
+    dmToken,
+    content,
+    visibility,
+    sessionDate,
+  });
+
+  if (!validated.success) {
+    return { error: "Datos inválidos" };
+  }
+
+  const party = await getPartyByCode(validated.data.partyCode);
+  if (!party) {
+    return { error: "Party not found" };
+  }
+
+  if (validated.data.dmToken !== party.dmToken) {
+    return { error: "No autorizado" };
+  }
+
+  try {
+    await db.insert(notes).values({
+      partyId: party.id,
+      content: validated.data.content,
+      visibility: validated.data.visibility,
+      sessionDate: validated.data.sessionDate,
+    });
+  } catch (error) {
+    return { error: "Error al guardar la nota" };
+  }
+
+  revalidatePath(`/party/${party.code}`);
+  return { success: true };
+}
+
+/**
+ * Returns the party's session notes. Public notes are visible to everyone;
+ * private notes are only returned when a valid DM token is supplied. The
+ * comparison happens server-side so private notes never reach players.
+ */
+export async function getNotes(
+  partyCode: string,
+  dmToken?: string,
+): Promise<Note[]> {
+  const party = await getPartyByCode(partyCode);
+  if (!party) return [];
+
+  const isDm = !!dmToken && dmToken === party.dmToken;
+
+  const rows = await db
+    .select({
+      id: notes.id,
+      content: notes.content,
+      visibility: notes.visibility,
+      sessionDate: notes.sessionDate,
+      createdAt: notes.createdAt,
+    })
+    .from(notes)
+    .where(
+      isDm
+        ? eq(notes.partyId, party.id)
+        : and(eq(notes.partyId, party.id), eq(notes.visibility, "public")),
+    )
+    .orderBy(desc(notes.sessionDate), desc(notes.createdAt));
+
+  return rows.map((n) => ({
+    id: n.id,
+    content: n.content,
+    visibility: n.visibility,
+    sessionDate: n.sessionDate.toISOString(),
+    createdAt: n.createdAt.toISOString(),
+  }));
 }
 
 export async function addCombatantToParty(prevState: any, formData: FormData) {
