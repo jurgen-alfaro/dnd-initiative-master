@@ -20,9 +20,17 @@ import { formatSessionDate } from "@/app/lib/date-format";
 
 interface SelectPartyDialogProps {
   parties: DmParty[];
+  triggerLabel?: string;
+  triggerSize?: "sm" | "lg" | "default";
+  triggerVariant?: "outline" | "ghost" | "link";
 }
 
-export default function SelectPartyDialog({ parties }: SelectPartyDialogProps) {
+export default function SelectPartyDialog({
+  parties,
+  triggerLabel = "Select Party",
+  triggerSize = "lg",
+  triggerVariant = "outline",
+}: SelectPartyDialogProps) {
   const [open, setOpen] = useState(false);
   const router = useRouter();
 
@@ -35,8 +43,12 @@ export default function SelectPartyDialog({ parties }: SelectPartyDialogProps) {
   return (
     <AlertDialog open={open} onOpenChange={setOpen}>
       <AlertDialogTrigger asChild>
-        <Button size="lg" variant="outline" className="cursor-pointer">
-          Select Party
+        <Button
+          size={triggerSize}
+          variant={triggerVariant}
+          className="cursor-pointer"
+        >
+          {triggerLabel}
           <ScrollText />
         </Button>
       </AlertDialogTrigger>

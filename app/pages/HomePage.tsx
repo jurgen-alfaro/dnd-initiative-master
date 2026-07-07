@@ -7,7 +7,7 @@ import JoinPartyDialog from "../components/JoinPartyDialog";
 import CreatePartyDialog from "../components/CreatePartyDialog";
 import SelectPartyDialog from "../components/SelectPartyDialog";
 import RecoverDmDialog from "../components/RecoverDmDialog";
-import RecoveryCodeDialog from "../components/RecoveryCodeDialog";
+import SetRecoveryWordDialog from "../components/SetRecoveryWordDialog";
 import { getOrCreateDeviceId } from "@/app/lib/device-id";
 import { readRecoveryCode } from "@/app/lib/dm-token";
 import { getPartiesForDevice } from "@/app/server/actions";
@@ -45,29 +45,53 @@ const HomePage = () => {
   };
 
   return (
-    <section className="relative w-full flex flex-col items-center gap-4 ">
-      <h1 className="relative z-10 text-center text-5xl font-extrabold tracking-tight mb-8">
-        D&D Initiative Tracker
+    <section className="flex w-full flex-col items-center px-6">
+      {/* Logo */}
+      <div
+        aria-hidden="true"
+        className="mb-6 flex size-24 items-center justify-center rounded-full border border-dnd-gold/30 bg-linear-to-b from-dnd-gold/15 to-transparent text-5xl shadow-[0_0_35px_-8px_var(--dnd-gold)]"
+      >
+        🐉
+      </div>
+
+      {/* Title */}
+      <h1 className="mb-8 text-center font-heading text-4xl font-extrabold leading-tight tracking-tight sm:text-5xl">
+        D&D Initiative
+        <br />
+        <span className="text-dnd-gold">Tracker</span>
       </h1>
+
       {recentParty && (
-        <div className="relative z-10 w-full max-w-2xl px-4">
+        <div className="mb-6 w-full max-w-sm">
           <RecentPartyCard partyData={recentParty} onDismiss={handleDismiss} />
         </div>
       )}
-      <div className="relative z-10 flex flex-wrap gap-4 justify-center">
+
+      {/* Primary CTAs */}
+      <div className="flex w-full max-w-sm flex-col gap-3">
         <CreatePartyDialog />
         <JoinPartyDialog />
-        {dmParties.length > 0 && <SelectPartyDialog parties={dmParties} />}
+        {dmParties.length > 0 && (
+          <SelectPartyDialog
+            parties={dmParties}
+            triggerVariant="ghost"
+            triggerSize="sm"
+          />
+        )}
       </div>
-      <div className="relative z-10 flex flex-wrap gap-2 justify-center">
+
+      {/* Divider */}
+      <div className="my-6 h-px w-full max-w-sm bg-border/60" />
+
+      {/* Secondary actions */}
+      <div className="flex flex-wrap justify-center gap-4">
         <RecoverDmDialog onRecovered={handleRecovered} />
-        {recoveryCode && <RecoveryCodeDialog recoveryCode={recoveryCode} />}
-      </div>
-      <div
-        aria-hidden="true"
-        className="absolute text-[150px] bottom-5 opacity-20"
-      >
-        🐉
+        {recoveryCode && (
+          <SetRecoveryWordDialog
+            currentCode={recoveryCode}
+            onChanged={setRecoveryCode}
+          />
+        )}
       </div>
     </section>
   );
