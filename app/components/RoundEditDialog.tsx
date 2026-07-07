@@ -48,7 +48,7 @@ function RoundEditForm({
 
   return (
     <div className="flex flex-col gap-4">
-      {/* Display del número de ronda */}
+      {/* Round number display */}
       <div className="flex justify-around">
         <div className="flex flex-col items-center gap-2">
           <span className="text-xs uppercase tracking-widest text-muted-foreground font-heading">
@@ -67,7 +67,7 @@ function RoundEditForm({
         </div>
       </div>
 
-      {/* Botones de ajuste rápido */}
+      {/* Quick adjust buttons */}
       <div className="grid grid-cols-3 gap-2">
         {QUICK_ADJUST_VALUES.map((amount) => (
           <Button

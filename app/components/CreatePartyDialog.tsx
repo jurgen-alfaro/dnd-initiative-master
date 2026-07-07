@@ -23,7 +23,7 @@ import { createParty } from "@/app/server/actions";
 import { storeDmToken, storeRecoveryCode } from "@/app/lib/dm-token";
 import { getDeviceLabel, getOrCreateDeviceId } from "@/app/lib/device-id";
 
-// Sub-componente del formulario para aislar el estado
+// Form sub-component to isolate its state
 const CreatePartyForm = () => {
   const [state, formAction, isPending] = useActionState(createParty, null);
   const router = useRouter();
@@ -52,15 +52,15 @@ const CreatePartyForm = () => {
     return (
       <div className="flex flex-col gap-4">
         <p className="text-sm text-muted-foreground">
-          Guardá esta frase de recuperación. Te permite recuperar tus parties de
-          DM en otro dispositivo. No la compartas.
+          Save this recovery phrase. It lets you recover your DM parties on
+          another device. Don&apos;t share it.
         </p>
         <p className="rounded-md border border-dnd-gold/30 bg-dnd-gold/5 px-4 py-3 text-center font-mono text-lg font-bold tracking-widest text-dnd-gold">
           {recoveryCode}
         </p>
         <AlertDialogFooter>
           <Button className="w-full" onClick={() => router.push(`/party/${code}`)}>
-            Ya la guardé, continuar
+            I saved it, continue
           </Button>
         </AlertDialogFooter>
       </div>
@@ -120,10 +120,10 @@ const CreatePartyDialog = () => {
             Enter the name of the party
           </AlertDialogDescription>
         </AlertDialogHeader>
-        {/* 
-            Al pasarle una key que cambia o simplemente confiando en que el contenido 
-            se desmonta al cerrarse, logramos resetear el estado del formulario.
-            Usamos 'open' como key para forzar remontaje cada vez que se abre.
+        {/*
+            By passing a changing key, or simply relying on the content
+            unmounting when the dialog closes, we reset the form state.
+            We use 'open' as the key to force a remount every time it opens.
           */}
         {open && <CreatePartyForm />}
       </AlertDialogContent>

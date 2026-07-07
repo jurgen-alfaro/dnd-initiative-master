@@ -13,18 +13,18 @@ const runMigrate = async () => {
   const sql = neon(process.env.DATABASE_URL);
   const db = drizzle(sql);
 
-  console.log("⏳ Iniciando migración...");
+  console.log("⏳ Starting migration...");
 
   const start = Date.now();
 
   try {
-    // Esto aplicará todos los cambios pendientes en la carpeta ./drizzle
+    // This applies every pending change in the ./drizzle folder
     await migrate(db, { migrationsFolder: "drizzle" });
 
     const end = Date.now();
-    console.log(`✅ Migración completada exitosamente en ${end - start}ms`);
+    console.log(`✅ Migration completed successfully in ${end - start}ms`);
   } catch (err) {
-    console.error("❌ Error durante la migración:", err);
+    console.error("❌ Error during migration:", err);
     process.exit(1);
   }
 };

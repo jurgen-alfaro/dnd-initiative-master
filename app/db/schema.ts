@@ -11,18 +11,18 @@ import {
 import { relations, sql } from "drizzle-orm";
 import type { Buff } from "../lib/types";
 
-// Definimos el tipo de combatiente
+// Combatant type
 export const typeEnum = pgEnum("type", ["player", "enemy"]);
 
-// Visibilidad de las notas de sesión: pública (la ven todos los PJ) o
-// privada (solo el DM, validado por dmToken en el servidor)
+// Session note visibility: public (visible to all PCs) or
+// private (DM only, validated by dmToken on the server)
 export const visibilityEnum = pgEnum("visibility", ["public", "private"]);
 
-// Identidad portátil del DM. No es auth real: se identifica por dispositivos
-// (dm_devices) y se puede recuperar en otro dispositivo con recoveryCode.
+// Portable DM identity. Not real auth: the DM is identified by devices
+// (dm_devices) and can be recovered on another device with recoveryCode.
 export const dungeonMasters = pgTable("dungeon_masters", {
   id: serial("id").primaryKey(),
-  // Secreto legible para recuperar la identidad en otro dispositivo.
+  // Human-readable secret to recover the identity on another device.
   recoveryCode: text("recovery_code")
     .notNull()
     .unique()
@@ -30,15 +30,15 @@ export const dungeonMasters = pgTable("dungeon_masters", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
-// Dispositivos ligados a un DM (1 DM → N dispositivos).
+// Devices linked to a DM (1 DM → N devices).
 export const dmDevices = pgTable("dm_devices", {
   id: serial("id").primaryKey(),
-  // UUID aleatorio guardado en el localStorage del dispositivo.
+  // Random UUID stored in the device's localStorage.
   deviceId: text("device_id").notNull().unique(),
   dmId: integer("dm_id")
     .references(() => dungeonMasters.id, { onDelete: "cascade" })
     .notNull(),
-  // Etiqueta cosmética derivada del userAgent (Android/iPhone/Mac/...).
+  // Cosmetic label derived from the userAgent (Android/iPhone/Mac/...).
   label: text("label"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
@@ -46,18 +46,18 @@ export const dmDevices = pgTable("dm_devices", {
 export const parties = pgTable("parties", {
   id: serial("id").primaryKey(),
   name: text("name").notNull(),
-  code: text("code").notNull().unique(), // Código de 6 caracteres
+  code: text("code").notNull().unique(), // 6-character code
   isActive: boolean("is_active").default(true),
   currentTurnIndex: integer("current_turn_index").default(0).notNull(),
   currentRound: integer("current_round").default(1).notNull(),
-  // Secreto del DM. Nunca se envía a los clientes; se usa para autorizar la
-  // creación de notas y la lectura de notas privadas. El default backfillea
-  // las parties existentes al aplicar la migración.
+  // DM secret. Never sent to clients; used to authorize note creation and
+  // reading private notes. The default backfills existing parties when the
+  // migration is applied.
   dmToken: text("dm_token")
     .notNull()
     .default(sql`gen_random_uuid()::text`),
-  // Dueño de la party. Nullable para no romper parties creadas antes de esta
-  // feature (simplemente no aparecen en la lista de ningún DM).
+  // Party owner. Nullable so parties created before this feature keep working
+  // (they simply don't show up in any DM's list).
   dmId: integer("dm_id").references(() => dungeonMasters.id, {
     onDelete: "set null",
   }),
@@ -68,7 +68,7 @@ export const notes = pgTable("notes", {
   id: serial("id").primaryKey(),
   content: text("content").notNull(),
   visibility: visibilityEnum("visibility").notNull().default("public"),
-  // Fecha de la sesión a la que pertenece la nota (editable por el DM)
+  // Date of the session the note belongs to (editable by the DM)
   sessionDate: timestamp("session_date").defaultNow().notNull(),
   partyId: integer("party_id")
     .references(() => parties.id, { onDelete: "cascade" })
@@ -93,7 +93,7 @@ export const combatants = pgTable("combatants", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
-// Relaciones para Drizzle Queries
+// Relations for Drizzle Queries
 export const dungeonMastersRelations = relations(
   dungeonMasters,
   ({ many }) => ({

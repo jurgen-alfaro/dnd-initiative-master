@@ -55,7 +55,7 @@ export default function SessionNotesDrawer({
       const data = await getNotes(partyCode, dmToken ?? undefined);
       setNotes(data);
     } catch {
-      setError("No se pudieron cargar las notas");
+      setError("Could not load notes");
     } finally {
       setIsLoading(false);
     }
@@ -83,7 +83,7 @@ export default function SessionNotesDrawer({
   const handleSave = async () => {
     if (!dmToken) return;
     if (content.trim() === "") {
-      setError("La nota no puede estar vacía");
+      setError("Note cannot be empty");
       return;
     }
 
@@ -111,7 +111,7 @@ export default function SessionNotesDrawer({
       setShowForm(false);
       await loadNotes();
     } catch {
-      setError("Error al guardar la nota");
+      setError("Error saving note");
     } finally {
       setIsSaving(false);
     }
@@ -126,7 +126,7 @@ export default function SessionNotesDrawer({
         className="cursor-pointer gap-2 border-dnd-gold/30 text-dnd-gold hover:bg-dnd-gold/10"
       >
         <NotebookText size={16} />
-        Notas
+        Notes
       </Button>
 
       {open &&
@@ -144,7 +144,7 @@ export default function SessionNotesDrawer({
                 <div className="flex items-center gap-2">
                   <ScrollText className="text-dnd-gold" size={20} />
                   <h2 className="font-heading text-lg font-bold tracking-wide text-dnd-gold">
-                    Notas de sesión
+                    Session notes
                   </h2>
                 </div>
                 <Button
@@ -154,7 +154,7 @@ export default function SessionNotesDrawer({
                   className="cursor-pointer text-muted-foreground hover:text-dnd-parchment"
                 >
                   <X size={20} />
-                  <span className="sr-only">Cerrar</span>
+                  <span className="sr-only">Close</span>
                 </Button>
               </div>
 
@@ -166,7 +166,7 @@ export default function SessionNotesDrawer({
                   </div>
                 ) : notes.length === 0 ? (
                   <p className="py-10 text-center text-sm text-muted-foreground">
-                    Todavía no hay notas para esta party.
+                    No notes for this party yet.
                   </p>
                 ) : (
                   <ul className="flex flex-col gap-3">
@@ -189,11 +189,11 @@ export default function SessionNotesDrawer({
                           >
                             {note.visibility === "private" ? (
                               <>
-                                <Lock size={11} /> Privada
+                                <Lock size={11} /> Private
                               </>
                             ) : (
                               <>
-                                <Globe size={11} /> Pública
+                                <Globe size={11} /> Public
                               </>
                             )}
                           </Badge>
@@ -215,7 +215,7 @@ export default function SessionNotesDrawer({
                       <Textarea
                         value={content}
                         onChange={(e) => setContent(e.target.value)}
-                        placeholder="Escribe la nota de la sesión..."
+                        placeholder="Write the session note..."
                         rows={4}
                         className="resize-none border-dnd-gold/20 bg-transparent"
                       />
@@ -225,7 +225,7 @@ export default function SessionNotesDrawer({
                           htmlFor="sessionDate"
                           className="text-xs uppercase tracking-wider text-muted-foreground"
                         >
-                          Fecha
+                          Date
                         </label>
                         <input
                           id="sessionDate"
@@ -251,7 +251,7 @@ export default function SessionNotesDrawer({
                               : "gap-1 border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/10"
                           }
                         >
-                          <Globe size={14} /> Pública
+                          <Globe size={14} /> Public
                         </Button>
                         <Button
                           type="button"
@@ -266,7 +266,7 @@ export default function SessionNotesDrawer({
                               : "gap-1 border-dnd-blood/30 text-dnd-blood-bright hover:bg-dnd-blood/10"
                           }
                         >
-                          <Lock size={14} /> Privada
+                          <Lock size={14} /> Private
                         </Button>
                       </div>
 
@@ -285,7 +285,7 @@ export default function SessionNotesDrawer({
                           disabled={isSaving}
                           className="cursor-pointer"
                         >
-                          Cancelar
+                          Cancel
                         </Button>
                         <Button
                           size="sm"
@@ -293,7 +293,7 @@ export default function SessionNotesDrawer({
                           disabled={isSaving}
                           className="cursor-pointer"
                         >
-                          {isSaving ? "Guardando..." : "Guardar nota"}
+                          {isSaving ? "Saving..." : "Save note"}
                         </Button>
                       </div>
                     </div>
@@ -302,7 +302,7 @@ export default function SessionNotesDrawer({
                       onClick={() => setShowForm(true)}
                       className="w-full cursor-pointer gap-2"
                     >
-                      <Plus size={16} /> Agregar nota
+                      <Plus size={16} /> Add note
                     </Button>
                   )}
                 </div>

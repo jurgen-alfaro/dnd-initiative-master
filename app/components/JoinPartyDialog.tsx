@@ -20,7 +20,7 @@ import { HeartHandshakeIcon, DicesIcon } from "lucide-react";
 import { useActionState, useState } from "react";
 import { joinParty } from "@/app/server/actions";
 
-// Sub-componente del formulario para aislar el estado
+// Form sub-component to isolate its state
 const JoinPartyForm = () => {
   const [state, formAction, isPending] = useActionState(joinParty, null);
 
@@ -73,10 +73,10 @@ const JoinPartyDialog = () => {
             Enter the party code the DM gave you
           </AlertDialogDescription>
         </AlertDialogHeader>
-        {/* 
-            Al pasarle una key que cambia o simplemente confiando en que el contenido 
-            se desmonta al cerrarse, logramos resetear el estado del formulario.
-            Usamos 'open' como key para forzar remontaje cada vez que se abre.
+        {/*
+            By passing a changing key, or simply relying on the content
+            unmounting when the dialog closes, we reset the form state.
+            We use 'open' as the key to force a remount every time it opens.
           */}
         {open && <JoinPartyForm />}
       </AlertDialogContent>

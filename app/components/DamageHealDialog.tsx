@@ -25,7 +25,7 @@ interface DamageHealDialogProps {
   defaultTab?: ActionType;
 }
 
-// Valores rápidos para daño y curación
+// Quick values for damage and healing
 const QUICK_VALUES = [1, 5, 20];
 
 function DamageHealForm({
@@ -52,13 +52,13 @@ function DamageHealForm({
     setActiveTab(defaultTab);
   }, [defaultTab]);
 
-  // Calcular preview del resultado
+  // Calculate a preview of the result
   const calculatePreview = () => {
     let previewHp = combatant.hp;
     let previewTmpHp = combatant.tmpHp;
 
     if (activeTab === "damage" && amount > 0) {
-      // Lógica de daño D&D 5e
+      // D&D 5e damage logic
       if (previewTmpHp > 0) {
         if (amount >= previewTmpHp) {
           const overflow = amount - previewTmpHp;
@@ -71,7 +71,7 @@ function DamageHealForm({
         previewHp = Math.max(0, previewHp - amount);
       }
     } else if (activeTab === "healing" && amount > 0) {
-      // Lógica de curación
+      // Healing logic
       previewHp = Math.min(combatant.maxHp, previewHp + amount);
     }
 
@@ -176,7 +176,7 @@ function DamageHealForm({
         />
       </div>
 
-      {/* Botones de ajuste rápido */}
+      {/* Quick adjust buttons */}
       <div className="grid grid-cols-3 gap-2">
         {quickValues.map((value) => (
           <Button
@@ -197,7 +197,7 @@ function DamageHealForm({
         ))}
       </div>
 
-      {/* Preview del resultado */}
+      {/* Result preview */}
       {amount > 0 && (
         <div className="flex justify-around py-2 px-4 bg-dnd-gold/5 rounded border border-dnd-gold/20">
           <div className="flex flex-col items-center">
