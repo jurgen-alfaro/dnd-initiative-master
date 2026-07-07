@@ -20,6 +20,7 @@ const HomePage = () => {
   // DM identity: parties owned by this device + stored recovery code
   const [dmParties, setDmParties] = useState<DmParty[]>([]);
   const [recoveryCode, setRecoveryCode] = useState<string | null>(null);
+  const [isSelectPartyOpen, setIsSelectPartyOpen] = useState(false);
 
   // Load client-only state on mount. localStorage reads run in the async
   // callbacks (not synchronously in the effect) and after mount, keeping them
@@ -42,6 +43,7 @@ const HomePage = () => {
   const handleRecovered = (parties: DmParty[]) => {
     setDmParties(parties);
     setRecoveryCode(readRecoveryCode());
+    if (parties.length > 0) setIsSelectPartyOpen(true);
   };
 
   return (
@@ -76,6 +78,8 @@ const HomePage = () => {
             parties={dmParties}
             triggerVariant="ghost"
             triggerSize="sm"
+            open={isSelectPartyOpen}
+            onOpenChange={setIsSelectPartyOpen}
           />
         )}
       </div>
