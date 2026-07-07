@@ -14,43 +14,42 @@ import {
 import { Button } from "@/app/components/ui/button";
 import { Input } from "@/app/components/ui/input";
 import { KeyRoundIcon } from "lucide-react";
-import { recoverDm } from "@/app/server/actions";
-import { getDeviceLabel, getOrCreateDeviceId } from "@/app/lib/device-id";
+import { setRecoveryWord } from "@/app/server/actions";
+import { getOrCreateDeviceId } from "@/app/lib/device-id";
 import { storeRecoveryCode } from "@/app/lib/dm-token";
-import type { DmParty } from "@/app/lib/types";
 
-interface RecoverDmDialogProps {
-  onRecovered: (parties: DmParty[]) => void;
+interface SetRecoveryWordDialogProps {
+  currentCode: string;
+  onChanged: (code: string) => void;
 }
 
-export default function RecoverDmDialog({ onRecovered }: RecoverDmDialogProps) {
+export default function SetRecoveryWordDialog({
+  currentCode,
+  onChanged,
+}: SetRecoveryWordDialogProps) {
   const [open, setOpen] = useState(false);
-  const [code, setCode] = useState("");
+  const [word, setWord] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [isPending, setIsPending] = useState(false);
 
   const handleSubmit = async () => {
-    const trimmed = code.trim();
+    const trimmed = word.trim();
     if (trimmed === "") return;
 
     setIsPending(true);
     setError(null);
     try {
-      const result = await recoverDm(
-        trimmed,
-        getOrCreateDeviceId(),
-        getDeviceLabel(),
-      );
+      const result = await setRecoveryWord(getOrCreateDeviceId(), trimmed);
       if ("error" in result) {
         setError(result.error);
         return;
       }
-      storeRecoveryCode(trimmed);
-      onRecovered(result.parties);
-      setCode("");
+      storeRecoveryCode(result.recoveryCode);
+      onChanged(result.recoveryCode);
+      setWord("");
       setOpen(false);
     } catch {
-      setError("No se pudo recuperar. Intentá de nuevo.");
+      setError("No se pudo guardar. Intentá de nuevo.");
     } finally {
       setIsPending(false);
     }
@@ -61,23 +60,31 @@ export default function RecoverDmDialog({ onRecovered }: RecoverDmDialogProps) {
       <AlertDialogTrigger asChild>
         <Button variant="ghost" size="sm" className="cursor-pointer gap-2">
           <KeyRoundIcon size={16} />
-          Recuperar DM
+          Frase de recuperación
         </Button>
       </AlertDialogTrigger>
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle>Recuperar identidad de DM</AlertDialogTitle>
+          <AlertDialogTitle>Frase de recuperación</AlertDialogTitle>
           <AlertDialogDescription>
-            Ingresá tu frase de recuperación para acceder a tus parties desde
-            este dispositivo.
+            Elegí una palabra o frase fácil de recordar. La usás para recuperar
+            tus parties de DM en otro dispositivo. No la compartas.
           </AlertDialogDescription>
         </AlertDialogHeader>
 
         <div className="space-y-1">
+          <p className="text-xs text-muted-foreground">Frase actual</p>
+          <p className="rounded-md border border-dnd-gold/30 bg-dnd-gold/5 px-4 py-3 text-center text-lg font-bold text-dnd-gold">
+            {currentCode}
+          </p>
+        </div>
+
+        <div className="space-y-1">
           <Input
-            value={code}
-            onChange={(e) => setCode(e.target.value)}
-            placeholder="tu palabra o frase"
+            value={word}
+            onChange={(e) => setWord(e.target.value)}
+            placeholder="palabra o frase fácil de recordar"
+            maxLength={40}
             autoComplete="off"
           />
           <p className="text-xs text-muted-foreground">
@@ -87,12 +94,12 @@ export default function RecoverDmDialog({ onRecovered }: RecoverDmDialogProps) {
         {error && <p className="text-sm text-destructive">{error}</p>}
 
         <AlertDialogFooter>
-          <AlertDialogCancel disabled={isPending}>Cancel</AlertDialogCancel>
+          <AlertDialogCancel disabled={isPending}>Cancelar</AlertDialogCancel>
           <Button
             onClick={handleSubmit}
-            disabled={isPending || code.trim() === ""}
+            disabled={isPending || word.trim() === ""}
           >
-            {isPending ? "Buscando..." : "Recuperar"}
+            {isPending ? "Guardando..." : "Guardar"}
           </Button>
         </AlertDialogFooter>
       </AlertDialogContent>

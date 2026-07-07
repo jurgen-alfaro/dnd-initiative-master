@@ -9,7 +9,7 @@ import {
   dmDevices,
 } from "@/app/db/schema";
 import { generatePartyCode, generateRecoveryCode } from "@/app/lib/code-gen";
-import { and, desc, eq, inArray } from "drizzle-orm";
+import { and, desc, eq, inArray, sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
@@ -133,6 +133,33 @@ const AddNoteSchema = z.object({
   visibility: z.enum(["public", "private"]),
   sessionDate: z.coerce.date(),
 });
+
+// Frase de recuperación elegida por el DM. Se normaliza (trim + colapsa
+// espacios + minúsculas) antes de validar, así la unicidad y la búsqueda son
+// insensibles a mayúsculas/minúsculas y a espacios de más.
+const RECOVERY_WORD_RE = /^[\p{L}\p{N} -]+$/u; // letras (con acentos), dígitos, espacio, guion
+
+const RecoveryWordSchema = z
+  .string()
+  .trim()
+  .transform((s) => s.replace(/\s+/g, " ").toLowerCase())
+  .pipe(
+    z
+      .string()
+      .min(4, "La frase debe tener al menos 4 caracteres")
+      .max(40, "La frase es demasiado larga")
+      .regex(RECOVERY_WORD_RE, "Usá solo letras, números, espacios o guiones"),
+  );
+
+/** True si el error es una violación de unicidad de Postgres (código 23505). */
+function isUniqueViolation(e: unknown): boolean {
+  return (
+    typeof e === "object" &&
+    e !== null &&
+    "code" in e &&
+    (e as { code?: string }).code === "23505"
+  );
+}
 
 // --- Actions ---
 
@@ -624,7 +651,7 @@ export async function recoverDm(
   if (!code) return { error: "Ingresá tu frase de recuperación" };
 
   const dm = await db.query.dungeonMasters.findFirst({
-    where: eq(dungeonMasters.recoveryCode, code),
+    where: sql`lower(${dungeonMasters.recoveryCode}) = lower(${code})`,
   });
   if (!dm) return { error: "Frase de recuperación inválida" };
 
@@ -645,6 +672,40 @@ export async function recoverDm(
   }
 
   return { parties: await listPartiesForDm(dm.id) };
+}
+
+/**
+ * Sets (or changes) the memorable recovery word for the DM that owns this
+ * device. The word is normalized and must be unique; a collision returns a
+ * typed error so the DM can pick another.
+ */
+export async function setRecoveryWord(
+  deviceId: string,
+  word: unknown,
+): Promise<{ recoveryCode: string } | { error: string }> {
+  const device = await db.query.dmDevices.findFirst({
+    where: eq(dmDevices.deviceId, deviceId),
+  });
+  if (!device) return { error: "No sos DM en este dispositivo." };
+
+  const parsed = RecoveryWordSchema.safeParse(word);
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? "Frase inválida" };
+  }
+
+  try {
+    await db
+      .update(dungeonMasters)
+      .set({ recoveryCode: parsed.data })
+      .where(eq(dungeonMasters.id, device.dmId));
+  } catch (e) {
+    if (isUniqueViolation(e)) {
+      return { error: "Esa palabra ya está en uso, elegí otra." };
+    }
+    throw e;
+  }
+
+  return { recoveryCode: parsed.data };
 }
 
 /**
