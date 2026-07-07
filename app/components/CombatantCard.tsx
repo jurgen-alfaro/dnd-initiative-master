@@ -228,7 +228,22 @@ const CombatantCard = forwardRef<HTMLDivElement, CombatantCardProps>(
               const Icon = CONDITION_ICONS[condition];
               const colorClass = CONDITION_COLORS[condition];
               return (
-                <ConditionDescriptionDialog key={condition} condition={condition}>
+                <ConditionDescriptionDialog
+                  key={condition}
+                  condition={condition}
+                  isPending={isPending}
+                  onRemove={
+                    isDm
+                      ? () =>
+                          onConditionsChange(
+                            combatant.id,
+                            combatant.conditions.filter(
+                              (c) => c !== condition,
+                            ),
+                          )
+                      : undefined
+                  }
+                >
                   <button
                     className="flex items-center gap-1 px-2 py-1 rounded bg-dnd-parchment/10 border border-dnd-gold/20 hover:bg-dnd-parchment/15 hover:border-dnd-gold/30 transition-all duration-200 cursor-pointer active:scale-95"
                   >
