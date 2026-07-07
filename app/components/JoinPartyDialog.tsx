@@ -61,7 +61,7 @@ const JoinPartyDialog = () => {
   return (
     <AlertDialog open={open} onOpenChange={setOpen}>
       <AlertDialogTrigger asChild>
-        <Button size="lg" className="cursor-pointer">
+        <Button size="lg" className="w-full cursor-pointer">
           Join Party
           <HeartHandshakeIcon />
         </Button>

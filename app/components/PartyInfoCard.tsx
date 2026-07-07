@@ -12,6 +12,7 @@ import { Separator } from "@/app/components/ui/separator";
 import CopyableCode from "./CopyableCode";
 import RoundEditDialog from "./RoundEditDialog";
 import PartyNameEditDialog from "./PartyNameEditDialog";
+import SessionNotesDrawer from "./SessionNotesDrawer";
 import { Party } from "../lib/types";
 
 interface PartyInfoCardProps {
@@ -21,6 +22,8 @@ interface PartyInfoCardProps {
   onRoundEdit: (newRound: number) => Promise<void>;
   onPartyNameEdit: (newName: string) => Promise<void>;
   isPending?: boolean;
+  isDm?: boolean;
+  dmToken?: string | null;
 }
 
 const PartyInfoCard = ({
@@ -30,6 +33,8 @@ const PartyInfoCard = ({
   onRoundEdit,
   onPartyNameEdit,
   isPending = false,
+  isDm = false,
+  dmToken = null,
 }: PartyInfoCardProps) => {
   const currentRound = party.currentRound;
 
@@ -82,6 +87,11 @@ const PartyInfoCard = ({
             >
               {party.isActive ? "Active" : "Inactive"}
             </Badge>
+            <SessionNotesDrawer
+              partyCode={party.code}
+              isDm={isDm}
+              dmToken={dmToken}
+            />
           </div>
         </div>
       </CardHeader>

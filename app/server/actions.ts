@@ -1,13 +1,25 @@
 "use server";
 
 import { db } from "@/app/db/";
-import { parties, combatants } from "@/app/db/schema";
-import { generatePartyCode } from "@/app/lib/code-gen";
-import { eq, inArray } from "drizzle-orm";
+import {
+  parties,
+  combatants,
+  notes,
+  dungeonMasters,
+  dmDevices,
+} from "@/app/db/schema";
+import { generatePartyCode, generateRecoveryCode } from "@/app/lib/code-gen";
+import { and, desc, eq, inArray, sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
-import type { Buff, Condition } from "@/app/lib/types";
+import type {
+  Buff,
+  Condition,
+  DmParty,
+  Note,
+  NoteVisibility,
+} from "@/app/lib/types";
 import {
   calculateDamageResult,
   calculateHealingResult,
@@ -111,6 +123,44 @@ const UpdatePartyNameSchema = z.object({
     .max(50, "Name must be less than 50 characters"),
 });
 
+const AddNoteSchema = z.object({
+  partyCode: z.string().length(6),
+  dmToken: z.string().min(1),
+  content: z
+    .string()
+    .min(1, "La nota no puede estar vacía")
+    .max(5000, "La nota es demasiado larga"),
+  visibility: z.enum(["public", "private"]),
+  sessionDate: z.coerce.date(),
+});
+
+// Frase de recuperación elegida por el DM. Se normaliza (trim + colapsa
+// espacios + minúsculas) antes de validar, así la unicidad y la búsqueda son
+// insensibles a mayúsculas/minúsculas y a espacios de más.
+const RECOVERY_WORD_RE = /^[\p{L}\p{N} -]+$/u; // letras (con acentos), dígitos, espacio, guion
+
+const RecoveryWordSchema = z
+  .string()
+  .trim()
+  .transform((s) => s.replace(/\s+/g, " ").toLowerCase())
+  .pipe(
+    z
+      .string()
+      .min(4, "La frase debe tener al menos 4 caracteres")
+      .max(40, "La frase es demasiado larga")
+      .regex(RECOVERY_WORD_RE, "Usá solo letras, números, espacios o guiones"),
+  );
+
+/** True si el error es una violación de unicidad de Postgres (código 23505). */
+function isUniqueViolation(e: unknown): boolean {
+  return (
+    typeof e === "object" &&
+    e !== null &&
+    "code" in e &&
+    (e as { code?: string }).code === "23505"
+  );
+}
+
 // --- Actions ---
 
 export async function createParty(prevState: any, formData: FormData) {
@@ -123,23 +173,45 @@ export async function createParty(prevState: any, formData: FormData) {
   }
 
   const code = generatePartyCode();
+  const deviceIdRaw = formData.get("deviceId");
+  const deviceLabelRaw = formData.get("deviceLabel");
+  const deviceId = typeof deviceIdRaw === "string" ? deviceIdRaw : "";
+  const deviceLabel =
+    typeof deviceLabelRaw === "string" ? deviceLabelRaw : null;
 
   try {
-    const newParty = await db
+    // Link the party to the DM identity of the creating device (creating both
+    // the DM and the device row on first use). Falls back to no owner if the
+    // client didn't provide a device id.
+    let dmId: number | null = null;
+    let recoveryCode: string | null = null;
+    if (deviceId) {
+      const resolved = await resolveDmForDevice(deviceId, deviceLabel);
+      dmId = resolved.dmId;
+      recoveryCode = resolved.recoveryCode;
+    }
+
+    const [newParty] = await db
       .insert(parties)
       .values({
         name: validatedFields.data.partyName,
         code: code,
+        dmId,
       })
-      .returning({ code: parties.code });
+      .returning({ code: parties.code, dmToken: parties.dmToken });
 
-    // Redirigimos a la vista de la party creada
-    // Nota: En una app real, aquí setearías una cookie de sesión para identificar al DM
+    // El creador es el DM. Devolvemos el token (nunca viaja en la URL) y, en la
+    // primera creación desde un dispositivo nuevo, la frase de recuperación,
+    // para que el cliente los guarde y luego navegue a la party.
+    return {
+      success: true as const,
+      code: newParty.code,
+      dmToken: newParty.dmToken,
+      recoveryCode,
+    };
   } catch (error) {
     return { error: "Error al crear la base de datos" };
   }
-
-  redirect(`/party/${code}`);
 }
 
 export async function joinParty(prevState: any, formData: FormData) {
@@ -493,6 +565,159 @@ export async function getPartyByCode(code: string) {
   });
 }
 
+// --- DM Identity Actions ---
+
+/**
+ * Returns the DM id for a device, creating the DM identity and the device row
+ * on first use. Not a server action (internal helper).
+ */
+async function resolveDmForDevice(
+  deviceId: string,
+  label: string | null,
+): Promise<{ dmId: number; recoveryCode: string }> {
+  const existingDevice = await db.query.dmDevices.findFirst({
+    where: eq(dmDevices.deviceId, deviceId),
+    with: { dm: true },
+  });
+
+  if (existingDevice) {
+    return {
+      dmId: existingDevice.dmId,
+      recoveryCode: existingDevice.dm.recoveryCode,
+    };
+  }
+
+  const [dm] = await db
+    .insert(dungeonMasters)
+    .values({ recoveryCode: generateRecoveryCode() })
+    .returning({
+      id: dungeonMasters.id,
+      recoveryCode: dungeonMasters.recoveryCode,
+    });
+
+  await db.insert(dmDevices).values({ deviceId, dmId: dm.id, label });
+
+  return { dmId: dm.id, recoveryCode: dm.recoveryCode };
+}
+
+/** Lists a DM's parties (internal helper). */
+async function listPartiesForDm(dmId: number): Promise<DmParty[]> {
+  const rows = await db
+    .select({
+      code: parties.code,
+      name: parties.name,
+      dmToken: parties.dmToken,
+      createdAt: parties.createdAt,
+    })
+    .from(parties)
+    .where(eq(parties.dmId, dmId))
+    .orderBy(desc(parties.createdAt));
+
+  return rows.map((p) => ({
+    code: p.code,
+    name: p.name,
+    dmToken: p.dmToken,
+    createdAt: p.createdAt.toISOString(),
+  }));
+}
+
+/**
+ * Returns the parties owned by the DM associated with this device. The dmToken
+ * is included because possession of the (secret) device id proves ownership.
+ */
+export async function getPartiesForDevice(
+  deviceId: string,
+): Promise<DmParty[]> {
+  if (!deviceId) return [];
+
+  const device = await db.query.dmDevices.findFirst({
+    where: eq(dmDevices.deviceId, deviceId),
+  });
+  if (!device) return [];
+
+  return listPartiesForDm(device.dmId);
+}
+
+/**
+ * Re-adopts a DM identity on a new device using the recovery code. Links the
+ * device to the DM and returns its parties.
+ */
+export async function recoverDm(
+  recoveryCode: string,
+  deviceId: string,
+  deviceLabel: string,
+): Promise<{ parties: DmParty[] } | { error: string }> {
+  const code = recoveryCode.trim();
+  if (!code) return { error: "Ingresá tu frase de recuperación" };
+
+  const dm = await db.query.dungeonMasters.findFirst({
+    where: sql`lower(${dungeonMasters.recoveryCode}) = lower(${code})`,
+  });
+  if (!dm) return { error: "Frase de recuperación inválida" };
+
+  if (deviceId) {
+    const existing = await db.query.dmDevices.findFirst({
+      where: eq(dmDevices.deviceId, deviceId),
+    });
+    if (!existing) {
+      await db
+        .insert(dmDevices)
+        .values({ deviceId, dmId: dm.id, label: deviceLabel || null });
+    } else if (existing.dmId !== dm.id) {
+      await db
+        .update(dmDevices)
+        .set({ dmId: dm.id, label: deviceLabel || null })
+        .where(eq(dmDevices.deviceId, deviceId));
+    }
+  }
+
+  return { parties: await listPartiesForDm(dm.id) };
+}
+
+/**
+ * Sets (or changes) the memorable recovery word for the DM that owns this
+ * device. The word is normalized and must be unique; a collision returns a
+ * typed error so the DM can pick another.
+ */
+export async function setRecoveryWord(
+  deviceId: string,
+  word: unknown,
+): Promise<{ recoveryCode: string } | { error: string }> {
+  const device = await db.query.dmDevices.findFirst({
+    where: eq(dmDevices.deviceId, deviceId),
+  });
+  if (!device) return { error: "No sos DM en este dispositivo." };
+
+  const parsed = RecoveryWordSchema.safeParse(word);
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? "Frase inválida" };
+  }
+
+  try {
+    await db
+      .update(dungeonMasters)
+      .set({ recoveryCode: parsed.data })
+      .where(eq(dungeonMasters.id, device.dmId));
+  } catch (e) {
+    if (isUniqueViolation(e)) {
+      return { error: "Esa palabra ya está en uso, elegí otra." };
+    }
+    throw e;
+  }
+
+  return { recoveryCode: parsed.data };
+}
+
+/**
+ * Server-side check that a token matches a party's DM token, without ever
+ * exposing the real token to the client. Used to gate the DM UI.
+ */
+export async function isPartyDm(code: string, token: string): Promise<boolean> {
+  if (!token) return false;
+  const party = await getPartyByCode(code);
+  return !!party && party.dmToken === token;
+}
+
 export async function getPartyWithCombatants(code: string) {
   const party = await db.query.parties.findFirst({
     where: eq(parties.code, code),
@@ -501,15 +726,106 @@ export async function getPartyWithCombatants(code: string) {
 
   if (!party) return null;
 
+  // Never expose the DM secret to the client that renders the party view.
+  const { dmToken: _dmToken, ...safeParty } = party;
+
   // Cast conditions from string[] to Condition[] and buffs from jsonb to Buff[]
   return {
-    ...party,
+    ...safeParty,
     combatants: party.combatants.map((c) => ({
       ...c,
       conditions: c.conditions as Condition[],
       buffs: (c.buffs as Buff[]) ?? [],
     })),
   };
+}
+
+// --- Session Notes Actions ---
+
+/**
+ * Creates a session note. Only the DM (holder of a valid dmToken) may add
+ * notes; visibility controls whether players can later read them.
+ */
+export async function addNote(
+  partyCode: string,
+  dmToken: string,
+  content: string,
+  visibility: NoteVisibility,
+  sessionDate: string,
+): Promise<{ success: true } | { error: string }> {
+  const validated = AddNoteSchema.safeParse({
+    partyCode,
+    dmToken,
+    content,
+    visibility,
+    sessionDate,
+  });
+
+  if (!validated.success) {
+    return { error: "Datos inválidos" };
+  }
+
+  const party = await getPartyByCode(validated.data.partyCode);
+  if (!party) {
+    return { error: "Party not found" };
+  }
+
+  if (validated.data.dmToken !== party.dmToken) {
+    return { error: "No autorizado" };
+  }
+
+  try {
+    await db.insert(notes).values({
+      partyId: party.id,
+      content: validated.data.content,
+      visibility: validated.data.visibility,
+      sessionDate: validated.data.sessionDate,
+    });
+  } catch (error) {
+    return { error: "Error al guardar la nota" };
+  }
+
+  revalidatePath(`/party/${party.code}`);
+  return { success: true };
+}
+
+/**
+ * Returns the party's session notes. Public notes are visible to everyone;
+ * private notes are only returned when a valid DM token is supplied. The
+ * comparison happens server-side so private notes never reach players.
+ */
+export async function getNotes(
+  partyCode: string,
+  dmToken?: string,
+): Promise<Note[]> {
+  const party = await getPartyByCode(partyCode);
+  if (!party) return [];
+
+  const isDm = !!dmToken && dmToken === party.dmToken;
+
+  const rows = await db
+    .select({
+      id: notes.id,
+      content: notes.content,
+      visibility: notes.visibility,
+      sessionDate: notes.sessionDate,
+      createdAt: notes.createdAt,
+    })
+    .from(notes)
+    .where(
+      isDm
+        ? eq(notes.partyId, party.id)
+        : and(eq(notes.partyId, party.id), eq(notes.visibility, "public")),
+    )
+    .orderBy(desc(notes.sessionDate), desc(notes.createdAt));
+
+  return rows.map((n) => ({
+    id: n.id,
+    content: n.content,
+    visibility: n.visibility,
+    sessionDate: n.sessionDate.toISOString(),
+    createdAt: n.createdAt.toISOString(),
+  }));
 }
 
 export async function addCombatantToParty(prevState: any, formData: FormData) {

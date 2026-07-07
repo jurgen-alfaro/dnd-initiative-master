@@ -31,7 +31,16 @@
       "Bash(pnpm build:*)",
       "PowerShell(pnpm lint)",
       "PowerShell(pnpm exec tsc --noEmit)",
-      "PowerShell(pnpm db:push)"
+      "PowerShell(pnpm db:push)",
+      "Bash(git checkout *)",
+      "Bash(pnpm lint *)",
+      "Bash(pnpm exec *)",
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)",
+      "Bash(git push *)",
+      "Bash(gh auth *)",
+      "PowerShell($gh = Get-Command gh -ErrorAction SilentlyContinue; if \\($gh\\) { \"gh found: $\\($gh.Source\\)\"; gh auth status 2>&1 | Select-Object -First 8 } else { \"gh NOT installed\" })",
+      "Bash(pnpm db:generate)"
     ]
   }
 }

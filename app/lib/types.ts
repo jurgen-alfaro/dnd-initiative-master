@@ -69,3 +69,22 @@ export type RecentPartyData = {
   name: string;
   lastAccessedAt: string; // ISO 8601 timestamp
 };
+
+// Resumen de una party que pertenece al DM (incluye el dmToken porque solo se
+// entrega a quien prueba la pertenencia vía deviceId o recoveryCode).
+export type DmParty = {
+  code: string;
+  name: string;
+  dmToken: string;
+  createdAt: string; // ISO 8601 timestamp
+};
+
+export type NoteVisibility = "public" | "private";
+
+export type Note = {
+  id: number;
+  content: string;
+  visibility: NoteVisibility;
+  sessionDate: string; // ISO 8601 timestamp
+  createdAt: string; // ISO 8601 timestamp
+};

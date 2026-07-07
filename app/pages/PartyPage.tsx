@@ -3,15 +3,18 @@
 import InitiativeList from "@/app/components/InitiativeList";
 import { TurnControls } from "@/app/components/TurnControls";
 import type { Combatant } from "@/app/lib/types";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { usePartyPolling } from "@/app/lib/hooks/usePartyPolling";
 import { useMemo, useEffect, useState } from "react";
 import { useRecentParty } from "@/app/lib/hooks/useRecentParty";
+import { readDmToken } from "@/app/lib/dm-token";
+import { isPartyDm } from "@/app/server/actions";
 import PartyInfoCard from "../components/PartyInfoCard";
 import { useBackNavigationGuard } from "@/app/lib/hooks/useBackNavigationGuard";
 import BackNavigationDialog from "@/app/components/BackNavigationDialog";
 import DeleteCombatantDialog from "@/app/components/DeleteCombatantDialog";
 import AddActionsMenu from "@/app/components/AddActionsMenu";
+import SwitchPartyControl from "@/app/components/SwitchPartyControl";
 
 type Party = {
   id: number;
@@ -29,9 +32,31 @@ interface PartyPageProps {
 }
 
 export default function PartyPage({ party }: PartyPageProps) {
-  const searchParams = useSearchParams();
-  const isDm = searchParams.get("dm") === "true";
+  // DM status comes from the token stored in localStorage, verified against the
+  // party's real token on the server. It is never derived from the URL, so
+  // tampering with query params (e.g. `?dm=true`) cannot grant DM access.
+  const [isDm, setIsDm] = useState(false);
+  const [dmToken, setDmToken] = useState<string | null>(null);
   const router = useRouter();
+
+  // Read the token from localStorage and validate it after mount. Doing this on
+  // mount (rather than during render) keeps it hydration-safe and, crucially,
+  // works on client-side navigation (create, select or switch party) where
+  // there is no full page reload — so the DM UI appears as soon as the session
+  // opens. isPartyDm returns false for an empty/invalid token, covering the
+  // "not a DM" case. setState runs only in the async callback.
+  useEffect(() => {
+    let cancelled = false;
+    const token = readDmToken(party.code);
+    isPartyDm(party.code, token ?? "").then((ok) => {
+      if (cancelled) return;
+      setIsDm(ok);
+      setDmToken(ok ? token : null);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [party.code]);
 
   // Poll the API every 3 seconds so all connected sessions stay in sync
   const {
@@ -135,12 +160,16 @@ export default function PartyPage({ party }: PartyPageProps) {
 
   return (
     <main className="min-h-screen py-10 px-4 pb-24 dnd-page-bg">
+      <SwitchPartyControl currentPartyCode={party.code} isDm={isDm} />
+
       <PartyInfoCard
         party={displayParty}
         playerCount={playerCount}
         enemyCount={enemyCount}
         onRoundEdit={optimisticSetRound}
         onPartyNameEdit={optimisticUpdatePartyName}
+        isDm={isDm}
+        dmToken={dmToken}
       />
 
       <InitiativeList
