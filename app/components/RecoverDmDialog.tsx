@@ -50,7 +50,7 @@ export default function RecoverDmDialog({ onRecovered }: RecoverDmDialogProps) {
       setCode("");
       setOpen(false);
     } catch {
-      setError("No se pudo recuperar. Intentá de nuevo.");
+      setError("Could not recover. Try again.");
     } finally {
       setIsPending(false);
     }
@@ -61,15 +61,15 @@ export default function RecoverDmDialog({ onRecovered }: RecoverDmDialogProps) {
       <AlertDialogTrigger asChild>
         <Button variant="ghost" size="sm" className="cursor-pointer gap-2">
           <KeyRoundIcon size={16} />
-          Recuperar DM
+          Recover DM
         </Button>
       </AlertDialogTrigger>
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle>Recuperar identidad de DM</AlertDialogTitle>
+          <AlertDialogTitle>Recover DM identity</AlertDialogTitle>
           <AlertDialogDescription>
-            Ingresá tu frase de recuperación para acceder a tus parties desde
-            este dispositivo.
+            Enter your recovery phrase to access your parties from this
+            device.
           </AlertDialogDescription>
         </AlertDialogHeader>
 
@@ -77,11 +77,11 @@ export default function RecoverDmDialog({ onRecovered }: RecoverDmDialogProps) {
           <Input
             value={code}
             onChange={(e) => setCode(e.target.value)}
-            placeholder="tu palabra o frase"
+            placeholder="your word or phrase"
             autoComplete="off"
           />
           <p className="text-xs text-muted-foreground">
-            No importa mayúsculas o minúsculas.
+            Case doesn&apos;t matter.
           </p>
         </div>
         {error && <p className="text-sm text-destructive">{error}</p>}
@@ -92,7 +92,7 @@ export default function RecoverDmDialog({ onRecovered }: RecoverDmDialogProps) {
             onClick={handleSubmit}
             disabled={isPending || code.trim() === ""}
           >
-            {isPending ? "Buscando..." : "Recuperar"}
+            {isPending ? "Searching..." : "Recover"}
           </Button>
         </AlertDialogFooter>
       </AlertDialogContent>

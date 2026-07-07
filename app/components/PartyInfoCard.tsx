@@ -101,7 +101,7 @@ const PartyInfoCard = ({
             <Shield size={16} className="text-dnd-hero-blue" />
             <span className="font-heading font-semibold">{playerCount}</span>
             <span className="text-muted-foreground">
-              Heroe{playerCount !== 1 ? "s" : ""}
+              Hero{playerCount !== 1 ? "es" : ""}
             </span>
           </span>
           <Separator orientation="vertical" className="h-5 bg-dnd-gold/20" />

@@ -49,7 +49,7 @@ export default function SetRecoveryWordDialog({
       setWord("");
       setOpen(false);
     } catch {
-      setError("No se pudo guardar. Intentá de nuevo.");
+      setError("Could not save. Try again.");
     } finally {
       setIsPending(false);
     }
@@ -60,20 +60,21 @@ export default function SetRecoveryWordDialog({
       <AlertDialogTrigger asChild>
         <Button variant="ghost" size="sm" className="cursor-pointer gap-2">
           <KeyRoundIcon size={16} />
-          Frase de recuperación
+          Recovery phrase
         </Button>
       </AlertDialogTrigger>
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle>Frase de recuperación</AlertDialogTitle>
+          <AlertDialogTitle>Recovery phrase</AlertDialogTitle>
           <AlertDialogDescription>
-            Elegí una palabra o frase fácil de recordar. La usás para recuperar
-            tus parties de DM en otro dispositivo. No la compartas.
+            Choose a word or phrase that&apos;s easy to remember. You&apos;ll
+            use it to recover your DM parties on another device. Don&apos;t
+            share it.
           </AlertDialogDescription>
         </AlertDialogHeader>
 
         <div className="space-y-1">
-          <p className="text-xs text-muted-foreground">Frase actual</p>
+          <p className="text-xs text-muted-foreground">Current phrase</p>
           <p className="rounded-md border border-dnd-gold/30 bg-dnd-gold/5 px-4 py-3 text-center text-lg font-bold text-dnd-gold">
             {currentCode}
           </p>
@@ -83,23 +84,23 @@ export default function SetRecoveryWordDialog({
           <Input
             value={word}
             onChange={(e) => setWord(e.target.value)}
-            placeholder="palabra o frase fácil de recordar"
+            placeholder="word or phrase that's easy to remember"
             maxLength={40}
             autoComplete="off"
           />
           <p className="text-xs text-muted-foreground">
-            No importa mayúsculas o minúsculas.
+            Case doesn&apos;t matter.
           </p>
         </div>
         {error && <p className="text-sm text-destructive">{error}</p>}
 
         <AlertDialogFooter>
-          <AlertDialogCancel disabled={isPending}>Cancelar</AlertDialogCancel>
+          <AlertDialogCancel disabled={isPending}>Cancel</AlertDialogCancel>
           <Button
             onClick={handleSubmit}
             disabled={isPending || word.trim() === ""}
           >
-            {isPending ? "Guardando..." : "Guardar"}
+            {isPending ? "Saving..." : "Save"}
           </Button>
         </AlertDialogFooter>
       </AlertDialogContent>

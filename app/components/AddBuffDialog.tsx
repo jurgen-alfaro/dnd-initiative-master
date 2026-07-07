@@ -222,7 +222,7 @@ function AddBuffForm({
       <AlertDialogFooter>
         <AlertDialogCancel>Cancel</AlertDialogCancel>
         <Button onClick={handleSave} disabled={isPending}>
-          {isPending ? "Adding..." : "Agregar Buff/Debuff"}
+          {isPending ? "Adding..." : "Add Buff/Debuff"}
         </Button>
       </AlertDialogFooter>
     </div>

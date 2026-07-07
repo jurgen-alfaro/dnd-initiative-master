@@ -70,8 +70,8 @@ export type RecentPartyData = {
   lastAccessedAt: string; // ISO 8601 timestamp
 };
 
-// Resumen de una party que pertenece al DM (incluye el dmToken porque solo se
-// entrega a quien prueba la pertenencia vía deviceId o recoveryCode).
+// Summary of a party owned by the DM (includes the dmToken because it is only
+// handed to whoever proves ownership via deviceId or recoveryCode).
 export type DmParty = {
   code: string;
   name: string;

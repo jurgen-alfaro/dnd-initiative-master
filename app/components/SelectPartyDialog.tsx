@@ -23,6 +23,8 @@ interface SelectPartyDialogProps {
   triggerLabel?: string;
   triggerSize?: "sm" | "lg" | "default";
   triggerVariant?: "outline" | "ghost" | "link";
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
 }
 
 export default function SelectPartyDialog({
@@ -30,8 +32,13 @@ export default function SelectPartyDialog({
   triggerLabel = "Select Party",
   triggerSize = "lg",
   triggerVariant = "outline",
+  open,
+  onOpenChange,
 }: SelectPartyDialogProps) {
-  const [open, setOpen] = useState(false);
+  // Controlled when the parent passes open/onOpenChange, internal otherwise
+  const [internalOpen, setInternalOpen] = useState(false);
+  const isOpen = open ?? internalOpen;
+  const handleOpenChange = onOpenChange ?? setInternalOpen;
   const router = useRouter();
 
   const handleSelect = (party: DmParty) => {
@@ -41,7 +48,7 @@ export default function SelectPartyDialog({
   };
 
   return (
-    <AlertDialog open={open} onOpenChange={setOpen}>
+    <AlertDialog open={isOpen} onOpenChange={handleOpenChange}>
       <AlertDialogTrigger asChild>
         <Button
           size={triggerSize}
@@ -54,9 +61,9 @@ export default function SelectPartyDialog({
       </AlertDialogTrigger>
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle>Tus parties</AlertDialogTitle>
+          <AlertDialogTitle>Your parties</AlertDialogTitle>
           <AlertDialogDescription>
-            Elegí una party para entrar como DM.
+            Choose a party to enter as DM.
           </AlertDialogDescription>
         </AlertDialogHeader>
 
@@ -77,7 +84,7 @@ export default function SelectPartyDialog({
                   </span>
                 </div>
                 <span className="text-xs text-muted-foreground">
-                  Creada: {formatSessionDate(party.createdAt)}
+                  Created: {formatSessionDate(party.createdAt)}
                 </span>
               </button>
             </li>

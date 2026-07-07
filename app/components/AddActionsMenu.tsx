@@ -46,21 +46,21 @@ export default function AddActionsMenu({
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent side="top" align="end" className="w-52">
-          <DropdownMenuLabel>Agregar</DropdownMenuLabel>
+          <DropdownMenuLabel>Add</DropdownMenuLabel>
           <DropdownMenuSeparator />
           <DropdownMenuItem
             className="cursor-pointer"
             onSelect={() => setCombatantOpen(true)}
           >
             <UserPlus className="text-dnd-hero-blue" />
-            Agregar combatiente
+            Add combatant
           </DropdownMenuItem>
           <DropdownMenuItem
             className="cursor-pointer"
             onSelect={() => setBuffOpen(true)}
           >
             <Sparkles className="text-indigo-400" />
-            Agregar buff/debuff
+            Add buff/debuff
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>

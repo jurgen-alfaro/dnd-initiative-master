@@ -26,7 +26,7 @@ import {
 } from "@/app/lib/combat/damageCalculator";
 import { recalculateTurnIndexAfterDeletion } from "@/app/lib/combat/turnCalculator";
 
-// Esquemas de validación Zod
+// Zod validation schemas
 const CreatePartySchema = z.object({
   partyName: z.string().min(3, "Name must be at least 3 characters"),
 });
@@ -128,16 +128,16 @@ const AddNoteSchema = z.object({
   dmToken: z.string().min(1),
   content: z
     .string()
-    .min(1, "La nota no puede estar vacía")
-    .max(5000, "La nota es demasiado larga"),
+    .min(1, "Note cannot be empty")
+    .max(5000, "Note is too long"),
   visibility: z.enum(["public", "private"]),
   sessionDate: z.coerce.date(),
 });
 
-// Frase de recuperación elegida por el DM. Se normaliza (trim + colapsa
-// espacios + minúsculas) antes de validar, así la unicidad y la búsqueda son
-// insensibles a mayúsculas/minúsculas y a espacios de más.
-const RECOVERY_WORD_RE = /^[\p{L}\p{N} -]+$/u; // letras (con acentos), dígitos, espacio, guion
+// Recovery phrase chosen by the DM. It is normalized (trim + collapse
+// whitespace + lowercase) before validating, so uniqueness and lookup are
+// insensitive to casing and extra spaces.
+const RECOVERY_WORD_RE = /^[\p{L}\p{N} -]+$/u; // letters (with accents), digits, space, hyphen
 
 const RecoveryWordSchema = z
   .string()
@@ -146,12 +146,12 @@ const RecoveryWordSchema = z
   .pipe(
     z
       .string()
-      .min(4, "La frase debe tener al menos 4 caracteres")
-      .max(40, "La frase es demasiado larga")
-      .regex(RECOVERY_WORD_RE, "Usá solo letras, números, espacios o guiones"),
+      .min(4, "Phrase must be at least 4 characters")
+      .max(40, "Phrase is too long")
+      .regex(RECOVERY_WORD_RE, "Use only letters, numbers, spaces, or hyphens"),
   );
 
-/** True si el error es una violación de unicidad de Postgres (código 23505). */
+/** True if the error is a Postgres unique violation (code 23505). */
 function isUniqueViolation(e: unknown): boolean {
   return (
     typeof e === "object" &&
@@ -200,9 +200,9 @@ export async function createParty(prevState: any, formData: FormData) {
       })
       .returning({ code: parties.code, dmToken: parties.dmToken });
 
-    // El creador es el DM. Devolvemos el token (nunca viaja en la URL) y, en la
-    // primera creación desde un dispositivo nuevo, la frase de recuperación,
-    // para que el cliente los guarde y luego navegue a la party.
+    // The creator is the DM. We return the token (it never travels in the URL)
+    // and, on the first creation from a new device, the recovery phrase, so the
+    // client can store them and then navigate to the party.
     return {
       success: true as const,
       code: newParty.code,
@@ -210,7 +210,7 @@ export async function createParty(prevState: any, formData: FormData) {
       recoveryCode,
     };
   } catch (error) {
-    return { error: "Error al crear la base de datos" };
+    return { error: "Error creating party" };
   }
 }
 
@@ -239,13 +239,13 @@ export async function updateInitiative(
   newInitiative: number,
   partyCode: string,
 ) {
-  // Validación rápida
+  // Quick validation
   const validated = UpdateInitiativeSchema.safeParse({
     combatantId,
     newInitiative,
     partyCode,
   });
-  if (!validated.success) return { error: "Datos inválidos" };
+  if (!validated.success) return { error: "Invalid data" };
 
   try {
     await db
@@ -253,12 +253,12 @@ export async function updateInitiative(
       .set({ initiative: newInitiative })
       .where(eq(combatants.id, combatantId));
 
-    // ESTO ES CLAVE: Le dice a Next.js que purgue la caché de esa ruta
-    // y recargue los nuevos datos en todos los clientes conectados.
+    // THIS IS KEY: it tells Next.js to purge that route's cache
+    // and reload the fresh data on every connected client.
     revalidatePath(`/party/${partyCode}`);
     return { success: true };
   } catch (error) {
-    return { error: "Error al actualizar iniciativa" };
+    return { error: "Error updating initiative" };
   }
 }
 
@@ -405,7 +405,7 @@ export async function applyDamageOrHealing(
   type: "damage" | "healing",
   partyCode: string,
 ) {
-  // Validar input
+  // Validate input
   const validated = ApplyDamageOrHealingSchema.safeParse({
     combatantId,
     amount,
@@ -418,7 +418,7 @@ export async function applyDamageOrHealing(
   }
 
   try {
-    // Obtener el estado actual del combatiente
+    // Get the combatant's current state
     const combatant = await db.query.combatants.findFirst({
       where: eq(combatants.id, combatantId),
     });
@@ -440,7 +440,7 @@ export async function applyDamageOrHealing(
       newHp = calculateHealingResult(combatant.hp, combatant.maxHp, amount);
     }
 
-    // Actualizar la base de datos
+    // Update the database
     await db
       .update(combatants)
       .set({
@@ -648,12 +648,12 @@ export async function recoverDm(
   deviceLabel: string,
 ): Promise<{ parties: DmParty[] } | { error: string }> {
   const code = recoveryCode.trim();
-  if (!code) return { error: "Ingresá tu frase de recuperación" };
+  if (!code) return { error: "Enter your recovery phrase" };
 
   const dm = await db.query.dungeonMasters.findFirst({
     where: sql`lower(${dungeonMasters.recoveryCode}) = lower(${code})`,
   });
-  if (!dm) return { error: "Frase de recuperación inválida" };
+  if (!dm) return { error: "Invalid recovery phrase" };
 
   if (deviceId) {
     const existing = await db.query.dmDevices.findFirst({
@@ -686,11 +686,11 @@ export async function setRecoveryWord(
   const device = await db.query.dmDevices.findFirst({
     where: eq(dmDevices.deviceId, deviceId),
   });
-  if (!device) return { error: "No sos DM en este dispositivo." };
+  if (!device) return { error: "You are not a DM on this device." };
 
   const parsed = RecoveryWordSchema.safeParse(word);
   if (!parsed.success) {
-    return { error: parsed.error.issues[0]?.message ?? "Frase inválida" };
+    return { error: parsed.error.issues[0]?.message ?? "Invalid phrase" };
   }
 
   try {
@@ -700,7 +700,7 @@ export async function setRecoveryWord(
       .where(eq(dungeonMasters.id, device.dmId));
   } catch (e) {
     if (isUniqueViolation(e)) {
-      return { error: "Esa palabra ya está en uso, elegí otra." };
+      return { error: "That word is already taken, choose another." };
     }
     throw e;
   }
@@ -762,7 +762,7 @@ export async function addNote(
   });
 
   if (!validated.success) {
-    return { error: "Datos inválidos" };
+    return { error: "Invalid data" };
   }
 
   const party = await getPartyByCode(validated.data.partyCode);
@@ -771,7 +771,7 @@ export async function addNote(
   }
 
   if (validated.data.dmToken !== party.dmToken) {
-    return { error: "No autorizado" };
+    return { error: "Not authorized" };
   }
 
   try {
@@ -782,7 +782,7 @@ export async function addNote(
       sessionDate: validated.data.sessionDate,
     });
   } catch (error) {
-    return { error: "Error al guardar la nota" };
+    return { error: "Error saving note" };
   }
 
   revalidatePath(`/party/${party.code}`);

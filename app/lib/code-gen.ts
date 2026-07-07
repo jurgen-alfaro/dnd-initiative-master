@@ -1,4 +1,4 @@
-const CODE_CHARS = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; // Excluidos I, 1, 0, O para evitar confusión visual
+const CODE_CHARS = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; // I, 1, 0, O excluded to avoid visual confusion
 
 export function generatePartyCode(length: number = 6): string {
   let result = "";
