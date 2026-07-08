@@ -12,16 +12,8 @@ import {
   AlertDialogTrigger,
 } from "@/app/components/ui/alert-dialog";
 import { Button } from "@/app/components/ui/button";
-import {
-  Select,
-  SelectContent,
-  SelectGroup,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/app/components/ui/select";
+import CombatantTypeRadioGroup from "@/app/components/CombatantTypeRadioGroup";
 import type { Combatant } from "@/app/lib/types";
-import { Shield, Sword } from "lucide-react";
 
 interface TypeEditDialogProps {
   combatant: Combatant;
@@ -52,35 +44,16 @@ function TypeEditForm({
 
   return (
     <div className="flex flex-col gap-4">
-      {/* Type Select */}
+      {/* Type radio group */}
       <div className="flex flex-col gap-2">
         <span className="text-xs uppercase tracking-widest text-muted-foreground font-heading">
           Type
         </span>
-        <Select
+        <CombatantTypeRadioGroup
+          name="edit-type"
           value={localType}
-          onValueChange={(val) => setLocalType(val as "player" | "enemy")}
-        >
-          <SelectTrigger className="w-full border-dnd-gold/20 focus-visible:ring-dnd-gold/30 bg-transparent font-heading">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectGroup>
-              <SelectItem value="player">
-                <span className="flex items-center gap-2">
-                  <Shield size={16} className="text-dnd-hero-blue" />
-                  <span>Hero</span>
-                </span>
-              </SelectItem>
-              <SelectItem value="enemy">
-                <span className="flex items-center gap-2">
-                  <Sword size={16} className="text-dnd-blood" />
-                  <span>Enemy</span>
-                </span>
-              </SelectItem>
-            </SelectGroup>
-          </SelectContent>
-        </Select>
+          onChange={setLocalType}
+        />
       </div>
 
       <AlertDialogFooter>

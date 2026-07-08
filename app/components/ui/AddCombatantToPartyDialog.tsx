@@ -17,26 +17,15 @@ import {
 } from "@/app/components/ui/input-group";
 import {
   Dice1Icon,
-  Dice2Icon,
   Dice3Icon,
   Dice4Icon,
   Dice5Icon,
   PlusIcon,
-  Shield,
-  Sword,
 } from "lucide-react";
 import { Button } from "@/app/components/ui/button";
 import { useActionState, useState, useEffect } from "react";
 import { addCombatantToParty } from "@/app/server/actions";
-import {
-  Select,
-  SelectContent,
-  SelectGroup,
-  SelectItem,
-  SelectLabel,
-  SelectTrigger,
-  SelectValue,
-} from "@/app/components/ui/select";
+import CombatantTypeRadioGroup from "@/app/components/CombatantTypeRadioGroup";
 import { generateRandomName } from "@/app/lib/name-gen";
 
 // Form sub-component to isolate state
@@ -101,30 +90,8 @@ const AddCombatantToPartyForm = ({
         </Field>
 
         <Field>
-          <FieldLabel htmlFor="type">Type</FieldLabel>
-          <Select name="type" required>
-            <SelectTrigger id="type" className="w-full flex justify-start">
-              <Dice2Icon className="text-muted-foreground" />
-              <SelectValue placeholder="Select a type" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectGroup>
-                <SelectLabel>Type</SelectLabel>
-                <SelectItem value="player">
-                  <span className="flex items-center gap-2">
-                    <Shield size={16} className="text-dnd-hero-blue" />
-                    <span>Hero</span>
-                  </span>
-                </SelectItem>
-                <SelectItem value="enemy">
-                  <span className="flex items-center gap-2">
-                    <Sword size={16} className="text-dnd-blood" />
-                    <span>Enemy</span>
-                  </span>
-                </SelectItem>
-              </SelectGroup>
-            </SelectContent>
-          </Select>
+          <FieldLabel>Type</FieldLabel>
+          <CombatantTypeRadioGroup name="type" required />
         </Field>
 
         <div className="flex gap-2">
