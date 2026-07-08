@@ -72,7 +72,7 @@ const AddCombatantToPartyForm = ({
 
   return (
     <form action={formAction}>
-      <div className="flex max-w-sm flex-col gap-4">
+      <div className="flex flex-col gap-4">
         <Field>
           <FieldLabel htmlFor="combatantName">Name</FieldLabel>
           <InputGroup>

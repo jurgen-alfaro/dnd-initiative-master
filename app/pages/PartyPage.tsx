@@ -13,8 +13,7 @@ import PartyInfoCard from "../components/PartyInfoCard";
 import { useBackNavigationGuard } from "@/app/lib/hooks/useBackNavigationGuard";
 import BackNavigationDialog from "@/app/components/BackNavigationDialog";
 import DeleteCombatantDialog from "@/app/components/DeleteCombatantDialog";
-import AddActionsMenu from "@/app/components/AddActionsMenu";
-import SwitchPartyControl from "@/app/components/SwitchPartyControl";
+import PartyActionsMenu from "@/app/components/PartyActionsMenu";
 
 type Party = {
   id: number;
@@ -160,16 +159,12 @@ export default function PartyPage({ party }: PartyPageProps) {
 
   return (
     <main className="min-h-screen py-10 px-4 pb-24 dnd-page-bg">
-      <SwitchPartyControl currentPartyCode={party.code} isDm={isDm} />
-
       <PartyInfoCard
         party={displayParty}
         playerCount={playerCount}
         enemyCount={enemyCount}
         onRoundEdit={optimisticSetRound}
         onPartyNameEdit={optimisticUpdatePartyName}
-        isDm={isDm}
-        dmToken={dmToken}
       />
 
       <InitiativeList
@@ -197,13 +192,15 @@ export default function PartyPage({ party }: PartyPageProps) {
         onPreviousTurn={optimisticPreviousTurn}
         onNextRound={optimisticNextRound}
       />
-      {isDm && (
-        <AddActionsMenu
-          combatants={liveCombatants}
-          onAddBuff={optimisticAddBuff}
-          isPending={false}
-        />
-      )}
+      <PartyActionsMenu
+        partyCode={party.code}
+        combatants={liveCombatants}
+        onAddBuff={optimisticAddBuff}
+        isPending={false}
+        isDm={isDm}
+        dmToken={dmToken}
+        onReturnToMain={() => setShowConfirmation(true)}
+      />
 
       <BackNavigationDialog
         open={showConfirmation}
