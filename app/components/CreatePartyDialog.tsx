@@ -102,17 +102,33 @@ const CreatePartyForm = () => {
   );
 };
 
-const CreatePartyDialog = () => {
-  const [open, setOpen] = useState(false);
+const CreatePartyDialog = ({
+  open: controlledOpen,
+  onOpenChange: controlledOnOpenChange,
+}: {
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+} = {}) => {
+  const [internalOpen, setInternalOpen] = useState(false);
+
+  // Controlled mode when open/onOpenChange are provided (e.g. driven by the
+  // party actions menu); otherwise the dialog owns its state and its trigger.
+  const isControlled = controlledOpen !== undefined;
+  const open = isControlled ? controlledOpen : internalOpen;
+  const setOpen = isControlled
+    ? (controlledOnOpenChange ?? (() => {}))
+    : setInternalOpen;
 
   return (
     <AlertDialog open={open} onOpenChange={setOpen}>
-      <AlertDialogTrigger asChild>
-        <Button size="lg" className="w-full cursor-pointer">
-          Create Party
-          <HeartHandshakeIcon />
-        </Button>
-      </AlertDialogTrigger>
+      {!isControlled && (
+        <AlertDialogTrigger asChild>
+          <Button size="lg" className="w-full cursor-pointer">
+            Create Party
+            <HeartHandshakeIcon />
+          </Button>
+        </AlertDialogTrigger>
+      )}
       <AlertDialogContent>
         <AlertDialogHeader>
           <AlertDialogTitle>Create Party</AlertDialogTitle>

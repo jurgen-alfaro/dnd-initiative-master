@@ -22,6 +22,8 @@ interface SessionNotesDrawerProps {
   partyCode: string;
   isDm: boolean;
   dmToken: string | null;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
 }
 
 /** Returns today's date as a `yyyy-mm-dd` string in local time. */
@@ -35,8 +37,17 @@ export default function SessionNotesDrawer({
   partyCode,
   isDm,
   dmToken,
+  open: controlledOpen,
+  onOpenChange: controlledOnOpenChange,
 }: SessionNotesDrawerProps) {
-  const [open, setOpen] = useState(false);
+  // Controlled when the parent passes open/onOpenChange (e.g. the party actions
+  // menu); otherwise the drawer owns its state and renders its own trigger.
+  const isControlled = controlledOpen !== undefined;
+  const [internalOpen, setInternalOpen] = useState(false);
+  const open = isControlled ? controlledOpen : internalOpen;
+  const setOpen = isControlled
+    ? (controlledOnOpenChange ?? (() => {}))
+    : setInternalOpen;
   const [notes, setNotes] = useState<Note[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [showForm, setShowForm] = useState(false);
@@ -119,15 +130,17 @@ export default function SessionNotesDrawer({
 
   return (
     <>
-      <Button
-        variant="outline"
-        size="sm"
-        onClick={() => setOpen(true)}
-        className="cursor-pointer gap-2 border-dnd-gold/30 text-dnd-gold hover:bg-dnd-gold/10"
-      >
-        <NotebookText size={16} />
-        Notes
-      </Button>
+      {!isControlled && (
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => setOpen(true)}
+          className="cursor-pointer gap-2 border-dnd-gold/30 text-dnd-gold hover:bg-dnd-gold/10"
+        >
+          <NotebookText size={16} />
+          Notes
+        </Button>
+      )}
 
       {open &&
         typeof document !== "undefined" &&

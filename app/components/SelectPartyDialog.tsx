@@ -37,6 +37,7 @@ export default function SelectPartyDialog({
 }: SelectPartyDialogProps) {
   // Controlled when the parent passes open/onOpenChange, internal otherwise
   const [internalOpen, setInternalOpen] = useState(false);
+  const isControlled = open !== undefined;
   const isOpen = open ?? internalOpen;
   const handleOpenChange = onOpenChange ?? setInternalOpen;
   const router = useRouter();
@@ -49,16 +50,19 @@ export default function SelectPartyDialog({
 
   return (
     <AlertDialog open={isOpen} onOpenChange={handleOpenChange}>
-      <AlertDialogTrigger asChild>
-        <Button
-          size={triggerSize}
-          variant={triggerVariant}
-          className="cursor-pointer"
-        >
-          {triggerLabel}
-          <ScrollText />
-        </Button>
-      </AlertDialogTrigger>
+      {/* Trigger-less when controlled (e.g. driven by the party actions menu) */}
+      {!isControlled && (
+        <AlertDialogTrigger asChild>
+          <Button
+            size={triggerSize}
+            variant={triggerVariant}
+            className="cursor-pointer"
+          >
+            {triggerLabel}
+            <ScrollText />
+          </Button>
+        </AlertDialogTrigger>
+      )}
       <AlertDialogContent>
         <AlertDialogHeader>
           <AlertDialogTitle>Your parties</AlertDialogTitle>
