@@ -1,13 +1,13 @@
 import {
-  AlertDialog,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/app/components/ui/alert-dialog";
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/app/components/ui/dialog";
 import { Field, FieldDescription, FieldLabel } from "@/app/components/ui/field";
 import {
   InputGroup,
@@ -45,12 +45,12 @@ const JoinPartyForm = () => {
           </p>
         )}
       </Field>
-      <AlertDialogFooter className="mt-4">
-        <AlertDialogCancel>Cancel</AlertDialogCancel>
+      <DialogFooter className="mt-4">
+        <DialogClose>Cancel</DialogClose>
         <Button type="submit" disabled={isPending}>
           {isPending ? "Joining..." : "Continue"}
         </Button>
-      </AlertDialogFooter>
+      </DialogFooter>
     </form>
   );
 };
@@ -59,28 +59,28 @@ const JoinPartyDialog = () => {
   const [open, setOpen] = useState(false);
 
   return (
-    <AlertDialog open={open} onOpenChange={setOpen}>
-      <AlertDialogTrigger asChild>
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
         <Button size="lg" className="w-full cursor-pointer">
           Join Party
           <HeartHandshakeIcon />
         </Button>
-      </AlertDialogTrigger>
-      <AlertDialogContent>
-        <AlertDialogHeader>
-          <AlertDialogTitle>Enter Party Code</AlertDialogTitle>
-          <AlertDialogDescription>
+      </DialogTrigger>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Enter Party Code</DialogTitle>
+          <DialogDescription>
             Enter the party code the DM gave you
-          </AlertDialogDescription>
-        </AlertDialogHeader>
+          </DialogDescription>
+        </DialogHeader>
         {/*
             By passing a changing key, or simply relying on the content
             unmounting when the dialog closes, we reset the form state.
             We use 'open' as the key to force a remount every time it opens.
           */}
         {open && <JoinPartyForm />}
-      </AlertDialogContent>
-    </AlertDialog>
+      </DialogContent>
+    </Dialog>
   );
 };
 

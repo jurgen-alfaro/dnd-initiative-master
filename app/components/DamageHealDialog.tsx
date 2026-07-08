@@ -2,15 +2,15 @@
 
 import { useState, useEffect } from "react";
 import {
-  AlertDialog,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/app/components/ui/alert-dialog";
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/app/components/ui/dialog";
 import { Button } from "@/app/components/ui/button";
 import { Input } from "@/app/components/ui/input";
 import type { Combatant } from "@/app/lib/types";
@@ -236,8 +236,8 @@ function DamageHealForm({
         </div>
       )}
 
-      <AlertDialogFooter>
-        <AlertDialogCancel disabled={localPending}>Cancel</AlertDialogCancel>
+      <DialogFooter>
+        <DialogClose disabled={localPending}>Cancel</DialogClose>
         <Button
           onClick={handleApply}
           disabled={localPending || amount <= 0}
@@ -253,7 +253,7 @@ function DamageHealForm({
               ? "Damage"
               : "Healing"}
         </Button>
-      </AlertDialogFooter>
+      </DialogFooter>
     </div>
   );
 }
@@ -268,17 +268,17 @@ export default function DamageHealDialog({
   const [open, setOpen] = useState(false);
 
   return (
-    <AlertDialog open={open} onOpenChange={setOpen}>
-      <AlertDialogTrigger asChild>{children}</AlertDialogTrigger>
-      <AlertDialogContent size="sm">
-        <AlertDialogHeader>
-          <AlertDialogTitle className="font-heading text-dnd-gold">
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>{children}</DialogTrigger>
+      <DialogContent size="sm">
+        <DialogHeader>
+          <DialogTitle className="font-heading text-dnd-gold">
             Apply Damage or Healing
-          </AlertDialogTitle>
-          <AlertDialogDescription>
+          </DialogTitle>
+          <DialogDescription>
             Set the damage or healing amount.
-          </AlertDialogDescription>
-        </AlertDialogHeader>
+          </DialogDescription>
+        </DialogHeader>
         {open && (
           <DamageHealForm
             combatant={combatant}
@@ -288,7 +288,7 @@ export default function DamageHealDialog({
             defaultTab={defaultTab}
           />
         )}
-      </AlertDialogContent>
-    </AlertDialog>
+      </DialogContent>
+    </Dialog>
   );
 }

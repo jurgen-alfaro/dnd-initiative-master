@@ -2,15 +2,15 @@
 
 import { useState } from "react";
 import {
-  AlertDialog,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/app/components/ui/alert-dialog";
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/app/components/ui/dialog";
 import { Trash2 } from "lucide-react";
 import type { Condition } from "@/app/lib/types";
 import { CONDITION_DESCRIPTIONS } from "@/app/lib/condition-descriptions";
@@ -35,19 +35,19 @@ export default function ConditionDescriptionDialog({
   const description = CONDITION_DESCRIPTIONS[condition];
 
   return (
-    <AlertDialog open={open} onOpenChange={setOpen}>
-      <AlertDialogTrigger asChild>{children}</AlertDialogTrigger>
-      <AlertDialogContent>
-        <AlertDialogHeader>
-          <AlertDialogTitle className="font-heading text-dnd-gold flex items-center gap-2">
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>{children}</DialogTrigger>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle className="font-heading text-dnd-gold flex items-center gap-2">
             <Icon className={colorClass} size={20} />
             {condition}
-          </AlertDialogTitle>
-          <AlertDialogDescription className="text-sm whitespace-pre-line leading-relaxed text-left max-h-[400px] overflow-y-auto pr-2">
+          </DialogTitle>
+          <DialogDescription className="text-sm whitespace-pre-line leading-relaxed text-left max-h-[400px] overflow-y-auto pr-2">
             {description}
-          </AlertDialogDescription>
-        </AlertDialogHeader>
-        <AlertDialogFooter>
+          </DialogDescription>
+        </DialogHeader>
+        <DialogFooter>
           {onRemove && (
             <button
               onClick={() => {
@@ -62,9 +62,9 @@ export default function ConditionDescriptionDialog({
               Remove
             </button>
           )}
-          <AlertDialogCancel>Close</AlertDialogCancel>
-        </AlertDialogFooter>
-      </AlertDialogContent>
-    </AlertDialog>
+          <DialogClose>Close</DialogClose>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }

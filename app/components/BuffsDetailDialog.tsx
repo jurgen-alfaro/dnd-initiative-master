@@ -2,15 +2,15 @@
 
 import { useState } from "react";
 import {
-  AlertDialog,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/app/components/ui/alert-dialog";
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/app/components/ui/dialog";
 import { Sparkles, ShieldPlus, Skull, Trash2 } from "lucide-react";
 import type { Buff, Combatant } from "@/app/lib/types";
 
@@ -33,18 +33,18 @@ export default function BuffsDetailDialog({
   const buffs = combatant.buffs ?? [];
 
   return (
-    <AlertDialog open={open} onOpenChange={setOpen}>
-      <AlertDialogTrigger asChild>{children}</AlertDialogTrigger>
-      <AlertDialogContent>
-        <AlertDialogHeader>
-          <AlertDialogTitle className="font-heading text-dnd-gold flex items-center gap-2">
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>{children}</DialogTrigger>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle className="font-heading text-dnd-gold flex items-center gap-2">
             <Sparkles className="w-5 h-5" />
             {combatant.name}&apos;s Buffs &amp; Debuffs
-          </AlertDialogTitle>
-          <AlertDialogDescription>
+          </DialogTitle>
+          <DialogDescription>
             Active effects and how many rounds remain
-          </AlertDialogDescription>
-        </AlertDialogHeader>
+          </DialogDescription>
+        </DialogHeader>
 
         <div className="flex flex-col gap-2 max-h-[400px] overflow-y-auto pr-2">
           {buffs.length === 0 ? (
@@ -113,10 +113,10 @@ export default function BuffsDetailDialog({
           )}
         </div>
 
-        <AlertDialogFooter>
-          <AlertDialogCancel>Close</AlertDialogCancel>
-        </AlertDialogFooter>
-      </AlertDialogContent>
-    </AlertDialog>
+        <DialogFooter>
+          <DialogClose>Close</DialogClose>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }

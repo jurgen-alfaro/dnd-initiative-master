@@ -2,15 +2,15 @@
 
 import { useState } from "react";
 import {
-  AlertDialog,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/app/components/ui/alert-dialog";
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/app/components/ui/dialog";
 import { Button } from "@/app/components/ui/button";
 import { Checkbox } from "@/app/components/ui/checkbox";
 import { Label } from "@/app/components/ui/label";
@@ -78,12 +78,12 @@ function ConditionsEditForm({
         ))}
       </div>
 
-      <AlertDialogFooter>
-        <AlertDialogCancel>Cancel</AlertDialogCancel>
+      <DialogFooter>
+        <DialogClose>Cancel</DialogClose>
         <Button onClick={handleSave} disabled={isPending}>
           {isPending ? "Saving..." : "Save Conditions"}
         </Button>
-      </AlertDialogFooter>
+      </DialogFooter>
     </div>
   );
 }
@@ -97,18 +97,18 @@ export default function ConditionsEditDialog({
   const [open, setOpen] = useState(false);
 
   return (
-    <AlertDialog open={open} onOpenChange={setOpen}>
-      <AlertDialogTrigger asChild>{children}</AlertDialogTrigger>
-      <AlertDialogContent>
-        <AlertDialogHeader>
-          <AlertDialogTitle className="font-heading text-dnd-gold flex items-center gap-2">
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>{children}</DialogTrigger>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle className="font-heading text-dnd-gold flex items-center gap-2">
             <Activity className="w-5 h-5" />
             Manage Conditions
-          </AlertDialogTitle>
-          <AlertDialogDescription>
+          </DialogTitle>
+          <DialogDescription>
             Select active conditions for {combatant.name}
-          </AlertDialogDescription>
-        </AlertDialogHeader>
+          </DialogDescription>
+        </DialogHeader>
         {open && (
           <ConditionsEditForm
             combatant={combatant}
@@ -117,7 +117,7 @@ export default function ConditionsEditDialog({
             onClose={() => setOpen(false)}
           />
         )}
-      </AlertDialogContent>
-    </AlertDialog>
+      </DialogContent>
+    </Dialog>
   );
 }

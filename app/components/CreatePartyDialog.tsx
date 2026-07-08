@@ -1,13 +1,13 @@
 import {
-  AlertDialog,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/app/components/ui/alert-dialog";
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/app/components/ui/dialog";
 
 import { Field } from "@/app/components/ui/field";
 import {
@@ -58,11 +58,11 @@ const CreatePartyForm = () => {
         <p className="rounded-md border border-dnd-gold/30 bg-dnd-gold/5 px-4 py-3 text-center font-mono text-lg font-bold tracking-widest text-dnd-gold">
           {recoveryCode}
         </p>
-        <AlertDialogFooter>
+        <DialogFooter>
           <Button className="w-full" onClick={() => router.push(`/party/${code}`)}>
             I saved it, continue
           </Button>
-        </AlertDialogFooter>
+        </DialogFooter>
       </div>
     );
   }
@@ -92,12 +92,12 @@ const CreatePartyForm = () => {
       </Field>
       <input type="hidden" name="deviceId" value={deviceId} />
       <input type="hidden" name="deviceLabel" value={deviceLabel} />
-      <AlertDialogFooter className="mt-4">
-        <AlertDialogCancel>Cancel</AlertDialogCancel>
+      <DialogFooter className="mt-4">
+        <DialogClose>Cancel</DialogClose>
         <Button type="submit" disabled={isPending}>
           {isPending ? "Creating..." : "Continue"}
         </Button>
-      </AlertDialogFooter>
+      </DialogFooter>
     </form>
   );
 };
@@ -120,30 +120,30 @@ const CreatePartyDialog = ({
     : setInternalOpen;
 
   return (
-    <AlertDialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={setOpen}>
       {!isControlled && (
-        <AlertDialogTrigger asChild>
+        <DialogTrigger asChild>
           <Button size="lg" className="w-full cursor-pointer">
             Create Party
             <HeartHandshakeIcon />
           </Button>
-        </AlertDialogTrigger>
+        </DialogTrigger>
       )}
-      <AlertDialogContent>
-        <AlertDialogHeader>
-          <AlertDialogTitle>Create Party</AlertDialogTitle>
-          <AlertDialogDescription>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Create Party</DialogTitle>
+          <DialogDescription>
             Enter the name of the party
-          </AlertDialogDescription>
-        </AlertDialogHeader>
+          </DialogDescription>
+        </DialogHeader>
         {/*
             By passing a changing key, or simply relying on the content
             unmounting when the dialog closes, we reset the form state.
             We use 'open' as the key to force a remount every time it opens.
           */}
         {open && <CreatePartyForm />}
-      </AlertDialogContent>
-    </AlertDialog>
+      </DialogContent>
+    </Dialog>
   );
 };
 

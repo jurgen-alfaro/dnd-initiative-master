@@ -2,15 +2,15 @@
 
 import { useState } from "react";
 import {
-  AlertDialog,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/app/components/ui/alert-dialog";
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/app/components/ui/dialog";
 import { Button } from "@/app/components/ui/button";
 import { Input } from "@/app/components/ui/input";
 import type { Combatant } from "@/app/lib/types";
@@ -149,12 +149,12 @@ function StatEditForm({
         ))}
       </div>
 
-      <AlertDialogFooter>
-        <AlertDialogCancel>Cancel</AlertDialogCancel>
+      <DialogFooter>
+        <DialogClose>Cancel</DialogClose>
         <Button onClick={handleSave} disabled={isPending}>
           {isPending ? "Saving..." : "Save"}
         </Button>
-      </AlertDialogFooter>
+      </DialogFooter>
     </div>
   );
 }
@@ -170,15 +170,15 @@ export default function StatEditDialog({
   const config = STAT_CONFIG[statType];
 
   return (
-    <AlertDialog open={open} onOpenChange={setOpen}>
-      <AlertDialogTrigger asChild>{children}</AlertDialogTrigger>
-      <AlertDialogContent size="sm">
-        <AlertDialogHeader>
-          <AlertDialogTitle className="font-heading text-dnd-gold">
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>{children}</DialogTrigger>
+      <DialogContent size="sm">
+        <DialogHeader>
+          <DialogTitle className="font-heading text-dnd-gold">
             {config.title}
-          </AlertDialogTitle>
-          <AlertDialogDescription>{config.description}</AlertDialogDescription>
-        </AlertDialogHeader>
+          </DialogTitle>
+          <DialogDescription>{config.description}</DialogDescription>
+        </DialogHeader>
         {open && (
           <StatEditForm
             combatant={combatant}
@@ -188,7 +188,7 @@ export default function StatEditDialog({
             onClose={() => setOpen(false)}
           />
         )}
-      </AlertDialogContent>
-    </AlertDialog>
+      </DialogContent>
+    </Dialog>
   );
 }

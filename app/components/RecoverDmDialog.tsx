@@ -2,15 +2,15 @@
 
 import { useState } from "react";
 import {
-  AlertDialog,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/app/components/ui/alert-dialog";
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/app/components/ui/dialog";
 import { Button } from "@/app/components/ui/button";
 import { Input } from "@/app/components/ui/input";
 import { KeyRoundIcon } from "lucide-react";
@@ -57,21 +57,21 @@ export default function RecoverDmDialog({ onRecovered }: RecoverDmDialogProps) {
   };
 
   return (
-    <AlertDialog open={open} onOpenChange={setOpen}>
-      <AlertDialogTrigger asChild>
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
         <Button variant="ghost" size="sm" className="cursor-pointer gap-2">
           <KeyRoundIcon size={16} />
           Recover DM
         </Button>
-      </AlertDialogTrigger>
-      <AlertDialogContent>
-        <AlertDialogHeader>
-          <AlertDialogTitle>Recover DM identity</AlertDialogTitle>
-          <AlertDialogDescription>
+      </DialogTrigger>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Recover DM identity</DialogTitle>
+          <DialogDescription>
             Enter your recovery phrase to access your parties from this
             device.
-          </AlertDialogDescription>
-        </AlertDialogHeader>
+          </DialogDescription>
+        </DialogHeader>
 
         <div className="space-y-1">
           <Input
@@ -86,16 +86,16 @@ export default function RecoverDmDialog({ onRecovered }: RecoverDmDialogProps) {
         </div>
         {error && <p className="text-sm text-destructive">{error}</p>}
 
-        <AlertDialogFooter>
-          <AlertDialogCancel disabled={isPending}>Cancel</AlertDialogCancel>
+        <DialogFooter>
+          <DialogClose disabled={isPending}>Cancel</DialogClose>
           <Button
             onClick={handleSubmit}
             disabled={isPending || code.trim() === ""}
           >
             {isPending ? "Searching..." : "Recover"}
           </Button>
-        </AlertDialogFooter>
-      </AlertDialogContent>
-    </AlertDialog>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }

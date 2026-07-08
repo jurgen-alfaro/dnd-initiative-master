@@ -2,15 +2,15 @@
 
 import { useState } from "react";
 import {
-  AlertDialog,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/app/components/ui/alert-dialog";
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/app/components/ui/dialog";
 import { Button } from "@/app/components/ui/button";
 import { Input } from "@/app/components/ui/input";
 import type { Combatant } from "@/app/lib/types";
@@ -68,12 +68,12 @@ function NameEditForm({
         )}
       </div>
 
-      <AlertDialogFooter>
-        <AlertDialogCancel>Cancel</AlertDialogCancel>
+      <DialogFooter>
+        <DialogClose>Cancel</DialogClose>
         <Button onClick={handleSave} disabled={isPending || !isValid}>
           Save
         </Button>
-      </AlertDialogFooter>
+      </DialogFooter>
     </div>
   );
 }
@@ -87,17 +87,17 @@ export default function NameEditDialog({
   const [open, setOpen] = useState(false);
 
   return (
-    <AlertDialog open={open} onOpenChange={setOpen}>
-      <AlertDialogTrigger asChild>{children}</AlertDialogTrigger>
-      <AlertDialogContent size="sm">
-        <AlertDialogHeader>
-          <AlertDialogTitle className="font-heading text-dnd-gold">
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>{children}</DialogTrigger>
+      <DialogContent size="sm">
+        <DialogHeader>
+          <DialogTitle className="font-heading text-dnd-gold">
             Edit Name
-          </AlertDialogTitle>
-          <AlertDialogDescription>
+          </DialogTitle>
+          <DialogDescription>
             Set the combatant name.
-          </AlertDialogDescription>
-        </AlertDialogHeader>
+          </DialogDescription>
+        </DialogHeader>
         {open && (
           <NameEditForm
             combatant={combatant}
@@ -106,7 +106,7 @@ export default function NameEditDialog({
             onClose={() => setOpen(false)}
           />
         )}
-      </AlertDialogContent>
-    </AlertDialog>
+      </DialogContent>
+    </Dialog>
   );
 }

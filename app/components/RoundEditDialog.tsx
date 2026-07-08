@@ -2,15 +2,15 @@
 
 import { useState } from "react";
 import {
-  AlertDialog,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/app/components/ui/alert-dialog";
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/app/components/ui/dialog";
 import { Button } from "@/app/components/ui/button";
 import { Input } from "@/app/components/ui/input";
 import { Clock } from "lucide-react";
@@ -87,12 +87,12 @@ function RoundEditForm({
         ))}
       </div>
 
-      <AlertDialogFooter>
-        <AlertDialogCancel disabled={isPending}>Cancel</AlertDialogCancel>
+      <DialogFooter>
+        <DialogClose disabled={isPending}>Cancel</DialogClose>
         <Button onClick={handleSave} disabled={isPending || localValue < 1}>
           {isPending ? "Saving..." : "Save"}
         </Button>
-      </AlertDialogFooter>
+      </DialogFooter>
     </div>
   );
 }
@@ -106,18 +106,18 @@ export default function RoundEditDialog({
   const [open, setOpen] = useState(false);
 
   return (
-    <AlertDialog open={open} onOpenChange={setOpen}>
-      <AlertDialogTrigger asChild>{children}</AlertDialogTrigger>
-      <AlertDialogContent size="sm">
-        <AlertDialogHeader>
-          <AlertDialogTitle className="font-heading text-dnd-gold flex items-center gap-2">
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>{children}</DialogTrigger>
+      <DialogContent size="sm">
+        <DialogHeader>
+          <DialogTitle className="font-heading text-dnd-gold flex items-center gap-2">
             <Clock className="w-5 h-5" />
             Edit Round
-          </AlertDialogTitle>
-          <AlertDialogDescription>
+          </DialogTitle>
+          <DialogDescription>
             Set the current combat round. The current turn will be maintained.
-          </AlertDialogDescription>
-        </AlertDialogHeader>
+          </DialogDescription>
+        </DialogHeader>
         {open && (
           <RoundEditForm
             currentRound={currentRound}
@@ -126,7 +126,7 @@ export default function RoundEditDialog({
             onClose={() => setOpen(false)}
           />
         )}
-      </AlertDialogContent>
-    </AlertDialog>
+      </DialogContent>
+    </Dialog>
   );
 }

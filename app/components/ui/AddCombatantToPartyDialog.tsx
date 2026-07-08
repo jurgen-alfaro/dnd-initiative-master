@@ -1,13 +1,13 @@
 import {
-  AlertDialog,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/app/components/ui/alert-dialog";
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/app/components/ui/dialog";
 import { useParams } from "next/navigation";
 import { Field, FieldError, FieldLabel } from "@/app/components/ui/field";
 import {
@@ -161,12 +161,12 @@ const AddCombatantToPartyForm = ({
           </FieldError>
         )}
       </div>
-      <AlertDialogFooter className="mt-4">
-        <AlertDialogCancel className="cursor-pointer">Cancel</AlertDialogCancel>
+      <DialogFooter className="mt-4">
+        <DialogClose className="cursor-pointer">Cancel</DialogClose>
         <Button type="submit" disabled={isPending} className="cursor-pointer">
           {isPending ? "Adding to party..." : "Add to Party"}
         </Button>
-      </AlertDialogFooter>
+      </DialogFooter>
     </form>
   );
 };
@@ -193,9 +193,9 @@ const AddCombatantDialog = ({
     : setInternalOpen;
 
   return (
-    <AlertDialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={setOpen}>
       {!isControlled && (
-        <AlertDialogTrigger asChild>
+        <DialogTrigger asChild>
           {floating ? (
             <Button
               size="icon"
@@ -209,21 +209,21 @@ const AddCombatantDialog = ({
               <PlusIcon />
             </Button>
           )}
-        </AlertDialogTrigger>
+        </DialogTrigger>
       )}
-      <AlertDialogContent>
-        <AlertDialogHeader>
-          <AlertDialogTitle>Add Combatant</AlertDialogTitle>
-          <AlertDialogDescription>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Add Combatant</DialogTitle>
+          <DialogDescription>
             Enter the combatant's info to add it to the party
-          </AlertDialogDescription>
-        </AlertDialogHeader>
+          </DialogDescription>
+        </DialogHeader>
         <AddCombatantToPartyForm
           onSuccess={() => setOpen(false)}
           partyCode={partyCode}
         />
-      </AlertDialogContent>
-    </AlertDialog>
+      </DialogContent>
+    </Dialog>
   );
 };
 

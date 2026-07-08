@@ -3,15 +3,15 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import {
-  AlertDialog,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/app/components/ui/alert-dialog";
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/app/components/ui/dialog";
 import { Button } from "@/app/components/ui/button";
 import { ScrollText } from "lucide-react";
 import type { DmParty } from "@/app/lib/types";
@@ -49,10 +49,10 @@ export default function SelectPartyDialog({
   };
 
   return (
-    <AlertDialog open={isOpen} onOpenChange={handleOpenChange}>
+    <Dialog open={isOpen} onOpenChange={handleOpenChange}>
       {/* Trigger-less when controlled (e.g. driven by the party actions menu) */}
       {!isControlled && (
-        <AlertDialogTrigger asChild>
+        <DialogTrigger asChild>
           <Button
             size={triggerSize}
             variant={triggerVariant}
@@ -61,15 +61,15 @@ export default function SelectPartyDialog({
             {triggerLabel}
             <ScrollText />
           </Button>
-        </AlertDialogTrigger>
+        </DialogTrigger>
       )}
-      <AlertDialogContent>
-        <AlertDialogHeader>
-          <AlertDialogTitle>Your parties</AlertDialogTitle>
-          <AlertDialogDescription>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Your parties</DialogTitle>
+          <DialogDescription>
             Choose a party to enter as DM.
-          </AlertDialogDescription>
-        </AlertDialogHeader>
+          </DialogDescription>
+        </DialogHeader>
 
         <ul className="flex max-h-[60vh] flex-col gap-2 overflow-y-auto">
           {parties.map((party) => (
@@ -95,10 +95,10 @@ export default function SelectPartyDialog({
           ))}
         </ul>
 
-        <AlertDialogFooter>
-          <AlertDialogCancel>Cancel</AlertDialogCancel>
-        </AlertDialogFooter>
-      </AlertDialogContent>
-    </AlertDialog>
+        <DialogFooter>
+          <DialogClose>Cancel</DialogClose>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }

@@ -2,15 +2,15 @@
 
 import { useState } from "react";
 import {
-  AlertDialog,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/app/components/ui/alert-dialog";
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/app/components/ui/dialog";
 import { Button } from "@/app/components/ui/button";
 import { Input } from "@/app/components/ui/input";
 import { Edit3 } from "lucide-react";
@@ -80,12 +80,12 @@ function PartyNameEditForm({
         </p>
       </div>
 
-      <AlertDialogFooter>
-        <AlertDialogCancel disabled={isPending}>Cancel</AlertDialogCancel>
+      <DialogFooter>
+        <DialogClose disabled={isPending}>Cancel</DialogClose>
         <Button onClick={handleSave} disabled={isPending || !isValid}>
           {isPending ? "Saving..." : "Save"}
         </Button>
-      </AlertDialogFooter>
+      </DialogFooter>
     </div>
   );
 }
@@ -99,18 +99,18 @@ export default function PartyNameEditDialog({
   const [open, setOpen] = useState(false);
 
   return (
-    <AlertDialog open={open} onOpenChange={setOpen}>
-      <AlertDialogTrigger asChild>{children}</AlertDialogTrigger>
-      <AlertDialogContent size="sm">
-        <AlertDialogHeader>
-          <AlertDialogTitle className="font-heading text-dnd-gold flex items-center gap-2">
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>{children}</DialogTrigger>
+      <DialogContent size="sm">
+        <DialogHeader>
+          <DialogTitle className="font-heading text-dnd-gold flex items-center gap-2">
             <Edit3 className="w-5 h-5" />
             Edit Party Name
-          </AlertDialogTitle>
-          <AlertDialogDescription>
+          </DialogTitle>
+          <DialogDescription>
             Change the name of your party.
-          </AlertDialogDescription>
-        </AlertDialogHeader>
+          </DialogDescription>
+        </DialogHeader>
         {open && (
           <PartyNameEditForm
             currentName={currentName}
@@ -119,7 +119,7 @@ export default function PartyNameEditDialog({
             onClose={() => setOpen(false)}
           />
         )}
-      </AlertDialogContent>
-    </AlertDialog>
+      </DialogContent>
+    </Dialog>
   );
 }

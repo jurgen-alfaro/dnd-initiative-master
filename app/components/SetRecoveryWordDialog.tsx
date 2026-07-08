@@ -2,15 +2,15 @@
 
 import { useState } from "react";
 import {
-  AlertDialog,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/app/components/ui/alert-dialog";
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/app/components/ui/dialog";
 import { Button } from "@/app/components/ui/button";
 import { Input } from "@/app/components/ui/input";
 import { KeyRoundIcon, Eye, EyeOff, Copy, Check, Shield } from "lucide-react";
@@ -98,21 +98,21 @@ export default function SetRecoveryWordDialog({
     );
 
   return (
-    <AlertDialog open={open} onOpenChange={handleOpenChange}>
-      <AlertDialogTrigger asChild>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
+      <DialogTrigger asChild>
         <Button variant="ghost" size="sm" className="cursor-pointer gap-2">
           <KeyRoundIcon size={16} />
           Recovery phrase
         </Button>
-      </AlertDialogTrigger>
-      <AlertDialogContent>
-        <AlertDialogHeader>
-          <AlertDialogTitle>Recovery phrase</AlertDialogTitle>
-          <AlertDialogDescription>
+      </DialogTrigger>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Recovery phrase</DialogTitle>
+          <DialogDescription>
             A word or phrase that&apos;s easy to remember. You&apos;ll use it to
             recover your DM parties on another device.
-          </AlertDialogDescription>
-        </AlertDialogHeader>
+          </DialogDescription>
+        </DialogHeader>
 
         {/* Segmented control: View phrase / Change it */}
         <div className="grid grid-cols-2 gap-1 rounded-lg border border-border bg-input/30 p-1">
@@ -197,8 +197,8 @@ export default function SetRecoveryWordDialog({
 
         {error && <p className="text-center text-sm text-destructive">{error}</p>}
 
-        <AlertDialogFooter>
-          <AlertDialogCancel disabled={isPending}>Cancel</AlertDialogCancel>
+        <DialogFooter>
+          <DialogClose disabled={isPending}>Cancel</DialogClose>
           {tab === "change" && (
             <Button
               onClick={handleSubmit}
@@ -207,8 +207,8 @@ export default function SetRecoveryWordDialog({
               {isPending ? "Saving..." : "Save phrase"}
             </Button>
           )}
-        </AlertDialogFooter>
-      </AlertDialogContent>
-    </AlertDialog>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }

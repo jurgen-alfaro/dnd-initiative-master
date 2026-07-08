@@ -2,15 +2,15 @@
 
 import { useState } from "react";
 import {
-  AlertDialog,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/app/components/ui/alert-dialog";
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/app/components/ui/dialog";
 import { Button } from "@/app/components/ui/button";
 import { Checkbox } from "@/app/components/ui/checkbox";
 import { Label } from "@/app/components/ui/label";
@@ -189,8 +189,8 @@ function AddBuffForm({
 
       {error && <p className="text-sm text-dnd-blood-bright">{error}</p>}
 
-      <AlertDialogFooter>
-        <AlertDialogCancel>Cancel</AlertDialogCancel>
+      <DialogFooter>
+        <DialogClose>Cancel</DialogClose>
         <Button onClick={handleSave} disabled={isPending}>
           {isPending
             ? "Adding..."
@@ -200,7 +200,7 @@ function AddBuffForm({
                 ? "Add Debuff"
                 : "Add Buff/Debuff"}
         </Button>
-      </AlertDialogFooter>
+      </DialogFooter>
     </div>
   );
 }
@@ -223,27 +223,27 @@ export default function AddBuffDialog({
     : setInternalOpen;
 
   return (
-    <AlertDialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={setOpen}>
       {!isControlled && (
-        <AlertDialogTrigger asChild>
+        <DialogTrigger asChild>
           <Button
             size="icon"
             className="fixed bottom-36 right-6 rounded-full w-14 h-14 shadow-lg cursor-pointer z-50 bg-indigo-900/80 hover:bg-indigo-800 border border-dnd-gold/30"
           >
             <Sparkles className="w-7 h-7" />
           </Button>
-        </AlertDialogTrigger>
+        </DialogTrigger>
       )}
-      <AlertDialogContent>
-        <AlertDialogHeader>
-          <AlertDialogTitle className="font-heading text-dnd-gold flex items-center gap-2">
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle className="font-heading text-dnd-gold flex items-center gap-2">
             <Sparkles className="w-5 h-5" />
             Add Buff / Debuff
-          </AlertDialogTitle>
-          <AlertDialogDescription>
+          </DialogTitle>
+          <DialogDescription>
             Create a buff or debuff and choose which combatants it affects
-          </AlertDialogDescription>
-        </AlertDialogHeader>
+          </DialogDescription>
+        </DialogHeader>
         {open && (
           <AddBuffForm
             combatants={combatants}
@@ -252,7 +252,7 @@ export default function AddBuffDialog({
             onClose={() => setOpen(false)}
           />
         )}
-      </AlertDialogContent>
-    </AlertDialog>
+      </DialogContent>
+    </Dialog>
   );
 }
