@@ -77,16 +77,6 @@ const PartyInfoCard = ({
                 Round {currentRound}
               </Badge>
             </RoundEditDialog>
-            <Badge
-              variant="outline"
-              className={
-                party.isActive
-                  ? "dnd-badge-active font-heading text-xs tracking-wider"
-                  : "dnd-badge-inactive font-heading text-xs tracking-wider"
-              }
-            >
-              {party.isActive ? "Active" : "Inactive"}
-            </Badge>
             <SessionNotesDrawer
               partyCode={party.code}
               isDm={isDm}
