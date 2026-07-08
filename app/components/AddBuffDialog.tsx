@@ -20,16 +20,8 @@ import {
   InputGroupAddon,
   InputGroupInput,
 } from "@/app/components/ui/input-group";
-import {
-  Select,
-  SelectContent,
-  SelectGroup,
-  SelectItem,
-  SelectLabel,
-  SelectTrigger,
-  SelectValue,
-} from "@/app/components/ui/select";
-import { Sparkles, ShieldPlus, Skull } from "lucide-react";
+import BuffKindRadioGroup from "@/app/components/BuffKindRadioGroup";
+import { Sparkles } from "lucide-react";
 import type { BuffKind, Combatant } from "@/app/lib/types";
 
 interface AddBuffDialogProps {
@@ -138,51 +130,29 @@ function AddBuffForm({
         </InputGroup>
       </Field>
 
-      <div className="flex gap-2">
-        <Field className="flex-1">
-          <FieldLabel htmlFor="buffKind">Type</FieldLabel>
-          <Select
-            value={kind}
-            onValueChange={(value) => setKind(value as BuffKind)}
-          >
-            <SelectTrigger id="buffKind" className="w-full flex justify-start">
-              <SelectValue placeholder="Buff / Debuff" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectGroup>
-                <SelectLabel>Type</SelectLabel>
-                <SelectItem value="buff">
-                  <span className="flex items-center gap-2">
-                    <ShieldPlus size={16} className="text-emerald-400" />
-                    <span>Buff</span>
-                  </span>
-                </SelectItem>
-                <SelectItem value="debuff">
-                  <span className="flex items-center gap-2">
-                    <Skull size={16} className="text-dnd-blood-bright" />
-                    <span>Debuff</span>
-                  </span>
-                </SelectItem>
-              </SelectGroup>
-            </SelectContent>
-          </Select>
-        </Field>
+      <Field>
+        <FieldLabel>Type</FieldLabel>
+        <BuffKindRadioGroup
+          name="buffKind"
+          value={kind === "" ? undefined : kind}
+          onChange={setKind}
+        />
+      </Field>
 
-        <Field className="w-28">
-          <FieldLabel htmlFor="buffRounds">Rounds</FieldLabel>
-          <InputGroup>
-            <InputGroupInput
-              id="buffRounds"
-              type="text"
-              inputMode="numeric"
-              placeholder="3"
-              value={rounds}
-              onChange={handleRoundsChange}
-              maxLength={3}
-            />
-          </InputGroup>
-        </Field>
-      </div>
+      <Field>
+        <FieldLabel htmlFor="buffRounds">Rounds</FieldLabel>
+        <InputGroup>
+          <InputGroupInput
+            id="buffRounds"
+            type="text"
+            inputMode="numeric"
+            placeholder="3"
+            value={rounds}
+            onChange={handleRoundsChange}
+            maxLength={3}
+          />
+        </InputGroup>
+      </Field>
 
       <div className="flex flex-col gap-2">
         <div className="flex items-center justify-between">
@@ -222,7 +192,13 @@ function AddBuffForm({
       <AlertDialogFooter>
         <AlertDialogCancel>Cancel</AlertDialogCancel>
         <Button onClick={handleSave} disabled={isPending}>
-          {isPending ? "Adding..." : "Add Buff/Debuff"}
+          {isPending
+            ? "Adding..."
+            : kind === "buff"
+              ? "Add Buff"
+              : kind === "debuff"
+                ? "Add Debuff"
+                : "Add Buff/Debuff"}
         </Button>
       </AlertDialogFooter>
     </div>
