@@ -9,7 +9,12 @@ import {
   DialogTrigger,
 } from "@/app/components/ui/dialog";
 import { useParams } from "next/navigation";
-import { Field, FieldError, FieldLabel } from "@/app/components/ui/field";
+import {
+  Field,
+  FieldDescription,
+  FieldError,
+  FieldLabel,
+} from "@/app/components/ui/field";
 import {
   InputGroup,
   InputGroupAddon,
@@ -26,6 +31,7 @@ import { Button } from "@/app/components/ui/button";
 import { useActionState, useState, useEffect } from "react";
 import { addCombatantToParty } from "@/app/server/actions";
 import CombatantTypeRadioGroup from "@/app/components/CombatantTypeRadioGroup";
+import QuantityRadioGroup from "@/app/components/QuantityRadioGroup";
 import { generateRandomName } from "@/app/lib/name-gen";
 
 // Form sub-component to isolate state
@@ -42,9 +48,17 @@ const AddCombatantToPartyForm = ({
   );
 
   const [placeholderName] = useState(() => generateRandomName());
+  const [name, setName] = useState("");
+  const [quantity, setQuantity] = useState(1);
   const [initiative, setInitiative] = useState("");
   const [hp, setHp] = useState("");
   const [ac, setAc] = useState("");
+
+  const trimmedName = name.trim();
+  const previewText =
+    Array.from({ length: quantity }, (_, i) => `${trimmedName} ${i + 1}`)
+      .slice(0, 3)
+      .join(", ") + (quantity > 3 ? "..." : "");
 
   // Close dialog on success
   useEffect(() => {
@@ -81,12 +95,24 @@ const AddCombatantToPartyForm = ({
               id="combatantName"
               name="combatantName"
               placeholder={placeholderName}
+              value={name}
+              onChange={(e) => setName(e.target.value)}
               required
             />
             <InputGroupAddon align="inline-start">
               <Dice1Icon className="text-muted-foreground" />
             </InputGroupAddon>
           </InputGroup>
+        </Field>
+
+        <Field>
+          <FieldLabel>Quantity</FieldLabel>
+          <QuantityRadioGroup value={quantity} onChange={setQuantity} />
+          {quantity > 1 && trimmedName !== "" && (
+            <FieldDescription>
+              They will be added as: {previewText}
+            </FieldDescription>
+          )}
         </Field>
 
         <Field>
@@ -164,7 +190,11 @@ const AddCombatantToPartyForm = ({
       <DialogFooter className="mt-4">
         <DialogClose className="cursor-pointer">Cancel</DialogClose>
         <Button type="submit" disabled={isPending} className="cursor-pointer">
-          {isPending ? "Adding to party..." : "Add to Party"}
+          {isPending
+            ? "Adding..."
+            : quantity === 1
+              ? "Add to Party"
+              : `Add ${quantity} Combatants`}
         </Button>
       </DialogFooter>
     </form>

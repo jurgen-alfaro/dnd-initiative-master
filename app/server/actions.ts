@@ -37,6 +37,7 @@ const AddCombatantToPartySchema = z.object({
   initiative: z.coerce.number().min(0).max(999).default(0).optional(),
   maxHp: z.coerce.number().min(0).max(999).default(0).optional(),
   ac: z.coerce.number().min(0).max(999).default(0).optional(),
+  quantity: z.coerce.number().int().min(1).max(5).catch(1),
   partyCode: z.string(),
 });
 
@@ -835,6 +836,7 @@ export async function addCombatantToParty(prevState: any, formData: FormData) {
     initiative: formData.get("initiative"),
     maxHp: formData.get("hp"),
     ac: formData.get("ac"),
+    quantity: formData.get("quantity"),
     partyCode: formData.get("partyCode"),
   });
 
@@ -847,27 +849,24 @@ export async function addCombatantToParty(prevState: any, formData: FormData) {
     return { error: "Party not found" };
   }
 
-  const partyId = party.id;
+  const { combatantName, type, initiative, maxHp, ac, quantity } =
+    validatedFields.data;
+
+  // When adding several at once, suffix each name with its index so the
+  // combatants stay distinguishable (e.g. "Goblin 1", "Goblin 2").
+  const rows = Array.from({ length: quantity }, (_, i) => ({
+    name: quantity > 1 ? `${combatantName} ${i + 1}` : combatantName,
+    type,
+    initiative,
+    hp: maxHp,
+    maxHp,
+    ac,
+    partyId: party.id,
+  }));
 
   try {
-    const newCombatant = await db
-      .insert(combatants)
-      .values({
-        name: validatedFields.data.combatantName,
-        type: validatedFields.data.type,
-        initiative: validatedFields.data.initiative,
-        hp: validatedFields.data.maxHp,
-        maxHp: validatedFields.data.maxHp,
-        ac: validatedFields.data.ac,
-        partyId: partyId,
-      })
-      .returning({
-        name: combatants.name,
-        type: combatants.type,
-        initiative: combatants.initiative,
-      });
-  } catch (error) {
-    console.log(error);
+    await db.insert(combatants).values(rows);
+  } catch {
     return { error: "Error at adding combatant to party" };
   }
 
