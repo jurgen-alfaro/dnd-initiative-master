@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono, Cinzel } from "next/font/google";
 import "./globals.css";
 
@@ -21,6 +21,14 @@ const cinzel = Cinzel({
 export const metadata: Metadata = {
   title: "D&D Initiative Tracker",
   description: "Track combat initiative for your D&D campaigns",
+};
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  // Shrink the layout viewport (instead of overlaying) when the soft keyboard
+  // opens, so `fixed`/`dvh`-based dialogs stay above it on Android/Chromium.
+  interactiveWidget: "resizes-content",
 };
 
 export default function RootLayout({

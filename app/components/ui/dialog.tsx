@@ -5,6 +5,7 @@ import { Dialog as DialogPrimitive } from "radix-ui";
 
 import { cn } from "@/lib/utils";
 import { Button } from "@/app/components/ui/button";
+import { useVisualViewport } from "@/app/lib/hooks/useVisualViewport";
 
 function Dialog({
   ...props
@@ -43,10 +44,23 @@ function DialogOverlay({
 function DialogContent({
   className,
   size = "default",
+  style,
   ...props
 }: React.ComponentProps<typeof DialogPrimitive.Content> & {
   size?: "default" | "sm";
 }) {
+  const viewport = useVisualViewport();
+
+  // On iOS Safari a `fixed` element stays centered on the full layout viewport,
+  // so when the keyboard opens the lower half of the dialog is hidden behind it.
+  // Re-center within the visual viewport and cap the height to what's visible.
+  const keyboardStyle: React.CSSProperties | undefined = viewport?.isKeyboardOpen
+    ? {
+        top: viewport.offsetTop + viewport.height / 2,
+        maxHeight: viewport.height - 32,
+      }
+    : undefined;
+
   return (
     <DialogPortal>
       <DialogOverlay />
@@ -54,9 +68,10 @@ function DialogContent({
         data-slot="dialog-content"
         data-size={size}
         className={cn(
-          "bg-card data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 group/dialog-content fixed top-[50%] left-[50%] z-50 grid w-full max-w-[calc(100%-2rem)] translate-x-[-50%] translate-y-[-50%] gap-4 rounded-lg border p-6 shadow-lg duration-200 data-[size=sm]:max-w-xs data-[size=default]:sm:max-w-lg",
+          "bg-card data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 group/dialog-content fixed top-[50%] left-[50%] z-50 grid max-h-[calc(100dvh-2rem)] w-full max-w-[calc(100%-2rem)] translate-x-[-50%] translate-y-[-50%] gap-4 overflow-y-auto overscroll-contain rounded-lg border p-6 shadow-lg duration-200 data-[size=sm]:max-w-xs data-[size=default]:sm:max-w-lg",
           className,
         )}
+        style={{ ...keyboardStyle, ...style }}
         {...props}
       />
     </DialogPortal>
