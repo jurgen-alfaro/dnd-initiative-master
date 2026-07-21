@@ -109,14 +109,12 @@ export default function ConditionsEditDialog({
             Select active conditions for {combatant.name}
           </DialogDescription>
         </DialogHeader>
-        {open && (
-          <ConditionsEditForm
-            combatant={combatant}
-            onSave={onSave}
-            isPending={isPending}
-            onClose={() => setOpen(false)}
-          />
-        )}
+        <ConditionsEditForm
+          combatant={combatant}
+          onSave={onSave}
+          isPending={isPending}
+          onClose={() => setOpen(false)}
+        />
       </DialogContent>
     </Dialog>
   );

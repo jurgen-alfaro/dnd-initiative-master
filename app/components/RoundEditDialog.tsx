@@ -118,14 +118,12 @@ export default function RoundEditDialog({
             Set the current combat round. The current turn will be maintained.
           </DialogDescription>
         </DialogHeader>
-        {open && (
-          <RoundEditForm
-            currentRound={currentRound}
-            onSave={onSave}
-            isPending={isPending}
-            onClose={() => setOpen(false)}
-          />
-        )}
+        <RoundEditForm
+          currentRound={currentRound}
+          onSave={onSave}
+          isPending={isPending}
+          onClose={() => setOpen(false)}
+        />
       </DialogContent>
     </Dialog>
   );

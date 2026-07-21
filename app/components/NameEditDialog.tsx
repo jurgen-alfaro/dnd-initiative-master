@@ -98,14 +98,12 @@ export default function NameEditDialog({
             Set the combatant name.
           </DialogDescription>
         </DialogHeader>
-        {open && (
-          <NameEditForm
-            combatant={combatant}
-            onSave={onSave}
-            isPending={isPending}
-            onClose={() => setOpen(false)}
-          />
-        )}
+        <NameEditForm
+          combatant={combatant}
+          onSave={onSave}
+          isPending={isPending}
+          onClose={() => setOpen(false)}
+        />
       </DialogContent>
     </Dialog>
   );

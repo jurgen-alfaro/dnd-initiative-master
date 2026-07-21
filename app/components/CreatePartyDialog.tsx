@@ -137,11 +137,12 @@ const CreatePartyDialog = ({
           </DialogDescription>
         </DialogHeader>
         {/*
-            By passing a changing key, or simply relying on the content
-            unmounting when the dialog closes, we reset the form state.
-            We use 'open' as the key to force a remount every time it opens.
-          */}
-        {open && <CreatePartyForm />}
+          Radix unmounts the dialog content when it closes, so the form state
+          resets on every open. Rendering it directly (not gated on `open`)
+          keeps the form visible during the close animation, avoiding a flash
+          of the header alone.
+        */}
+        <CreatePartyForm />
       </DialogContent>
     </Dialog>
   );

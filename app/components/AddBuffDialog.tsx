@@ -244,14 +244,12 @@ export default function AddBuffDialog({
             Create a buff or debuff and choose which combatants it affects
           </DialogDescription>
         </DialogHeader>
-        {open && (
-          <AddBuffForm
-            combatants={combatants}
-            onAddBuff={onAddBuff}
-            isPending={isPending}
-            onClose={() => setOpen(false)}
-          />
-        )}
+        <AddBuffForm
+          combatants={combatants}
+          onAddBuff={onAddBuff}
+          isPending={isPending}
+          onClose={() => setOpen(false)}
+        />
       </DialogContent>
     </Dialog>
   );

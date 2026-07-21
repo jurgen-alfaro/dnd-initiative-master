@@ -295,15 +295,13 @@ export default function DamageHealDialog({
             Set the damage or healing amount.
           </DialogDescription>
         </DialogHeader>
-        {open && (
-          <DamageHealForm
-            combatant={combatant}
-            onApply={onApply}
-            isPending={isPending}
-            onClose={() => setOpen(false)}
-            defaultTab={defaultTab}
-          />
-        )}
+        <DamageHealForm
+          combatant={combatant}
+          onApply={onApply}
+          isPending={isPending}
+          onClose={() => setOpen(false)}
+          defaultTab={defaultTab}
+        />
       </DialogContent>
     </Dialog>
   );

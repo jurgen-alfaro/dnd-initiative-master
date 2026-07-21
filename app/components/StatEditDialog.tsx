@@ -179,15 +179,13 @@ export default function StatEditDialog({
           </DialogTitle>
           <DialogDescription>{config.description}</DialogDescription>
         </DialogHeader>
-        {open && (
-          <StatEditForm
-            combatant={combatant}
-            statType={statType}
-            onSave={onSave}
-            isPending={isPending}
-            onClose={() => setOpen(false)}
-          />
-        )}
+        <StatEditForm
+          combatant={combatant}
+          statType={statType}
+          onSave={onSave}
+          isPending={isPending}
+          onClose={() => setOpen(false)}
+        />
       </DialogContent>
     </Dialog>
   );

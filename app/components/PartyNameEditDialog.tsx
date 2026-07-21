@@ -111,14 +111,12 @@ export default function PartyNameEditDialog({
             Change the name of your party.
           </DialogDescription>
         </DialogHeader>
-        {open && (
-          <PartyNameEditForm
-            currentName={currentName}
-            onSave={onSave}
-            isPending={isPending}
-            onClose={() => setOpen(false)}
-          />
-        )}
+        <PartyNameEditForm
+          currentName={currentName}
+          onSave={onSave}
+          isPending={isPending}
+          onClose={() => setOpen(false)}
+        />
       </DialogContent>
     </Dialog>
   );

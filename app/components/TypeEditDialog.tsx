@@ -86,14 +86,12 @@ export default function TypeEditDialog({
             Set the combatant type.
           </DialogDescription>
         </DialogHeader>
-        {open && (
-          <TypeEditForm
-            combatant={combatant}
-            onSave={onSave}
-            isPending={isPending}
-            onClose={() => setOpen(false)}
-          />
-        )}
+        <TypeEditForm
+          combatant={combatant}
+          onSave={onSave}
+          isPending={isPending}
+          onClose={() => setOpen(false)}
+        />
       </DialogContent>
     </Dialog>
   );
