@@ -19,19 +19,23 @@ import {
   calculateHealingResult,
 } from "@/app/lib/combat/damageCalculator";
 import { recalculateTurnIndexAfterDeletion } from "@/app/lib/combat/turnCalculator";
+import { getPusherClient } from "@/app/lib/pusher-client";
 
 /**
- * Polls `/api/party/[code]` every `intervalMs` milliseconds and keeps
- * party state up-to-date. Returns combatants, currentTurnIndex, currentRound,
- * and optimistic update functions for instant UI feedback.
+ * Keeps party state in sync via realtime push: subscribes to the party's
+ * Pusher channel and re-fetches `/api/party/[code]` (the source of truth) only
+ * when the server signals a change. A low-frequency `fallbackIntervalMs` poll
+ * is kept as a safety net (and as the sole sync path when Pusher is not
+ * configured). Returns combatants, currentTurnIndex, currentRound, and
+ * optimistic update functions for instant UI feedback.
  */
-export function usePartyPolling(
+export function usePartySync(
   partyCode: string,
   initialCombatants: Combatant[],
   initialTurnIndex = 0,
   initialRound = 1,
   initialPartyName: string,
-  intervalMs = 3000,
+  fallbackIntervalMs = 30000,
 ): {
   combatants: Combatant[];
   currentTurnIndex: number;
@@ -84,6 +88,13 @@ export function usePartyPolling(
   const [pendingOperations, setPendingOperations] = useState<Set<string>>(
     new Set(),
   );
+
+  // Mirror pendingOperations in a ref so the realtime subscription effect can
+  // read the latest value without re-subscribing on every optimistic op.
+  const pendingOperationsRef = useRef(pendingOperations);
+  useEffect(() => {
+    pendingOperationsRef.current = pendingOperations;
+  }, [pendingOperations]);
 
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const previousStateRef = useRef<{
@@ -922,49 +933,70 @@ export function usePartyPolling(
     [partyCode, combatants, currentTurnIndex, currentRound, pendingOperations],
   );
 
-  useEffect(() => {
-    let cancelled = false;
+  // Fetch the source-of-truth state and merge it into local state. Stable
+  // across renders (reads pending ops through a ref) so the subscription effect
+  // below never needs to re-subscribe. While an optimistic op is pending only
+  // combatants are synced, so other users' stat changes still flow in without
+  // clobbering the local turn/round the user just changed.
+  const fetchState = useCallback(async () => {
+    try {
+      const res = await fetch(`/api/party/${partyCode}`, {
+        cache: "no-store",
+      });
+      if (!res.ok) return;
 
-    const poll = async () => {
-      try {
-        const res = await fetch(`/api/party/${partyCode}`, {
-          cache: "no-store",
-        });
-        if (!res.ok) return;
+      const data: {
+        combatants: Combatant[];
+        currentTurnIndex: number;
+        currentRound: number;
+      } = await res.json();
 
-        const data: {
-          combatants: Combatant[];
-          currentTurnIndex: number;
-          currentRound: number;
-        } = await res.json();
-
-        if (!cancelled) {
-          // Only update state if no pending operations
-          // This prevents polling from overwriting optimistic updates
-          if (pendingOperations.size === 0) {
-            setCombatants(data.combatants);
-            setCurrentTurnIndex(data.currentTurnIndex);
-            setCurrentRound(data.currentRound);
-          } else {
-            // If pending operations, only update combatants
-            // This allows other users' stat changes to flow through
-            // while preserving local optimistic turn changes
-            setCombatants(data.combatants);
-          }
-        }
-      } catch {
-        // Network error — silently ignore and retry on next tick
-        console.error("Network error polling party", partyCode);
+      if (pendingOperationsRef.current.size === 0) {
+        setCombatants(data.combatants);
+        setCurrentTurnIndex(data.currentTurnIndex);
+        setCurrentRound(data.currentRound);
+      } else {
+        setCombatants(data.combatants);
       }
+    } catch {
+      // Network error — ignore; the next signal or fallback tick will retry.
+      console.error("Network error fetching party", partyCode);
+    }
+  }, [partyCode]);
+
+  useEffect(() => {
+    const channelName = `party-${partyCode.toUpperCase()}`;
+
+    // Coalesce bursts of signals into a single fetch.
+    let debounceTimer: ReturnType<typeof setTimeout> | null = null;
+    const scheduleFetch = () => {
+      if (debounceTimer) clearTimeout(debounceTimer);
+      debounceTimer = setTimeout(() => {
+        void fetchState();
+      }, 150);
     };
 
-    timerRef.current = setInterval(poll, intervalMs);
+    // Realtime push: the server signals "updated" → fetch fresh state once.
+    // Degrades gracefully to fallback-only sync when Pusher isn't configured.
+    const pusher = getPusherClient();
+    const channel = pusher?.subscribe(channelName);
+    channel?.bind("updated", scheduleFetch);
+    // Resiliency: re-sync whenever the socket (re)connects.
+    pusher?.connection.bind("connected", scheduleFetch);
+
+    // Low-frequency safety net for missed pushes / Pusher outages.
+    timerRef.current = setInterval(() => {
+      void fetchState();
+    }, fallbackIntervalMs);
 
     return () => {
-      cancelled = true;
+      if (debounceTimer) clearTimeout(debounceTimer);
       if (timerRef.current) clearInterval(timerRef.current);
+      channel?.unbind("updated", scheduleFetch);
+      pusher?.connection.unbind("connected", scheduleFetch);
+      pusher?.unsubscribe(channelName);
     };
-  }, [partyCode, intervalMs, pendingOperations.size]);
+  }, [partyCode, fallbackIntervalMs, fetchState]);
 
   return {
     combatants,

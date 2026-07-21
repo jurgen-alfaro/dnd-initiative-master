@@ -25,6 +25,7 @@ import {
   calculateHealingResult,
 } from "@/app/lib/combat/damageCalculator";
 import { recalculateTurnIndexAfterDeletion } from "@/app/lib/combat/turnCalculator";
+import { notifyPartyChanged } from "@/app/lib/pusher-server";
 
 // Zod validation schemas
 const CreatePartySchema = z.object({
@@ -257,6 +258,7 @@ export async function updateInitiative(
     // THIS IS KEY: it tells Next.js to purge that route's cache
     // and reload the fresh data on every connected client.
     revalidatePath(`/party/${partyCode}`);
+    await notifyPartyChanged(partyCode);
     return { success: true };
   } catch (error) {
     return { error: "Error updating initiative" };
@@ -279,6 +281,7 @@ export async function updateCombatantStat(
       .where(eq(combatants.id, combatantId));
 
     revalidatePath(`/party/${partyCode}`);
+    await notifyPartyChanged(partyCode);
     return { success: true };
   } catch (error) {
     return { error: "Error updating combatant" };
@@ -307,6 +310,7 @@ export async function updateCombatantConditions(
       .where(eq(combatants.id, combatantId));
 
     revalidatePath(`/party/${partyCode}`);
+    await notifyPartyChanged(partyCode);
     return { success: true };
   } catch (error) {
     return { error: "Error updating conditions" };
@@ -354,6 +358,7 @@ export async function addBuffToCombatants(
     );
 
     revalidatePath(`/party/${partyCode}`);
+    await notifyPartyChanged(partyCode);
     return { success: true };
   } catch (error) {
     return { error: "Error adding buff" };
@@ -394,6 +399,7 @@ export async function removeBuffFromCombatant(
       .where(eq(combatants.id, combatantId));
 
     revalidatePath(`/party/${partyCode}`);
+    await notifyPartyChanged(partyCode);
     return { success: true };
   } catch (error) {
     return { error: "Error removing buff" };
@@ -451,6 +457,7 @@ export async function applyDamageOrHealing(
       .where(eq(combatants.id, combatantId));
 
     revalidatePath(`/party/${partyCode}`);
+    await notifyPartyChanged(partyCode);
     return {
       success: true,
       newHp,
@@ -489,6 +496,7 @@ export async function updateCombatantInfo(
       .where(eq(combatants.id, combatantId));
 
     revalidatePath(`/party/${partyCode}`);
+    await notifyPartyChanged(partyCode);
     return { success: true };
   } catch (error) {
     return { error: "Error updating combatant info" };
@@ -553,6 +561,7 @@ export async function deleteCombatant(
     }
 
     revalidatePath(`/party/${partyCode}`);
+    await notifyPartyChanged(partyCode);
     return { success: true, newTurnIndex };
   } catch (error) {
     console.error("Error deleting combatant:", error);
@@ -787,6 +796,7 @@ export async function addNote(
   }
 
   revalidatePath(`/party/${party.code}`);
+  await notifyPartyChanged(party.code);
   return { success: true };
 }
 
@@ -871,6 +881,7 @@ export async function addCombatantToParty(prevState: any, formData: FormData) {
   }
 
   revalidatePath(`/party/${party.code}`);
+  await notifyPartyChanged(party.code);
   return { success: true };
 }
 
@@ -909,6 +920,7 @@ export async function advanceTurn(partyCode: string) {
       .where(eq(parties.id, party.id));
 
     revalidatePath(`/party/${partyCode}`);
+    await notifyPartyChanged(partyCode);
     return { success: true, newIndex: nextIndex };
   } catch (error) {
     return { error: "Error advancing turn" };
@@ -939,6 +951,7 @@ export async function previousTurn(partyCode: string) {
       .where(eq(parties.id, party.id));
 
     revalidatePath(`/party/${partyCode}`);
+    await notifyPartyChanged(partyCode);
     return { success: true, newIndex: prevIndex };
   } catch (error) {
     return { error: "Error going to previous turn" };
@@ -988,6 +1001,7 @@ export async function nextRound(partyCode: string) {
       .where(eq(parties.id, party.id));
 
     revalidatePath(`/party/${partyCode}`);
+    await notifyPartyChanged(partyCode);
     return { success: true, newRound: party.currentRound + 1 };
   } catch (error) {
     return { error: "Error advancing round" };
@@ -1018,6 +1032,7 @@ export async function setRound(partyCode: string, newRound: number) {
       .where(eq(parties.id, party.id));
 
     revalidatePath(`/party/${partyCode}`);
+    await notifyPartyChanged(partyCode);
     return { success: true, newRound };
   } catch (error) {
     return { error: "Error setting round" };
@@ -1048,6 +1063,7 @@ export async function updatePartyName(partyCode: string, newName: string) {
       .where(eq(parties.id, party.id));
 
     revalidatePath(`/party/${partyCode}`);
+    await notifyPartyChanged(partyCode);
     return { success: true, newName };
   } catch (error) {
     return { error: "Error updating party name" };

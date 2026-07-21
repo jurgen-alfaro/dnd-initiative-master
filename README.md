@@ -349,6 +349,7 @@ This tracker handles steps 1-4 automatically!
    - In Vercel dashboard, go to **Settings → Environment Variables**
    - Add `DATABASE_URL` with your Neon connection string
    - **Important**: Use the **pooled connection string** (contains `-pooler` in hostname) for production
+   - Add the Pusher variables (see [Realtime sync](#realtime-sync-pusher)) to enable instant multi-user updates
 
 4. **Deploy:**
    - Click **"Deploy"**
@@ -360,8 +361,33 @@ This tracker handles steps 1-4 automatically!
 | Variable | Description | Required |
 |----------|-------------|----------|
 | `DATABASE_URL` | Neon PostgreSQL connection string | Yes |
+| `PUSHER_APP_ID` | Pusher Channels app id (server-side) | For realtime |
+| `PUSHER_KEY` | Pusher Channels key (server-side) | For realtime |
+| `PUSHER_SECRET` | Pusher Channels secret (server-side) | For realtime |
+| `PUSHER_CLUSTER` | Pusher Channels cluster, e.g. `us2` (server-side) | For realtime |
+| `NEXT_PUBLIC_PUSHER_KEY` | Same Pusher key, exposed to the browser | For realtime |
+| `NEXT_PUBLIC_PUSHER_CLUSTER` | Same Pusher cluster, exposed to the browser | For realtime |
 
 **Production Note:** Always use Neon's **pooled connection string** for serverless deployments to avoid connection limits. The pooled connection string contains `-pooler` in the hostname.
+
+### Realtime sync (Pusher)
+
+Multi-user sync is push-based: whenever a Server Action changes a party, the
+server sends a lightweight signal over **[Pusher Channels](https://pusher.com/channels/)**
+and each connected browser re-fetches the party once. This replaces the old
+3-second polling, so clients update instantly and only when something actually
+changed.
+
+Setup:
+
+1. Create a free Pusher Channels app ([dashboard](https://dashboard.pusher.com/)).
+2. Copy the **App ID**, **Key**, **Secret** and **Cluster** from *App Keys*.
+3. Add the six `PUSHER_*` / `NEXT_PUBLIC_PUSHER_*` variables above to your `.env`
+   (local) and to your host (Vercel). `NEXT_PUBLIC_PUSHER_KEY` /
+   `NEXT_PUBLIC_PUSHER_CLUSTER` mirror the server key/cluster.
+
+Realtime is **optional**: without these variables the app still works, falling
+back to a low-frequency (30 s) refresh instead of instant push.
 
 ### Other Platforms
 

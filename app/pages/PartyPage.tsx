@@ -4,7 +4,7 @@ import InitiativeList from "@/app/components/InitiativeList";
 import { TurnControls } from "@/app/components/TurnControls";
 import type { Combatant } from "@/app/lib/types";
 import { useRouter } from "next/navigation";
-import { usePartyPolling } from "@/app/lib/hooks/usePartyPolling";
+import { usePartySync } from "@/app/lib/hooks/usePartySync";
 import { useMemo, useEffect, useState } from "react";
 import { useRecentParty } from "@/app/lib/hooks/useRecentParty";
 import { readDmToken } from "@/app/lib/dm-token";
@@ -57,7 +57,8 @@ export default function PartyPage({ party }: PartyPageProps) {
     };
   }, [party.code]);
 
-  // Poll the API every 3 seconds so all connected sessions stay in sync
+  // Realtime sync: the server pushes a signal on every change and this hook
+  // re-fetches once, so all connected sessions stay in sync without polling.
   const {
     combatants: liveCombatants,
     currentTurnIndex,
@@ -77,13 +78,12 @@ export default function PartyPage({ party }: PartyPageProps) {
     optimisticUpdateConditions,
     optimisticAddBuff,
     optimisticRemoveBuff,
-  } = usePartyPolling(
+  } = usePartySync(
     party.code,
     party.combatants,
     party.currentTurnIndex,
     party.currentRound,
     party.name,
-    3000,
   );
 
   // Create updated party object with optimistic name
