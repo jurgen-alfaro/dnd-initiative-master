@@ -101,6 +101,11 @@ function DamageHealForm({
 
   const quickValues = QUICK_VALUES;
 
+  const quickButtonClass =
+    activeTab === "damage"
+      ? "border-dnd-blood/30 text-dnd-blood-bright hover:bg-dnd-blood/10 font-mono font-bold"
+      : "border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/10 font-mono font-bold";
+
   return (
     <div className="flex flex-col gap-4">
       {/* Tab buttons */}
@@ -176,23 +181,34 @@ function DamageHealForm({
         />
       </div>
 
-      {/* Quick adjust buttons */}
+      {/* Quick adjust: aumentar Amount */}
       <div className="grid grid-cols-3 gap-2">
         {quickValues.map((value) => (
           <Button
-            key={value}
+            key={`plus-${value}`}
             variant="outline"
             size="sm"
             onClick={() => handleQuickAdjust(value)}
             disabled={localPending}
-            className={
-              activeTab === "damage"
-                ? "border-dnd-blood/30 text-dnd-blood-bright hover:bg-dnd-blood/10 font-mono font-bold"
-                : "border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/10 font-mono font-bold"
-            }
+            className={quickButtonClass}
           >
-            {activeTab === "damage" ? "-" : "+"}
-            {value}
+            +{value}
+          </Button>
+        ))}
+      </div>
+
+      {/* Quick adjust: disminuir Amount */}
+      <div className="grid grid-cols-3 gap-2">
+        {quickValues.map((value) => (
+          <Button
+            key={`minus-${value}`}
+            variant="outline"
+            size="sm"
+            onClick={() => handleQuickAdjust(-value)}
+            disabled={localPending || amount <= 0}
+            className={quickButtonClass}
+          >
+            -{value}
           </Button>
         ))}
       </div>
