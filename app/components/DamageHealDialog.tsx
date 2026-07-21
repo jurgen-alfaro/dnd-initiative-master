@@ -214,43 +214,43 @@ function DamageHealForm({
       </div>
 
       {/* Result preview */}
-      {amount > 0 && (
-        <div className="flex justify-around py-2 px-4 bg-dnd-gold/5 rounded border border-dnd-gold/20">
+      <div className="flex justify-around py-2 px-4 bg-dnd-gold/5 rounded border border-dnd-gold/20">
+        <div className="flex flex-col items-center">
+          <span className="text-[10px] uppercase tracking-widest text-dnd-blood-bright font-heading">
+            After HP
+          </span>
+          <span
+            className={`font-mono text-lg font-bold ${
+              previewHp < combatant.hp
+                ? "text-dnd-blood-bright"
+                : previewHp > combatant.hp
+                  ? "text-emerald-400"
+                  : "text-dnd-parchment"
+            }`}
+          >
+            {previewHp}
+            <span className="text-sm text-muted-foreground">
+              /{combatant.maxHp}
+            </span>
+          </span>
+        </div>
+        {combatant.tmpHp !== 0 && (
           <div className="flex flex-col items-center">
-            <span className="text-[10px] uppercase tracking-widest text-dnd-blood-bright font-heading">
-              After HP
+            <span className="text-[10px] uppercase tracking-widest text-dnd-gold font-heading">
+              After Tmp
             </span>
             <span
               className={`font-mono text-lg font-bold ${
-                previewHp < combatant.hp
+                previewTmpHp < combatant.tmpHp
                   ? "text-dnd-blood-bright"
-                  : "text-emerald-400"
+                  : "text-dnd-parchment"
               }`}
             >
-              {previewHp}
-              <span className="text-sm text-muted-foreground">
-                /{combatant.maxHp}
-              </span>
+              {previewTmpHp}
             </span>
           </div>
-          {combatant.tmpHp !== 0 && (
-            <div className="flex flex-col items-center">
-              <span className="text-[10px] uppercase tracking-widest text-dnd-gold font-heading">
-                After Tmp
-              </span>
-              <span
-                className={`font-mono text-lg font-bold ${
-                  previewTmpHp < combatant.tmpHp
-                    ? "text-dnd-blood-bright"
-                    : "text-dnd-parchment"
-                }`}
-              >
-                {previewTmpHp}
-              </span>
-            </div>
-          )}
-        </div>
-      )}
+        )}
+      </div>
 
       <DialogFooter>
         <DialogClose disabled={localPending}>Cancel</DialogClose>
