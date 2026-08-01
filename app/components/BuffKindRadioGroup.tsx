@@ -1,6 +1,6 @@
 "use client";
 
-import { ShieldPlus, Skull } from "lucide-react";
+import { ShieldPlus, Biohazard } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import type { BuffKind } from "@/app/lib/types";
@@ -51,7 +51,7 @@ const BuffKindRadioGroup = ({
         )}
       >
         <input {...radioProps("debuff")} />
-        <Skull size={14} /> Debuff
+        <Biohazard size={14} /> Debuff
       </label>
     </div>
   );

@@ -1,6 +1,6 @@
 "use client";
 
-import { Shield, Sword } from "lucide-react";
+import { Shield, Skull } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 
@@ -52,7 +52,7 @@ const CombatantTypeRadioGroup = ({
         )}
       >
         <input {...radioProps("enemy")} />
-        <Sword size={14} /> Enemy
+        <Skull size={14} /> Enemy
       </label>
     </div>
   );

@@ -11,7 +11,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/app/components/ui/dialog";
-import { Sparkles, ShieldPlus, Skull, Trash2 } from "lucide-react";
+import { Sparkles, ShieldPlus, Biohazard, Trash2 } from "lucide-react";
 import type { Buff, Combatant } from "@/app/lib/types";
 
 interface BuffsDetailDialogProps {
@@ -70,7 +70,7 @@ export default function BuffsDetailDialog({
                         className="text-emerald-400 shrink-0"
                       />
                     ) : (
-                      <Skull
+                      <Biohazard
                         size={18}
                         className="text-dnd-blood-bright shrink-0"
                       />

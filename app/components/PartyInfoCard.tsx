@@ -6,7 +6,7 @@ import {
   CardHeader,
   CardTitle,
 } from "./ui/card";
-import { Shield, Sword, SwordsIcon } from "lucide-react";
+import { Shield, Skull, SwordsIcon } from "lucide-react";
 import { Badge } from "@/app/components/ui/badge";
 import { Separator } from "@/app/components/ui/separator";
 import CopyableCode from "./CopyableCode";
@@ -86,7 +86,7 @@ const PartyInfoCard = ({
           </span>
           <Separator orientation="vertical" className="h-5 bg-dnd-gold/20" />
           <span className="flex items-center gap-2 text-dnd-blood-bright">
-            <Sword size={16} className="text-dnd-blood" />
+            <Skull size={16} className="text-dnd-blood" />
             <span className="font-heading font-semibold">{enemyCount}</span>
             <span className="text-muted-foreground">
               {enemyCount !== 1 ? "Enemies" : "Enemy"}

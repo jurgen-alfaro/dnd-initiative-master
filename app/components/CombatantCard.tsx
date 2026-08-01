@@ -11,6 +11,8 @@ import {
   Activity,
   ShieldPlus,
   Skull,
+  Biohazard,
+  Eye,
 } from "lucide-react";
 import type { Combatant, Condition } from "@/app/lib/types";
 import StatEditDialog from "@/app/components/StatEditDialog";
@@ -20,10 +22,7 @@ import DamageHealDialog from "@/app/components/DamageHealDialog";
 import ConditionsEditDialog from "@/app/components/ConditionsEditDialog";
 import ConditionDescriptionDialog from "@/app/components/ConditionDescriptionDialog";
 import BuffsDetailDialog from "@/app/components/BuffsDetailDialog";
-import {
-  CONDITION_ICONS,
-  CONDITION_COLORS,
-} from "@/app/lib/condition-icons";
+import { CONDITION_ICONS, CONDITION_COLORS } from "@/app/lib/condition-icons";
 
 interface CombatantCardProps {
   combatant: Combatant;
@@ -47,6 +46,7 @@ interface CombatantCardProps {
     type: "damage" | "healing",
   ) => void;
   onDelete: (id: number) => void;
+  onHide: (id: number) => void;
   onConditionsChange: (id: number, conditions: Condition[]) => Promise<void>;
   onRemoveBuff: (combatantId: number, buffId: string) => Promise<void>;
 }
@@ -63,6 +63,7 @@ const CombatantCard = forwardRef<HTMLDivElement, CombatantCardProps>(
       onInfoChange,
       onDamageHeal,
       onDelete,
+      onHide,
       onConditionsChange,
       onRemoveBuff,
     },
@@ -168,17 +169,18 @@ const CombatantCard = forwardRef<HTMLDivElement, CombatantCardProps>(
                 {combatant.name}
               </h3>
             )}
-            {isDm ? (
-              <TypeEditDialog
-                combatant={combatant}
-                onSave={onInfoChange}
-                isPending={isPending}
-              >
-                <Badge
-                  asChild
-                  variant="outline"
-                  className={`
-                  text-xs font-heading tracking-wider border
+            <div className="flex shrink-0 items-center gap-2">
+              {isDm ? (
+                <TypeEditDialog
+                  combatant={combatant}
+                  onSave={onInfoChange}
+                  isPending={isPending}
+                >
+                  <Badge
+                    asChild
+                    variant="outline"
+                    className={`
+                  p-1.5 font-heading border rounded-full
                   cursor-pointer transition-all duration-200
                   hover:border-dnd-gold/40 active:scale-95
                   ${
@@ -187,37 +189,77 @@ const CombatantCard = forwardRef<HTMLDivElement, CombatantCardProps>(
                       : "border-dnd-hero-blue/40 text-dnd-hero-blue-bright bg-dnd-hero-blue/10"
                   }
                 `}
-                >
-                  <button>
-                    {combatant.type === "enemy" ? "Enemy" : "Hero"}
-                    {combatant.type === "enemy" ? (
-                      <Sword size={14} className="text-dnd-blood-bright" />
-                    ) : (
-                      <Shield size={14} className="text-dnd-hero-blue-bright" />
-                    )}
-                  </button>
-                </Badge>
-              </TypeEditDialog>
-            ) : (
-              <Badge
-                variant="outline"
-                className={`
-                text-xs font-heading tracking-wider border
+                  >
+                    <button
+                      title={combatant.type === "enemy" ? "Enemy" : "Hero"}
+                    >
+                      {combatant.type === "enemy" ? (
+                        <Skull size={14} className="text-dnd-blood-bright" />
+                      ) : (
+                        <Shield
+                          size={14}
+                          className="text-dnd-hero-blue-bright"
+                        />
+                      )}
+                      <span className="sr-only">
+                        {combatant.type === "enemy" ? "Enemy" : "Hero"}
+                      </span>
+                    </button>
+                  </Badge>
+                </TypeEditDialog>
+              ) : (
+                <Badge
+                  variant="outline"
+                  title={combatant.type === "enemy" ? "Enemy" : "Hero"}
+                  className={`
+                p-1.5 font-heading border rounded-full
                 ${
                   combatant.type === "enemy"
                     ? "border-dnd-blood/40 text-dnd-blood-bright bg-dnd-blood/10"
                     : "border-dnd-hero-blue/40 text-dnd-hero-blue-bright bg-dnd-hero-blue/10"
                 }
               `}
-              >
-                {combatant.type === "enemy" ? "Enemy" : "Hero"}
-                {combatant.type === "enemy" ? (
-                  <Sword size={14} className="text-dnd-blood-bright" />
-                ) : (
-                  <Shield size={14} className="text-dnd-hero-blue-bright" />
-                )}
-              </Badge>
-            )}
+                >
+                  {combatant.type === "enemy" ? (
+                    <Skull size={14} className="text-dnd-blood-bright" />
+                  ) : (
+                    <Shield size={14} className="text-dnd-hero-blue-bright" />
+                  )}
+                  <span className="sr-only">
+                    {combatant.type === "enemy" ? "Enemy" : "Hero"}
+                  </span>
+                </Badge>
+              )}
+
+              {/* Send to reserve (DM only): keeps the combatant prepared but out
+                of the players' sight and out of the turn order */}
+              {isDm && (
+                <button
+                  type="button"
+                  onClick={() => onHide(combatant.id)}
+                  disabled={isPending}
+                  title="Hide combatant"
+                  className="rounded-md p-1.5 text-dnd-gold-dim transition-all duration-200 hover:bg-dnd-gold/10 hover:text-dnd-gold-bright active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  <Eye size={16} />
+                  <span className="sr-only">Hide {combatant.name}</span>
+                </button>
+              )}
+
+              {/* Delete button (DM only) */}
+              {isDm && (
+                <button
+                  type="button"
+                  onClick={() => onDelete(combatant.id)}
+                  disabled={isPending}
+                  title="Remove combatant"
+                  className="rounded-md p-1.5 text-dnd-blood-bright/80 transition-all duration-200 hover:bg-dnd-blood/10 hover:text-dnd-blood-bright active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  <Trash2 size={16} />
+                  <span className="sr-only">Remove {combatant.name}</span>
+                </button>
+              )}
+            </div>
           </div>
         </div>
 
@@ -237,16 +279,12 @@ const CombatantCard = forwardRef<HTMLDivElement, CombatantCardProps>(
                       ? () =>
                           onConditionsChange(
                             combatant.id,
-                            combatant.conditions.filter(
-                              (c) => c !== condition,
-                            ),
+                            combatant.conditions.filter((c) => c !== condition),
                           )
                       : undefined
                   }
                 >
-                  <button
-                    className="flex items-center gap-1 px-2 py-1 rounded bg-dnd-parchment/10 border border-dnd-gold/20 hover:bg-dnd-parchment/15 hover:border-dnd-gold/30 transition-all duration-200 cursor-pointer active:scale-95"
-                  >
+                  <button className="flex items-center gap-1 px-2 py-1 rounded bg-dnd-parchment/10 border border-dnd-gold/20 hover:bg-dnd-parchment/15 hover:border-dnd-gold/30 transition-all duration-200 cursor-pointer active:scale-95">
                     <Icon size={12} className={colorClass} />
                     <span className="text-[10px] font-heading uppercase tracking-wider text-muted-foreground">
                       {condition.slice(0, 3)}
@@ -276,7 +314,7 @@ const CombatantCard = forwardRef<HTMLDivElement, CombatantCardProps>(
             <button className="flex flex-wrap gap-1 pt-2 w-full cursor-pointer">
               {buffs.slice(0, 4).map((buff) => {
                 const isBuff = buff.kind === "buff";
-                const Icon = isBuff ? ShieldPlus : Skull;
+                const Icon = isBuff ? ShieldPlus : Biohazard;
                 return (
                   <span
                     key={buff.id}
@@ -464,25 +502,6 @@ const CombatantCard = forwardRef<HTMLDivElement, CombatantCardProps>(
                 </span>
               </button>
             </ConditionsEditDialog>
-          </div>
-        )}
-
-        {/* Delete button (DM only) */}
-        {isDm && (
-          <div className="flex justify-center">
-            <button
-              onClick={() => onDelete(combatant.id)}
-              disabled={isPending}
-              className="group flex items-center gap-2 px-4 py-2 rounded-md border border-dnd-blood/30 bg-dnd-blood/5 hover:bg-dnd-blood/15 hover:border-dnd-blood/50 transition-all duration-200 hover:scale-[1.02] active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              <Trash2
-                size={14}
-                className="text-dnd-blood-bright group-hover:text-dnd-blood-bright/80"
-              />
-              <span className="text-xs font-heading font-semibold tracking-wider text-dnd-blood-bright uppercase">
-                Remove
-              </span>
-            </button>
           </div>
         )}
       </Card>
