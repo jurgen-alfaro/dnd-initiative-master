@@ -32,6 +32,7 @@ import { useActionState, useState, useEffect } from "react";
 import { addCombatantToParty } from "@/app/server/actions";
 import CombatantTypeRadioGroup from "@/app/components/CombatantTypeRadioGroup";
 import QuantityRadioGroup from "@/app/components/QuantityRadioGroup";
+import StartHiddenRadioGroup from "@/app/components/StartHiddenRadioGroup";
 import { generateRandomName } from "@/app/lib/name-gen";
 
 // Form sub-component to isolate state
@@ -53,6 +54,7 @@ const AddCombatantToPartyForm = ({
   const [initiative, setInitiative] = useState("");
   const [hp, setHp] = useState("");
   const [ac, setAc] = useState("");
+  const [isHidden, setIsHidden] = useState(false);
 
   const trimmedName = name.trim();
   const previewText =
@@ -177,6 +179,18 @@ const AddCombatantToPartyForm = ({
             </InputGroup>
           </Field>
         </div>
+
+        <Field>
+          <FieldLabel>Is hidden?</FieldLabel>
+          <StartHiddenRadioGroup value={isHidden} onChange={setIsHidden} />
+          {isHidden && (
+            <FieldDescription>
+              {quantity > 1 ? "They wait" : "It waits"} in the reserve, unseen
+              by the players, until you add {quantity > 1 ? "them" : "it"} to
+              combat.
+            </FieldDescription>
+          )}
+        </Field>
 
         <input type="hidden" name="partyCode" value={partyCode} />
         {state?.error && (

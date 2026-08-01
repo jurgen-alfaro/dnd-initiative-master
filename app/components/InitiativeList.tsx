@@ -29,6 +29,7 @@ interface InitiativeListProps {
     newType: "player" | "enemy",
   ) => Promise<void>;
   onDelete?: (id: number) => void;
+  onHide?: (id: number) => void;
   onUpdateConditions?: (id: number, conditions: Condition[]) => Promise<void>;
   onRemoveBuff?: (combatantId: number, buffId: string) => Promise<void>;
 }
@@ -44,6 +45,7 @@ export default function InitiativeList({
   onUpdateInitiative,
   onUpdateNameType,
   onDelete,
+  onHide,
   onUpdateConditions,
   onRemoveBuff,
 }: InitiativeListProps) {
@@ -173,6 +175,7 @@ export default function InitiativeList({
           onInfoChange={handleInfoChange}
           onDamageHeal={handleDamageHeal}
           onDelete={onDelete || (() => {})}
+          onHide={onHide || (() => {})}
           onConditionsChange={handleConditionsChange}
           onRemoveBuff={handleRemoveBuff}
         />

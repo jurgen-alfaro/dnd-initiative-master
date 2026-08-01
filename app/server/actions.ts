@@ -24,7 +24,11 @@ import {
   calculateDamageResult,
   calculateHealingResult,
 } from "@/app/lib/combat/damageCalculator";
-import { recalculateTurnIndexAfterDeletion } from "@/app/lib/combat/turnCalculator";
+import {
+  recalculateTurnIndexAfterDeletion,
+  recalculateTurnIndexAfterVisibilityChange,
+  visibleInInitiativeOrder,
+} from "@/app/lib/combat/turnCalculator";
 import { notifyPartyChanged } from "@/app/lib/pusher-server";
 
 // Zod validation schemas
@@ -39,7 +43,19 @@ const AddCombatantToPartySchema = z.object({
   maxHp: z.coerce.number().min(0).max(999).default(0).optional(),
   ac: z.coerce.number().min(0).max(999).default(0).optional(),
   quantity: z.coerce.number().int().min(1).max(5).catch(1),
+  // Comes from a radio group, so it arrives as a string in the FormData.
+  isHidden: z
+    .enum(["true", "false"])
+    .catch("false")
+    .transform((v) => v === "true"),
   partyCode: z.string(),
+});
+
+const SetCombatantsHiddenSchema = z.object({
+  combatantIds: z.array(z.number()).min(1, "Select at least one combatant"),
+  isHidden: z.boolean(),
+  partyCode: z.string().length(6),
+  dmToken: z.string().min(1),
 });
 
 const UpdateInitiativeSchema = z.object({
@@ -439,7 +455,11 @@ export async function applyDamageOrHealing(
 
     if (type === "damage") {
       // Use pure function for damage calculation
-      const result = calculateDamageResult(combatant.hp, combatant.tmpHp, amount);
+      const result = calculateDamageResult(
+        combatant.hp,
+        combatant.tmpHp,
+        amount,
+      );
       newHp = result.hp;
       newTmpHp = result.tmpHp;
     } else if (type === "healing") {
@@ -503,10 +523,7 @@ export async function updateCombatantInfo(
   }
 }
 
-export async function deleteCombatant(
-  combatantId: number,
-  partyCode: string,
-) {
+export async function deleteCombatant(combatantId: number, partyCode: string) {
   const validated = DeleteCombatantSchema.safeParse({
     combatantId,
     partyCode,
@@ -533,24 +550,23 @@ export async function deleteCombatant(
       return { error: "Combatant not found" };
     }
 
-    // Sort combatants by initiative (descending) to match frontend display
-    const sorted = [...party.combatants].sort(
-      (a, b) => b.initiative - a.initiative,
-    );
-
-    // Find index of combatant to delete
-    const deletedIndex = sorted.findIndex((c) => c.id === combatantId);
+    // Turn order only covers visible combatants, so that's where the deleted
+    // index has to be looked up
+    const visible = visibleInInitiativeOrder(party.combatants);
+    const deletedIndex = visible.findIndex((c) => c.id === combatantId);
 
     // Delete the combatant from database
     await db.delete(combatants).where(eq(combatants.id, combatantId));
 
-    // Use pure function to recalculate turn index
-    const remainingCombatantsCount = sorted.length - 1;
-    const newTurnIndex = recalculateTurnIndexAfterDeletion(
-      party.currentTurnIndex,
-      deletedIndex,
-      remainingCombatantsCount,
-    );
+    // A hidden combatant holds no slot in the turn order — nothing to shift
+    const newTurnIndex =
+      deletedIndex === -1
+        ? party.currentTurnIndex
+        : recalculateTurnIndexAfterDeletion(
+            party.currentTurnIndex,
+            deletedIndex,
+            visible.length - 1,
+          );
 
     // Update party turn index if it changed
     if (newTurnIndex !== party.currentTurnIndex) {
@@ -739,14 +755,20 @@ export async function getPartyWithCombatants(code: string) {
   // Never expose the DM secret to the client that renders the party view.
   const { dmToken: _dmToken, ...safeParty } = party;
 
+  // This runs on the server render, which cannot yet tell a DM from a player
+  // (the DM token lives in localStorage), so hidden combatants are stripped for
+  // everyone. The DM gets them back from /api/party/[code] once its session has
+  // proven ownership with the token.
   // Cast conditions from string[] to Condition[] and buffs from jsonb to Buff[]
   return {
     ...safeParty,
-    combatants: party.combatants.map((c) => ({
-      ...c,
-      conditions: c.conditions as Condition[],
-      buffs: (c.buffs as Buff[]) ?? [],
-    })),
+    combatants: party.combatants
+      .filter((c) => !c.isHidden)
+      .map((c) => ({
+        ...c,
+        conditions: c.conditions as Condition[],
+        buffs: (c.buffs as Buff[]) ?? [],
+      })),
   };
 }
 
@@ -847,6 +869,7 @@ export async function addCombatantToParty(prevState: any, formData: FormData) {
     maxHp: formData.get("hp"),
     ac: formData.get("ac"),
     quantity: formData.get("quantity"),
+    isHidden: formData.get("isHidden"),
     partyCode: formData.get("partyCode"),
   });
 
@@ -859,7 +882,7 @@ export async function addCombatantToParty(prevState: any, formData: FormData) {
     return { error: "Party not found" };
   }
 
-  const { combatantName, type, initiative, maxHp, ac, quantity } =
+  const { combatantName, type, initiative, maxHp, ac, quantity, isHidden } =
     validatedFields.data;
 
   // When adding several at once, suffix each name with its index so the
@@ -871,6 +894,7 @@ export async function addCombatantToParty(prevState: any, formData: FormData) {
     hp: maxHp,
     maxHp,
     ac,
+    isHidden,
     partyId: party.id,
   }));
 
@@ -883,6 +907,96 @@ export async function addCombatantToParty(prevState: any, formData: FormData) {
   revalidatePath(`/party/${party.code}`);
   await notifyPartyChanged(party.code);
   return { success: true };
+}
+
+/**
+ * Hides combatants (sends them to the reserve) or brings them into the fight.
+ * DM-only: hidden combatants are a secret from the players, so the caller must
+ * prove ownership with the party's dmToken.
+ *
+ * The turn index points into the visible list, so it is recalculated around the
+ * change to keep the same combatant active whenever possible.
+ */
+export async function setCombatantsHidden(
+  combatantIds: number[],
+  isHidden: boolean,
+  partyCode: string,
+  dmToken: string,
+) {
+  const validated = SetCombatantsHiddenSchema.safeParse({
+    combatantIds,
+    isHidden,
+    partyCode,
+    dmToken,
+  });
+
+  if (!validated.success) {
+    return { error: "Invalid data" };
+  }
+
+  try {
+    const party = await db.query.parties.findFirst({
+      where: eq(parties.code, partyCode),
+      with: { combatants: true },
+    });
+
+    if (!party) {
+      return { error: "Party not found" };
+    }
+
+    if (party.dmToken !== dmToken) {
+      return { error: "Only the DM can change combatant visibility" };
+    }
+
+    // Ignore ids from another party so a stale client can't touch them.
+    const targetIds = party.combatants
+      .filter((c) => combatantIds.includes(c.id) && c.isHidden !== isHidden)
+      .map((c) => c.id);
+
+    if (targetIds.length === 0) {
+      return { success: true, newTurnIndex: party.currentTurnIndex };
+    }
+
+    const previousVisibleIds = visibleInInitiativeOrder(party.combatants).map(
+      (c) => c.id,
+    );
+
+    await db
+      .update(combatants)
+      .set({ isHidden })
+      .where(
+        and(
+          eq(combatants.partyId, party.id),
+          inArray(combatants.id, targetIds),
+        ),
+      );
+
+    const nextVisibleIds = visibleInInitiativeOrder(
+      party.combatants.map((c) =>
+        targetIds.includes(c.id) ? { ...c, isHidden } : c,
+      ),
+    ).map((c) => c.id);
+
+    const newTurnIndex = recalculateTurnIndexAfterVisibilityChange(
+      previousVisibleIds,
+      nextVisibleIds,
+      party.currentTurnIndex,
+    );
+
+    if (newTurnIndex !== party.currentTurnIndex) {
+      await db
+        .update(parties)
+        .set({ currentTurnIndex: newTurnIndex })
+        .where(eq(parties.id, party.id));
+    }
+
+    revalidatePath(`/party/${partyCode}`);
+    await notifyPartyChanged(partyCode);
+    return { success: true, newTurnIndex };
+  } catch (error) {
+    console.error("Error updating combatant visibility:", error);
+    return { error: "Error updating combatant visibility" };
+  }
 }
 
 // --- Turn Management Actions ---
@@ -904,11 +1018,9 @@ export async function advanceTurn(partyCode: string) {
       return { error: "Party not found" };
     }
 
-    // Sort combatants by initiative (descending) to match display order
-    const sorted = [...party.combatants].sort(
-      (a, b) => b.initiative - a.initiative,
-    );
-    const maxIndex = Math.max(0, sorted.length - 1);
+    // Only visible combatants take turns, in display order (initiative desc)
+    const visible = visibleInInitiativeOrder(party.combatants);
+    const maxIndex = Math.max(0, visible.length - 1);
 
     // Increment turn index, clamped to max
     const nextIndex = Math.min(party.currentTurnIndex + 1, maxIndex);
@@ -974,21 +1086,24 @@ export async function nextRound(partyCode: string) {
       return { error: "Party not found" };
     }
 
-    // Decrement buff durations and drop expired ones for each combatant
+    // Decrement buff durations and drop expired ones for each combatant that
+    // is actually in the fight — combatants held in reserve don't burn rounds.
     await Promise.all(
-      party.combatants.map((c) => {
-        const current = (c.buffs as Buff[]) ?? [];
-        if (current.length === 0) return null;
+      party.combatants
+        .filter((c) => !c.isHidden)
+        .map((c) => {
+          const current = (c.buffs as Buff[]) ?? [];
+          if (current.length === 0) return null;
 
-        const nextBuffs = current
-          .map((b) => ({ ...b, remainingRounds: b.remainingRounds - 1 }))
-          .filter((b) => b.remainingRounds > 0);
+          const nextBuffs = current
+            .map((b) => ({ ...b, remainingRounds: b.remainingRounds - 1 }))
+            .filter((b) => b.remainingRounds > 0);
 
-        return db
-          .update(combatants)
-          .set({ buffs: nextBuffs })
-          .where(eq(combatants.id, c.id));
-      }),
+          return db
+            .update(combatants)
+            .set({ buffs: nextBuffs })
+            .where(eq(combatants.id, c.id));
+        }),
     );
 
     // Increment round and reset turn to first combatant

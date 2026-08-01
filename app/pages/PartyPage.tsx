@@ -13,7 +13,9 @@ import PartyInfoCard from "../components/PartyInfoCard";
 import { useBackNavigationGuard } from "@/app/lib/hooks/useBackNavigationGuard";
 import BackNavigationDialog from "@/app/components/BackNavigationDialog";
 import DeleteCombatantDialog from "@/app/components/DeleteCombatantDialog";
+import HideCombatantDialog from "@/app/components/HideCombatantDialog";
 import PartyActionsMenu from "@/app/components/PartyActionsMenu";
+import { visibleInInitiativeOrder } from "@/app/lib/combat/turnCalculator";
 
 type Party = {
   id: number;
@@ -75,6 +77,7 @@ export default function PartyPage({ party }: PartyPageProps) {
     optimisticUpdateInitiative,
     optimisticUpdateNameType,
     optimisticDeleteCombatant,
+    optimisticSetCombatantsHidden,
     optimisticUpdateConditions,
     optimisticAddBuff,
     optimisticRemoveBuff,
@@ -84,6 +87,7 @@ export default function PartyPage({ party }: PartyPageProps) {
     party.currentTurnIndex,
     party.currentRound,
     party.name,
+    dmToken,
   );
 
   // Create updated party object with optimistic name
@@ -137,24 +141,66 @@ export default function PartyPage({ party }: PartyPageProps) {
     setCombatantToDelete(null);
   };
 
+  // Hide combatant confirmation dialog state
+  const [hideDialogOpen, setHideDialogOpen] = useState(false);
+  const [combatantToHide, setCombatantToHide] = useState<Combatant | null>(
+    null,
+  );
+
+  const handleHideRequest = (combatantId: number) => {
+    const combatant = liveCombatants.find((c) => c.id === combatantId);
+    if (combatant) {
+      setCombatantToHide(combatant);
+      setHideDialogOpen(true);
+    }
+  };
+
+  const handleConfirmHide = async () => {
+    if (!combatantToHide) return;
+    const id = combatantToHide.id;
+    // Close first, clear last: the dialog keeps its subject mounted through the
+    // close animation, and the card is gone from the list right away.
+    setHideDialogOpen(false);
+    await optimisticSetCombatantsHidden([id], true);
+    setCombatantToHide(null);
+  };
+
+  const handleCancelHide = () => {
+    setHideDialogOpen(false);
+    setCombatantToHide(null);
+  };
+
+  const handleRevealCombatants = async (combatantIds: number[]) => {
+    await optimisticSetCombatantsHidden(combatantIds, false);
+  };
+
   useEffect(() => {
     if (party?.code && partyName) {
       saveRecentParty(party.code, partyName);
     }
   }, [party.code, party.name, saveRecentParty]);
 
-  const playerCount = useMemo(
-    () => liveCombatants.filter((c) => c.type === "player").length,
-    [liveCombatants],
-  );
-  const enemyCount = useMemo(
-    () => liveCombatants.filter((c) => c.type === "enemy").length,
+  // Combatants held in reserve never reach a player's session, so this is only
+  // ever non-empty for the DM.
+  const hiddenCombatants = useMemo(
+    () => liveCombatants.filter((c) => c.isHidden),
     [liveCombatants],
   );
 
+  // Everything below counts the fight only — the reserve stays out of the
+  // initiative order, the head counts and the buff targets.
   const sortedCombatants = useMemo(
-    () => [...liveCombatants].sort((a, b) => b.initiative - a.initiative),
+    () => visibleInInitiativeOrder(liveCombatants),
     [liveCombatants],
+  );
+
+  const playerCount = useMemo(
+    () => sortedCombatants.filter((c) => c.type === "player").length,
+    [sortedCombatants],
+  );
+  const enemyCount = useMemo(
+    () => sortedCombatants.filter((c) => c.type === "enemy").length,
+    [sortedCombatants],
   );
 
   return (
@@ -178,6 +224,7 @@ export default function PartyPage({ party }: PartyPageProps) {
         onUpdateInitiative={optimisticUpdateInitiative}
         onUpdateNameType={optimisticUpdateNameType}
         onDelete={handleDeleteRequest}
+        onHide={handleHideRequest}
         onUpdateConditions={optimisticUpdateConditions}
         onRemoveBuff={optimisticRemoveBuff}
       />
@@ -194,8 +241,10 @@ export default function PartyPage({ party }: PartyPageProps) {
       />
       <PartyActionsMenu
         partyCode={party.code}
-        combatants={liveCombatants}
+        combatants={sortedCombatants}
+        hiddenCombatants={hiddenCombatants}
         onAddBuff={optimisticAddBuff}
+        onRevealCombatants={handleRevealCombatants}
         isPending={false}
         isDm={isDm}
         dmToken={dmToken}
@@ -216,6 +265,16 @@ export default function PartyPage({ party }: PartyPageProps) {
           onConfirm={handleConfirmDelete}
           onCancel={handleCancelDelete}
           combatant={combatantToDelete}
+        />
+      )}
+
+      {combatantToHide && (
+        <HideCombatantDialog
+          open={hideDialogOpen}
+          onOpenChange={setHideDialogOpen}
+          onConfirm={handleConfirmHide}
+          onCancel={handleCancelHide}
+          combatant={combatantToHide}
         />
       )}
     </main>

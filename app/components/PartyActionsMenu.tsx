@@ -11,6 +11,7 @@ import {
   NotebookText,
   Languages,
   LogOut,
+  EyeOff,
   X,
 } from "lucide-react";
 import { Button } from "@/app/components/ui/button";
@@ -19,6 +20,7 @@ import AddBuffDialog from "@/app/components/AddBuffDialog";
 import CreatePartyDialog from "@/app/components/CreatePartyDialog";
 import SelectPartyDialog from "@/app/components/SelectPartyDialog";
 import SessionNotesDrawer from "@/app/components/SessionNotesDrawer";
+import ReserveDrawer from "@/app/components/ReserveDrawer";
 import { getPartiesForDevice } from "@/app/server/actions";
 import { getOrCreateDeviceId } from "@/app/lib/device-id";
 import type { BuffKind, Combatant, DmParty } from "@/app/lib/types";
@@ -26,12 +28,14 @@ import type { BuffKind, Combatant, DmParty } from "@/app/lib/types";
 interface PartyActionsMenuProps {
   partyCode: string;
   combatants: Combatant[];
+  hiddenCombatants: Combatant[];
   onAddBuff: (
     combatantIds: number[],
     name: string,
     kind: BuffKind,
     rounds: number,
   ) => Promise<void>;
+  onRevealCombatants: (combatantIds: number[]) => Promise<void>;
   isPending: boolean;
   isDm: boolean;
   dmToken: string | null;
@@ -49,7 +53,9 @@ interface PartyActionsMenuProps {
 export default function PartyActionsMenu({
   partyCode,
   combatants,
+  hiddenCombatants,
   onAddBuff,
+  onRevealCombatants,
   isPending,
   isDm,
   dmToken,
@@ -61,6 +67,7 @@ export default function PartyActionsMenu({
   const [switchOpen, setSwitchOpen] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
   const [notesOpen, setNotesOpen] = useState(false);
+  const [reserveOpen, setReserveOpen] = useState(false);
   const [parties, setParties] = useState<DmParty[]>([]);
 
   // DM-only: load this device's parties to power the "Switch party" action.
@@ -93,9 +100,7 @@ export default function PartyActionsMenu({
     };
   }, [menuOpen]);
 
-  const otherParties = isDm
-    ? parties.filter((p) => p.code !== partyCode)
-    : [];
+  const otherParties = isDm ? parties.filter((p) => p.code !== partyCode) : [];
   const canSwitchParty = otherParties.length > 0;
 
   // Close the menu first, then open the chosen sub-dialog, so the two overlays
@@ -174,6 +179,15 @@ export default function PartyActionsMenu({
                         label="Create party"
                         onClick={() => openAction(setCreateOpen)}
                       />
+                      <ActionButton
+                        icon={<EyeOff className="size-6 text-dnd-gold" />}
+                        label={
+                          hiddenCombatants.length > 0
+                            ? `Reserve (${hiddenCombatants.length})`
+                            : "Reserve"
+                        }
+                        onClick={() => openAction(setReserveOpen)}
+                      />
                     </>
                   )}
                   <ActionButton
@@ -224,6 +238,14 @@ export default function PartyActionsMenu({
         onOpenChange={setSwitchOpen}
       />
       <CreatePartyDialog open={createOpen} onOpenChange={setCreateOpen} />
+      {isDm && (
+        <ReserveDrawer
+          combatants={hiddenCombatants}
+          onReveal={onRevealCombatants}
+          open={reserveOpen}
+          onOpenChange={setReserveOpen}
+        />
+      )}
       <SessionNotesDrawer
         partyCode={partyCode}
         isDm={isDm}

@@ -87,6 +87,10 @@ export const combatants = pgTable("combatants", {
   ac: integer("ac").notNull().default(0),
   conditions: text("conditions").array().notNull().default([]),
   buffs: jsonb("buffs").$type<Buff[]>().notNull().default([]),
+  // Combatants the DM prepared in advance but has not brought into the fight
+  // yet. Hidden combatants are never sent to players and are excluded from the
+  // initiative order, so they don't consume a turn.
+  isHidden: boolean("is_hidden").notNull().default(false),
   partyId: integer("party_id")
     .references(() => parties.id, { onDelete: "cascade" })
     .notNull(),

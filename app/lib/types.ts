@@ -51,6 +51,9 @@ export type Combatant = {
   type: "player" | "enemy";
   conditions: Condition[];
   buffs: Buff[];
+  // Prepared but not yet in the fight. Only ever true in the DM's session:
+  // players never receive hidden combatants from the server.
+  isHidden: boolean;
 };
 
 export type Party = {

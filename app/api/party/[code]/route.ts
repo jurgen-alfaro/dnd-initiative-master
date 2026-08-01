@@ -1,13 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/app/db/";
-import { parties, combatants } from "@/app/db/schema";
+import { parties } from "@/app/db/schema";
 import { eq } from "drizzle-orm";
 
 interface Params {
   params: Promise<{ code: string }>;
 }
 
-export async function GET(_req: NextRequest, { params }: Params) {
+export async function GET(req: NextRequest, { params }: Params) {
   const { code } = await params;
 
   const party = await db.query.parties.findFirst({
@@ -19,9 +19,18 @@ export async function GET(_req: NextRequest, { params }: Params) {
     return NextResponse.json({ error: "Party not found" }, { status: 404 });
   }
 
+  // Combatants held in reserve are a secret from the players: only a session
+  // that proves it is the DM (by sending the party's token) receives them. The
+  // token travels in a header rather than the query string so it stays out of
+  // URLs, logs and caches.
+  const isDm = req.headers.get("x-dm-token") === party.dmToken;
+  const visibleCombatants = isDm
+    ? party.combatants
+    : party.combatants.filter((c) => !c.isHidden);
+
   return NextResponse.json(
     {
-      combatants: party.combatants,
+      combatants: visibleCombatants,
       currentTurnIndex: party.currentTurnIndex,
       currentRound: party.currentRound,
     },

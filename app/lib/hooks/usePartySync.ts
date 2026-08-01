@@ -13,12 +13,17 @@ import {
   updateCombatantConditions,
   addBuffToCombatants,
   removeBuffFromCombatant,
+  setCombatantsHidden,
 } from "@/app/server/actions";
 import {
   calculateDamageResult,
   calculateHealingResult,
 } from "@/app/lib/combat/damageCalculator";
-import { recalculateTurnIndexAfterDeletion } from "@/app/lib/combat/turnCalculator";
+import {
+  recalculateTurnIndexAfterDeletion,
+  recalculateTurnIndexAfterVisibilityChange,
+  visibleInInitiativeOrder,
+} from "@/app/lib/combat/turnCalculator";
 import { getPusherClient } from "@/app/lib/pusher-client";
 
 /**
@@ -28,6 +33,10 @@ import { getPusherClient } from "@/app/lib/pusher-client";
  * is kept as a safety net (and as the sole sync path when Pusher is not
  * configured). Returns combatants, currentTurnIndex, currentRound, and
  * optimistic update functions for instant UI feedback.
+ *
+ * `dmToken` is sent with every fetch: the server only includes hidden
+ * (reserve) combatants for the session that proves it is the DM, so a player's
+ * `combatants` never contains them.
  */
 export function usePartySync(
   partyCode: string,
@@ -35,6 +44,7 @@ export function usePartySync(
   initialTurnIndex = 0,
   initialRound = 1,
   initialPartyName: string,
+  dmToken: string | null = null,
   fallbackIntervalMs = 30000,
 ): {
   combatants: Combatant[];
@@ -66,6 +76,10 @@ export function usePartySync(
     newType: "player" | "enemy",
   ) => Promise<void>;
   optimisticDeleteCombatant: (combatantId: number) => Promise<void>;
+  optimisticSetCombatantsHidden: (
+    combatantIds: number[],
+    isHidden: boolean,
+  ) => Promise<void>;
   optimisticUpdateConditions: (
     combatantId: number,
     conditions: Condition[],
@@ -76,10 +90,7 @@ export function usePartySync(
     kind: BuffKind,
     rounds: number,
   ) => Promise<void>;
-  optimisticRemoveBuff: (
-    combatantId: number,
-    buffId: string,
-  ) => Promise<void>;
+  optimisticRemoveBuff: (combatantId: number, buffId: string) => Promise<void>;
 } {
   const [combatants, setCombatants] = useState<Combatant[]>(initialCombatants);
   const [currentTurnIndex, setCurrentTurnIndex] = useState(initialTurnIndex);
@@ -95,6 +106,10 @@ export function usePartySync(
   useEffect(() => {
     pendingOperationsRef.current = pendingOperations;
   }, [pendingOperations]);
+
+  // The DM token is resolved asynchronously after mount, so it is mirrored in a
+  // ref for fetchState to read without becoming a dependency.
+  const dmTokenRef = useRef(dmToken);
 
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const previousStateRef = useRef<{
@@ -115,8 +130,11 @@ export function usePartySync(
       combatants: combatants,
     };
 
-    // Optimistically update UI (instant)
-    const maxIndex = Math.max(0, combatants.length - 1);
+    // Optimistically update UI (instant). Only visible combatants take turns.
+    const maxIndex = Math.max(
+      0,
+      visibleInInitiativeOrder(combatants).length - 1,
+    );
     const nextIndex = Math.min(currentTurnIndex + 1, maxIndex);
     setCurrentTurnIndex(nextIndex);
 
@@ -373,7 +391,14 @@ export function usePartySync(
         }, 500);
       }
     },
-    [partyCode, partyName, currentTurnIndex, currentRound, combatants, pendingOperations],
+    [
+      partyCode,
+      partyName,
+      currentTurnIndex,
+      currentRound,
+      combatants,
+      pendingOperations,
+    ],
   );
 
   // Optimistic update function for damage/healing
@@ -696,19 +721,23 @@ export function usePartySync(
         combatants: combatants,
       };
 
-      // Find the combatant being deleted to calculate new turn index
-      const sorted = [...combatants].sort((a, b) => b.initiative - a.initiative);
-      const deletedIndex = sorted.findIndex((c) => c.id === combatantId);
+      // Find the combatant being deleted to calculate new turn index. Only
+      // visible combatants hold a slot in the turn order.
+      const visible = visibleInInitiativeOrder(combatants);
+      const deletedIndex = visible.findIndex((c) => c.id === combatantId);
 
       // Update optimistically - remove combatant
       const updatedCombatants = combatants.filter((c) => c.id !== combatantId);
 
-      // Use pure function to recalculate turn index
-      const newTurnIndex = recalculateTurnIndexAfterDeletion(
-        currentTurnIndex,
-        deletedIndex,
-        updatedCombatants.length,
-      );
+      // Deleting a reserve combatant leaves the turn order untouched
+      const newTurnIndex =
+        deletedIndex === -1
+          ? currentTurnIndex
+          : recalculateTurnIndexAfterDeletion(
+              currentTurnIndex,
+              deletedIndex,
+              visible.length - 1,
+            );
 
       setCombatants(updatedCombatants);
       setCurrentTurnIndex(newTurnIndex);
@@ -749,6 +778,90 @@ export function usePartySync(
       }
     },
     [partyCode, combatants, currentTurnIndex, currentRound, pendingOperations],
+  );
+
+  // Optimistic update for sending combatants to the reserve / bringing them in
+  const optimisticSetCombatantsHidden = useCallback(
+    async (combatantIds: number[], isHidden: boolean) => {
+      if (combatantIds.length === 0) return;
+      const opId = `set-hidden-${combatantIds.join("-")}-${isHidden}`;
+      if (pendingOperations.has(opId)) return;
+
+      // Only the DM may change visibility; without a token the server would
+      // reject the call, so don't touch the UI either.
+      if (!dmToken) {
+        console.error("Cannot change combatant visibility without a DM token");
+        return;
+      }
+
+      // Save current state for rollback
+      previousStateRef.current = {
+        turnIndex: currentTurnIndex,
+        round: currentRound,
+        combatants: combatants,
+      };
+
+      const updatedCombatants = combatants.map((c) =>
+        combatantIds.includes(c.id) ? { ...c, isHidden } : c,
+      );
+
+      // Keep the same combatant active across the visibility change
+      const newTurnIndex = recalculateTurnIndexAfterVisibilityChange(
+        visibleInInitiativeOrder(combatants).map((c) => c.id),
+        visibleInInitiativeOrder(updatedCombatants).map((c) => c.id),
+        currentTurnIndex,
+      );
+
+      setCombatants(updatedCombatants);
+      setCurrentTurnIndex(newTurnIndex);
+
+      // Mark operation as pending
+      setPendingOperations((prev) => new Set(prev).add(opId));
+
+      try {
+        const result = await setCombatantsHidden(
+          combatantIds,
+          isHidden,
+          partyCode,
+          dmToken,
+        );
+
+        if (!result.success) {
+          // Rollback on error
+          if (previousStateRef.current) {
+            setCombatants(previousStateRef.current.combatants);
+            setCurrentTurnIndex(previousStateRef.current.turnIndex);
+            setCurrentRound(previousStateRef.current.round);
+          }
+          console.error("Failed to update combatant visibility:", result.error);
+        }
+      } catch (error) {
+        // Rollback on exception
+        if (previousStateRef.current) {
+          setCombatants(previousStateRef.current.combatants);
+          setCurrentTurnIndex(previousStateRef.current.turnIndex);
+          setCurrentRound(previousStateRef.current.round);
+        }
+        console.error("Error updating combatant visibility:", error);
+      } finally {
+        // Clear pending after brief delay to prevent spam
+        setTimeout(() => {
+          setPendingOperations((prev) => {
+            const next = new Set(prev);
+            next.delete(opId);
+            return next;
+          });
+        }, 500);
+      }
+    },
+    [
+      partyCode,
+      dmToken,
+      combatants,
+      currentTurnIndex,
+      currentRound,
+      pendingOperations,
+    ],
   );
 
   // Optimistic update function for Conditions
@@ -942,6 +1055,11 @@ export function usePartySync(
     try {
       const res = await fetch(`/api/party/${partyCode}`, {
         cache: "no-store",
+        // Read through a ref so a token arriving later doesn't rebuild the
+        // Pusher subscription below.
+        headers: dmTokenRef.current
+          ? { "x-dm-token": dmTokenRef.current }
+          : undefined,
       });
       if (!res.ok) return;
 
@@ -963,6 +1081,13 @@ export function usePartySync(
       console.error("Network error fetching party", partyCode);
     }
   }, [partyCode]);
+
+  // The server render strips hidden combatants because it can't tell who is
+  // the DM. Once this session proves it is, re-fetch to pull in the reserve.
+  useEffect(() => {
+    dmTokenRef.current = dmToken;
+    if (dmToken) void fetchState();
+  }, [dmToken, fetchState]);
 
   useEffect(() => {
     const channelName = `party-${partyCode.toUpperCase()}`;
@@ -1014,6 +1139,7 @@ export function usePartySync(
     optimisticUpdateInitiative,
     optimisticUpdateNameType,
     optimisticDeleteCombatant,
+    optimisticSetCombatantsHidden,
     optimisticUpdateConditions,
     optimisticAddBuff,
     optimisticRemoveBuff,
