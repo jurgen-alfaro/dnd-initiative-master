@@ -165,6 +165,7 @@ const RemoveAmmoSchema = z.object({
 const SetRoundSchema = z.object({
   partyCode: z.string().length(6),
   newRound: z.number().min(1).max(999),
+  dmToken: z.string().min(1),
 });
 
 const UpdatePartyNameSchema = z.object({
@@ -173,6 +174,7 @@ const UpdatePartyNameSchema = z.object({
     .string()
     .min(3, "Name must be at least 3 characters")
     .max(50, "Name must be less than 50 characters"),
+  dmToken: z.string().min(1),
 });
 
 const AddNoteSchema = z.object({
@@ -1352,8 +1354,12 @@ export async function nextRound(partyCode: string) {
   }
 }
 
-export async function setRound(partyCode: string, newRound: number) {
-  const validated = SetRoundSchema.safeParse({ partyCode, newRound });
+export async function setRound(
+  partyCode: string,
+  newRound: number,
+  dmToken: string,
+) {
+  const validated = SetRoundSchema.safeParse({ partyCode, newRound, dmToken });
   if (!validated.success) {
     return { error: "Invalid data" };
   }
@@ -1365,6 +1371,10 @@ export async function setRound(partyCode: string, newRound: number) {
 
     if (!party) {
       return { error: "Party not found" };
+    }
+
+    if (party.dmToken !== dmToken) {
+      return { error: "Only the DM can change the round" };
     }
 
     // Update ONLY the round, keep turnIndex unchanged
@@ -1383,8 +1393,16 @@ export async function setRound(partyCode: string, newRound: number) {
   }
 }
 
-export async function updatePartyName(partyCode: string, newName: string) {
-  const validated = UpdatePartyNameSchema.safeParse({ partyCode, newName });
+export async function updatePartyName(
+  partyCode: string,
+  newName: string,
+  dmToken: string,
+) {
+  const validated = UpdatePartyNameSchema.safeParse({
+    partyCode,
+    newName,
+    dmToken,
+  });
   if (!validated.success) {
     return { error: "Invalid data" };
   }
@@ -1396,6 +1414,10 @@ export async function updatePartyName(partyCode: string, newName: string) {
 
     if (!party) {
       return { error: "Party not found" };
+    }
+
+    if (party.dmToken !== dmToken) {
+      return { error: "Only the DM can change the party name" };
     }
 
     // Update only the name

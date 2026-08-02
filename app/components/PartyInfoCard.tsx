@@ -20,6 +20,7 @@ interface PartyInfoCardProps {
   enemyCount: number;
   onRoundEdit: (newRound: number) => Promise<void>;
   onPartyNameEdit: (newName: string) => Promise<void>;
+  isDm: boolean;
   isPending?: boolean;
 }
 
@@ -29,9 +30,24 @@ const PartyInfoCard = ({
   enemyCount,
   onRoundEdit,
   onPartyNameEdit,
+  isDm,
   isPending = false,
 }: PartyInfoCardProps) => {
   const currentRound = party.currentRound;
+
+  const roundBadge = (
+    <Badge
+      className={
+        isDm
+          ? "dnd-badge-active font-heading text-xs tracking-wider cursor-pointer hover:bg-dnd-gold/20 transition-colors"
+          : "dnd-badge-active font-heading text-xs tracking-wider"
+      }
+      role={isDm ? "button" : undefined}
+      tabIndex={isDm ? 0 : undefined}
+    >
+      Round {currentRound}
+    </Badge>
+  );
 
   return (
     <Card className="max-w-2xl mx-auto mb-8 dnd-card-ornate dnd-parchment-texture overflow-hidden">
@@ -40,15 +56,21 @@ const PartyInfoCard = ({
           <div className="flex items-center gap-4">
             <SwordsIcon className="text-dnd-gold-dim" size={42} />
             <div>
-              <PartyNameEditDialog
-                currentName={party.name}
-                onSave={onPartyNameEdit}
-                isPending={isPending}
-              >
-                <CardTitle className="text-3xl font-heading font-bold tracking-wide text-dnd-gold cursor-pointer hover:text-dnd-gold-bright transition-colors">
+              {isDm ? (
+                <PartyNameEditDialog
+                  currentName={party.name}
+                  onSave={onPartyNameEdit}
+                  isPending={isPending}
+                >
+                  <CardTitle className="text-3xl font-heading font-bold tracking-wide text-dnd-gold cursor-pointer hover:text-dnd-gold-bright transition-colors">
+                    {party.name}
+                  </CardTitle>
+                </PartyNameEditDialog>
+              ) : (
+                <CardTitle className="text-3xl font-heading font-bold tracking-wide text-dnd-gold">
                   {party.name}
                 </CardTitle>
-              </PartyNameEditDialog>
+              )}
               <CardDescription className="text-sm mt-2">
                 <span className="text-muted-foreground text-xs uppercase tracking-wider">
                   Party Code
@@ -59,19 +81,17 @@ const PartyInfoCard = ({
             </div>
           </div>
           <div className="flex flex-col gap-2 items-end">
-            <RoundEditDialog
-              currentRound={currentRound}
-              onSave={onRoundEdit}
-              isPending={isPending}
-            >
-              <Badge
-                className="dnd-badge-active font-heading text-xs tracking-wider cursor-pointer hover:bg-dnd-gold/20 transition-colors"
-                role="button"
-                tabIndex={0}
+            {isDm ? (
+              <RoundEditDialog
+                currentRound={currentRound}
+                onSave={onRoundEdit}
+                isPending={isPending}
               >
-                Round {currentRound}
-              </Badge>
-            </RoundEditDialog>
+                {roundBadge}
+              </RoundEditDialog>
+            ) : (
+              roundBadge
+            )}
           </div>
         </div>
       </CardHeader>

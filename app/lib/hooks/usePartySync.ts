@@ -333,11 +333,18 @@ export function usePartySync(
     pendingOperations,
   ]);
 
-  // Optimistic update function for setting round manually
+  // Optimistic update function for setting round manually. DM-only: the
+  // server rejects the call without a valid dmToken, so skip touching the UI
+  // when it isn't available.
   const optimisticSetRound = useCallback(
     async (newRound: number) => {
       const opId = "set-round";
       if (pendingOperations.has(opId)) return;
+
+      if (!dmToken) {
+        console.error("Cannot set round without a DM token");
+        return;
+      }
 
       // Save current state for rollback
       previousStateRef.current = {
@@ -353,7 +360,7 @@ export function usePartySync(
       setPendingOperations((prev) => new Set(prev).add(opId));
 
       try {
-        const result = await setRound(partyCode, newRound);
+        const result = await setRound(partyCode, newRound, dmToken);
 
         if (!result.success) {
           // Rollback on error
@@ -378,14 +385,28 @@ export function usePartySync(
         }, 500);
       }
     },
-    [partyCode, currentTurnIndex, currentRound, combatants, pendingOperations],
+    [
+      partyCode,
+      dmToken,
+      currentTurnIndex,
+      currentRound,
+      combatants,
+      pendingOperations,
+    ],
   );
 
-  // Optimistic update function for party name
+  // Optimistic update function for party name. DM-only: the server rejects
+  // the call without a valid dmToken, so skip touching the UI when it isn't
+  // available.
   const optimisticUpdatePartyName = useCallback(
     async (newName: string) => {
       const opId = "update-party-name";
       if (pendingOperations.has(opId)) return;
+
+      if (!dmToken) {
+        console.error("Cannot update party name without a DM token");
+        return;
+      }
 
       // Save current state for rollback
       const previousName = partyName;
@@ -402,7 +423,7 @@ export function usePartySync(
       setPendingOperations((prev) => new Set(prev).add(opId));
 
       try {
-        const result = await updatePartyName(partyCode, newName);
+        const result = await updatePartyName(partyCode, newName, dmToken);
 
         if (!result.success) {
           // Rollback on error
@@ -425,6 +446,7 @@ export function usePartySync(
     },
     [
       partyCode,
+      dmToken,
       partyName,
       currentTurnIndex,
       currentRound,

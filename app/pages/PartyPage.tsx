@@ -250,6 +250,7 @@ export default function PartyPage({ party }: PartyPageProps) {
         enemyCount={enemyCount}
         onRoundEdit={optimisticSetRound}
         onPartyNameEdit={optimisticUpdatePartyName}
+        isDm={isDm}
       />
 
       <InitiativeList
