@@ -65,6 +65,11 @@ export type Combatant = {
   // Prepared but not yet in the fight. Only ever true in the DM's session:
   // players never receive hidden combatants from the server.
   isHidden: boolean;
+  // Claim state, derived server-side from the owning device id (which never
+  // reaches a client). `claimedByMe` is always false during the server render,
+  // which cannot know the device, and becomes accurate on the first fetch.
+  isClaimed: boolean;
+  claimedByMe: boolean;
 };
 
 export type Party = {
@@ -102,3 +107,32 @@ export type Note = {
   sessionDate: string; // ISO 8601 timestamp
   createdAt: string; // ISO 8601 timestamp
 };
+
+export type MessageSender = "dm" | "player";
+
+// One message of the private thread between a PC and the DM.
+export type ChatMessage = {
+  id: number;
+  combatantId: number;
+  sender: MessageSender;
+  body: string;
+  createdAt: string; // ISO 8601 timestamp
+  readAt: string | null; // ISO 8601 timestamp
+};
+
+// One row of the DM's inbox. Bodies are truncated to a preview server-side so
+// the full text only ever travels when the thread is actually opened.
+export type MessageThreadSummary = {
+  combatantId: number;
+  combatantName: string;
+  unreadCount: number;
+  lastMessage: {
+    sender: MessageSender;
+    preview: string;
+    createdAt: string; // ISO 8601 timestamp
+  } | null;
+};
+
+// Who the server decided the caller is for messaging purposes. "unclaimed" is a
+// player device that has not picked a character yet — a valid state, not an error.
+export type MessageRole = "dm" | "player" | "unclaimed";

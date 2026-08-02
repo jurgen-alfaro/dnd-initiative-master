@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/app/db/";
 import { parties } from "@/app/db/schema";
 import { eq } from "drizzle-orm";
+import { toSafeCombatant } from "@/app/server/combatant-view";
 
 interface Params {
   params: Promise<{ code: string }>;
@@ -28,9 +29,15 @@ export async function GET(req: NextRequest, { params }: Params) {
     ? party.combatants
     : party.combatants.filter((c) => !c.isHidden);
 
+  // The device id is sent so each caller learns which character is *theirs*.
+  // toSafeCombatant strips the stored claim before anything is serialized.
+  const requesterDeviceId = req.headers.get("x-device-id");
+
   return NextResponse.json(
     {
-      combatants: visibleCombatants,
+      combatants: visibleCombatants.map((c) =>
+        toSafeCombatant(c, requesterDeviceId),
+      ),
       currentTurnIndex: party.currentTurnIndex,
       currentRound: party.currentRound,
     },

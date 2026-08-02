@@ -7,15 +7,17 @@ import {
   notes,
   dungeonMasters,
   dmDevices,
+  messages,
 } from "@/app/db/schema";
 import { generatePartyCode, generateRecoveryCode } from "@/app/lib/code-gen";
-import { and, desc, eq, inArray, sql } from "drizzle-orm";
+import { and, desc, eq, inArray, isNull, lt, sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import type {
   Ammo,
   Buff,
+  ChatMessage,
   Condition,
   DmParty,
   Note,
@@ -30,7 +32,12 @@ import {
   recalculateTurnIndexAfterVisibilityChange,
   visibleInInitiativeOrder,
 } from "@/app/lib/combat/turnCalculator";
-import { notifyPartyChanged } from "@/app/lib/pusher-server";
+import { notifyPartyChanged, notifyPartyMessage } from "@/app/lib/pusher-server";
+import { toSafeCombatant } from "@/app/server/combatant-view";
+import {
+  messageRetentionCutoff,
+  resolveMessageAccess,
+} from "@/app/server/messages";
 
 // Zod validation schemas
 const CreatePartySchema = z.object({
@@ -195,6 +202,53 @@ const RecoveryWordSchema = z
       .max(40, "Phrase is too long")
       .regex(RECOVERY_WORD_RE, "Use only letters, numbers, spaces, or hyphens"),
   );
+
+// Party codes are stored uppercase; normalize so a lowercased code from a
+// pasted link still resolves.
+const PartyCodeSchema = z
+  .string()
+  .length(6)
+  .transform((c) => c.toUpperCase());
+
+// Device ids are crypto.randomUUID() values kept in localStorage.
+const DeviceIdSchema = z.string().min(16).max(64);
+
+const ClaimCombatantSchema = z.object({
+  combatantId: z.number().int().positive(),
+  partyCode: PartyCodeSchema,
+  deviceId: DeviceIdSchema,
+});
+
+const ReleaseClaimByDmSchema = z.object({
+  combatantId: z.number().int().positive(),
+  partyCode: PartyCodeSchema,
+  dmToken: z.string().min(1),
+});
+
+const ReleaseOwnClaimSchema = z.object({
+  combatantId: z.number().int().positive(),
+  partyCode: PartyCodeSchema,
+  deviceId: DeviceIdSchema,
+});
+
+const SendMessageSchema = z.object({
+  partyCode: PartyCodeSchema,
+  combatantId: z.number().int().positive(),
+  body: z
+    .string()
+    .trim()
+    .min(1, "Message cannot be empty")
+    .max(2000, "Message is too long"),
+  dmToken: z.string().min(1).nullable(),
+  deviceId: DeviceIdSchema.nullable(),
+});
+
+const MarkThreadReadSchema = z.object({
+  partyCode: PartyCodeSchema,
+  combatantId: z.number().int().positive(),
+  dmToken: z.string().min(1).nullable(),
+  deviceId: DeviceIdSchema.nullable(),
+});
 
 /** True if the error is a Postgres unique violation (code 23505). */
 function isUniqueViolation(e: unknown): boolean {
@@ -936,18 +990,14 @@ export async function getPartyWithCombatants(code: string) {
   // This runs on the server render, which cannot yet tell a DM from a player
   // (the DM token lives in localStorage), so hidden combatants are stripped for
   // everyone. The DM gets them back from /api/party/[code] once its session has
-  // proven ownership with the token.
-  // Cast conditions from string[] to Condition[] and buffs from jsonb to Buff[]
+  // proven ownership with the token. For the same reason no device id is known
+  // here, so toSafeCombatant reports `claimedByMe: false` for every character
+  // until the first authenticated fetch corrects it.
   return {
     ...safeParty,
     combatants: party.combatants
       .filter((c) => !c.isHidden)
-      .map((c) => ({
-        ...c,
-        conditions: c.conditions as Condition[],
-        buffs: (c.buffs as Buff[]) ?? [],
-        ammo: (c.ammo as Ammo[]) ?? [],
-      })),
+      .map((c) => toSafeCombatant(c, null)),
   };
 }
 
@@ -1361,5 +1411,363 @@ export async function updatePartyName(partyCode: string, newName: string) {
     return { success: true, newName };
   } catch (error) {
     return { error: "Error updating party name" };
+  }
+}
+
+// --- Character Claim Actions ---
+
+// Spelled out rather than inferred: without an explicit union TypeScript widens
+// these returns into a single shape where `error` is optional everywhere, and
+// callers lose the ability to narrow with `"error" in result`.
+type ClaimResult =
+  | { success: true; combatantId: number; name: string }
+  | { error: string };
+
+type ActionResult = { success: true } | { error: string };
+
+/**
+ * Binds a player character to the calling device, which opens its private
+ * thread with the DM. The claim is the player's only credential, so it is
+ * granted with a single conditional UPDATE: whichever statement lands first
+ * wins and the loser gets zero rows back. No transaction is used — the
+ * neon-http driver has no interactive transactions, and the unique index is the
+ * real backstop if two devices race.
+ */
+export async function claimCombatant(
+  combatantId: number,
+  partyCode: string,
+  deviceId: string,
+): Promise<ClaimResult> {
+  const validated = ClaimCombatantSchema.safeParse({
+    combatantId,
+    partyCode,
+    deviceId,
+  });
+  if (!validated.success) {
+    return { error: "Invalid data" };
+  }
+
+  try {
+    const party = await db.query.parties.findFirst({
+      where: eq(parties.code, validated.data.partyCode),
+    });
+
+    if (!party) {
+      return { error: "Party not found" };
+    }
+
+    // Turn the most likely mistake into a readable message instead of letting
+    // the unique index answer with a raw constraint error.
+    const existingClaim = await db.query.combatants.findFirst({
+      where: and(
+        eq(combatants.partyId, party.id),
+        eq(combatants.claimedByDeviceId, validated.data.deviceId),
+      ),
+    });
+
+    if (existingClaim && existingClaim.id !== validated.data.combatantId) {
+      return { error: `This device already plays ${existingClaim.name}` };
+    }
+
+    const [claimed] = await db
+      .update(combatants)
+      .set({
+        claimedByDeviceId: validated.data.deviceId,
+        claimedAt: new Date(),
+      })
+      .where(
+        and(
+          eq(combatants.id, validated.data.combatantId),
+          eq(combatants.partyId, party.id),
+          eq(combatants.type, "player"),
+          eq(combatants.isHidden, false),
+          isNull(combatants.claimedByDeviceId),
+        ),
+      )
+      .returning({ id: combatants.id, name: combatants.name });
+
+    if (!claimed) {
+      return { error: "That character is already taken or cannot be claimed" };
+    }
+
+    revalidatePath(`/party/${party.code}`);
+    await notifyPartyChanged(party.code);
+    return { success: true, combatantId: claimed.id, name: claimed.name };
+  } catch (error) {
+    if (isUniqueViolation(error)) {
+      return { error: "This device already plays another character here" };
+    }
+    console.error("Error claiming combatant:", error);
+    return { error: "Error claiming character" };
+  }
+}
+
+/**
+ * Frees a character so another device can claim it — the way out when a player
+ * switches phones or clears their browser storage. The thread stays attached to
+ * the character, so whoever claims it next inherits the history; the UI warns
+ * about that before calling this.
+ */
+export async function releaseCombatantClaim(
+  combatantId: number,
+  partyCode: string,
+  dmToken: string,
+): Promise<ActionResult> {
+  const validated = ReleaseClaimByDmSchema.safeParse({
+    combatantId,
+    partyCode,
+    dmToken,
+  });
+  if (!validated.success) {
+    return { error: "Invalid data" };
+  }
+
+  try {
+    const party = await db.query.parties.findFirst({
+      where: eq(parties.code, validated.data.partyCode),
+    });
+
+    if (!party) {
+      return { error: "Party not found" };
+    }
+
+    if (party.dmToken !== validated.data.dmToken) {
+      return { error: "Only the DM can release a character" };
+    }
+
+    await db
+      .update(combatants)
+      .set({ claimedByDeviceId: null, claimedAt: null })
+      .where(
+        and(
+          eq(combatants.id, validated.data.combatantId),
+          eq(combatants.partyId, party.id),
+        ),
+      );
+
+    revalidatePath(`/party/${party.code}`);
+    await notifyPartyChanged(party.code);
+    return { success: true };
+  } catch (error) {
+    console.error("Error releasing claim:", error);
+    return { error: "Error releasing character" };
+  }
+}
+
+/** Lets a player hand back the character they claimed on this device. */
+export async function releaseOwnClaim(
+  combatantId: number,
+  partyCode: string,
+  deviceId: string,
+): Promise<ActionResult> {
+  const validated = ReleaseOwnClaimSchema.safeParse({
+    combatantId,
+    partyCode,
+    deviceId,
+  });
+  if (!validated.success) {
+    return { error: "Invalid data" };
+  }
+
+  try {
+    const party = await db.query.parties.findFirst({
+      where: eq(parties.code, validated.data.partyCode),
+    });
+
+    if (!party) {
+      return { error: "Party not found" };
+    }
+
+    // Scoping the update by device id is the authorization: a device can only
+    // ever release what it already owns.
+    const [released] = await db
+      .update(combatants)
+      .set({ claimedByDeviceId: null, claimedAt: null })
+      .where(
+        and(
+          eq(combatants.id, validated.data.combatantId),
+          eq(combatants.partyId, party.id),
+          eq(combatants.claimedByDeviceId, validated.data.deviceId),
+        ),
+      )
+      .returning({ id: combatants.id });
+
+    if (!released) {
+      return { error: "Not authorized" };
+    }
+
+    revalidatePath(`/party/${party.code}`);
+    await notifyPartyChanged(party.code);
+    return { success: true };
+  } catch (error) {
+    console.error("Error releasing own claim:", error);
+    return { error: "Error releasing character" };
+  }
+}
+
+// --- Direct Message Actions ---
+
+/**
+ * Posts a message into a character's private thread.
+ *
+ * The sender side is decided from the caller's proven identity, never from the
+ * payload, and a player may only ever write into the thread of the character it
+ * claimed. The DM is blocked from writing to an unclaimed character: there is
+ * nobody to receive it, and whoever claims that character later would read it.
+ */
+export async function sendPartyMessage(
+  partyCode: string,
+  combatantId: number,
+  body: string,
+  dmToken: string | null,
+  deviceId: string | null,
+): Promise<{ success: true; message: ChatMessage } | { error: string }> {
+  const validated = SendMessageSchema.safeParse({
+    partyCode,
+    combatantId,
+    body,
+    dmToken,
+    deviceId,
+  });
+  if (!validated.success) {
+    return { error: "Invalid data" };
+  }
+
+  try {
+    const access = await resolveMessageAccess(
+      validated.data.partyCode,
+      validated.data.dmToken,
+      validated.data.deviceId,
+    );
+
+    if (access.role === "not-found") return { error: "Party not found" };
+    if (access.role === "unclaimed") return { error: "Claim a character first" };
+
+    if (
+      access.role === "player" &&
+      access.combatantId !== validated.data.combatantId
+    ) {
+      return { error: "Not authorized" };
+    }
+
+    if (access.role === "dm") {
+      const target = await db.query.combatants.findFirst({
+        where: and(
+          eq(combatants.id, validated.data.combatantId),
+          eq(combatants.partyId, access.partyId),
+        ),
+      });
+
+      if (!target) return { error: "Character not found" };
+      if (target.type !== "player" || target.claimedByDeviceId === null) {
+        return { error: "That character hasn't been claimed yet" };
+      }
+    }
+
+    const [created] = await db
+      .insert(messages)
+      .values({
+        partyId: access.partyId,
+        combatantId: validated.data.combatantId,
+        sender: access.role === "dm" ? "dm" : "player",
+        body: validated.data.body,
+        senderDeviceId: validated.data.deviceId,
+      })
+      .returning();
+
+    // Opportunistic retention sweep, scoped to this party so it stays an index
+    // range scan and can never stall on another party's traffic. It is
+    // best-effort cleanup only: the read path filters by the same cutoff, so an
+    // idle party still never serves messages past the window.
+    await db
+      .delete(messages)
+      .where(
+        and(
+          eq(messages.partyId, access.partyId),
+          lt(messages.createdAt, messageRetentionCutoff()),
+        ),
+      );
+
+    // No revalidatePath here: nothing in the server render depends on messages,
+    // and no notifyPartyChanged either — that would make every browser in the
+    // party re-fetch the whole combatant list over a private message.
+    await notifyPartyMessage(access.partyCode);
+
+    return {
+      success: true,
+      message: {
+        id: created.id,
+        combatantId: created.combatantId,
+        sender: created.sender,
+        body: created.body,
+        createdAt: created.createdAt.toISOString(),
+        readAt: created.readAt?.toISOString() ?? null,
+      },
+    };
+  } catch (error) {
+    console.error("Error sending message:", error);
+    return { error: "Error sending message" };
+  }
+}
+
+/**
+ * Marks everything the other side wrote in a thread as read.
+ *
+ * Callers must only invoke this when there is something unread: the
+ * notification it emits lets the sender see the read receipt live, and firing
+ * it unconditionally would bounce signals back and forth between both browsers.
+ */
+export async function markThreadRead(
+  partyCode: string,
+  combatantId: number,
+  dmToken: string | null,
+  deviceId: string | null,
+): Promise<ActionResult> {
+  const validated = MarkThreadReadSchema.safeParse({
+    partyCode,
+    combatantId,
+    dmToken,
+    deviceId,
+  });
+  if (!validated.success) {
+    return { error: "Invalid data" };
+  }
+
+  try {
+    const access = await resolveMessageAccess(
+      validated.data.partyCode,
+      validated.data.dmToken,
+      validated.data.deviceId,
+    );
+
+    if (access.role === "not-found") return { error: "Party not found" };
+    if (access.role === "unclaimed") return { error: "Not authorized" };
+
+    if (
+      access.role === "player" &&
+      access.combatantId !== validated.data.combatantId
+    ) {
+      return { error: "Not authorized" };
+    }
+
+    const otherSide = access.role === "dm" ? "player" : "dm";
+
+    await db
+      .update(messages)
+      .set({ readAt: new Date() })
+      .where(
+        and(
+          eq(messages.partyId, access.partyId),
+          eq(messages.combatantId, validated.data.combatantId),
+          eq(messages.sender, otherSide),
+          isNull(messages.readAt),
+        ),
+      );
+
+    await notifyPartyMessage(access.partyCode);
+    return { success: true };
+  } catch (error) {
+    console.error("Error marking thread as read:", error);
+    return { error: "Error updating messages" };
   }
 }

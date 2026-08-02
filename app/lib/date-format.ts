@@ -22,3 +22,25 @@ export function formatSessionDate(date: Date | string): string {
 
   return `${capitalizedWeekday} ${get("day")} de ${get("month")}, ${get("year")}`;
 }
+
+/**
+ * Short timestamp for a chat message: the time alone for today's messages, and
+ * a day + time for anything older, so a thread read days later still reads in
+ * order without repeating the full date on every bubble.
+ */
+export function formatMessageTime(date: Date | string): string {
+  const d = typeof date === "string" ? new Date(date) : date;
+  if (Number.isNaN(d.getTime())) return "";
+
+  const now = new Date();
+  const isToday =
+    d.getDate() === now.getDate() &&
+    d.getMonth() === now.getMonth() &&
+    d.getFullYear() === now.getFullYear();
+
+  return new Intl.DateTimeFormat("es-ES", {
+    hour: "2-digit",
+    minute: "2-digit",
+    ...(isToday ? {} : { day: "numeric", month: "short" }),
+  }).format(d);
+}

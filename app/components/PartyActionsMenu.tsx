@@ -8,6 +8,7 @@ import {
   Sparkles,
   ArrowLeftRight,
   HeartHandshake,
+  MessageCircle,
   NotebookText,
   Languages,
   LogOut,
@@ -21,8 +22,10 @@ import CreatePartyDialog from "@/app/components/CreatePartyDialog";
 import SelectPartyDialog from "@/app/components/SelectPartyDialog";
 import SessionNotesDrawer from "@/app/components/SessionNotesDrawer";
 import ReserveDrawer from "@/app/components/ReserveDrawer";
+import MessagesDrawer from "@/app/components/MessagesDrawer";
 import { getPartiesForDevice } from "@/app/server/actions";
 import { getOrCreateDeviceId } from "@/app/lib/device-id";
+import type { PartyMessagingState } from "@/app/lib/hooks/usePartyMessages";
 import type { BuffKind, Combatant, DmParty } from "@/app/lib/types";
 
 interface PartyActionsMenuProps {
@@ -39,6 +42,8 @@ interface PartyActionsMenuProps {
   isPending: boolean;
   isDm: boolean;
   dmToken: string | null;
+  /** Passed as one object so the prop list doesn't grow by a dozen callbacks. */
+  messaging: PartyMessagingState;
   onReturnToMain: () => void;
 }
 
@@ -59,9 +64,11 @@ export default function PartyActionsMenu({
   isPending,
   isDm,
   dmToken,
+  messaging,
   onReturnToMain,
 }: PartyActionsMenuProps) {
   const [menuOpen, setMenuOpen] = useState(false);
+  const [messagesOpen, setMessagesOpen] = useState(false);
   const [combatantOpen, setCombatantOpen] = useState(false);
   const [buffOpen, setBuffOpen] = useState(false);
   const [switchOpen, setSwitchOpen] = useState(false);
@@ -118,6 +125,13 @@ export default function PartyActionsMenu({
         className="fixed bottom-20 right-6 rounded-full w-14 h-14 shadow-lg cursor-pointer z-50"
       >
         <PlusIcon className="w-7 h-7" />
+        {/* Unread messages have to be visible with the menu closed, which is how
+            the app sits most of the time during a session. */}
+        {messaging.unreadTotal > 0 && (
+          <span className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-dnd-blood px-1 text-xs font-bold text-white">
+            {messaging.unreadTotal > 99 ? "99+" : messaging.unreadTotal}
+          </span>
+        )}
       </Button>
 
       {menuOpen &&
@@ -195,6 +209,14 @@ export default function PartyActionsMenu({
                     label="Party notes"
                     onClick={() => openAction(setNotesOpen)}
                   />
+                  <ActionButton
+                    icon={
+                      <MessageCircle className="size-6 text-emerald-400" />
+                    }
+                    label={isDm ? "Messages" : "Message the DM"}
+                    badge={messaging.unreadTotal}
+                    onClick={() => openAction(setMessagesOpen)}
+                  />
                   {/* Placeholder — language switching is not wired up yet */}
                   <ActionButton
                     icon={<Languages className="size-6 text-sky-400" />}
@@ -253,6 +275,12 @@ export default function PartyActionsMenu({
         open={notesOpen}
         onOpenChange={setNotesOpen}
       />
+      <MessagesDrawer
+        messaging={messaging}
+        combatants={combatants}
+        open={messagesOpen}
+        onOpenChange={setMessagesOpen}
+      />
     </>
   );
 }
@@ -260,10 +288,12 @@ export default function PartyActionsMenu({
 function ActionButton({
   icon,
   label,
+  badge,
   onClick,
 }: {
   icon: ReactNode;
   label: string;
+  badge?: number;
   onClick?: () => void;
 }) {
   return (
@@ -271,10 +301,15 @@ function ActionButton({
       type="button"
       variant="outline"
       onClick={onClick}
-      className="flex h-auto cursor-pointer flex-col gap-2 border-dnd-gold/20 py-4 hover:border-dnd-gold/40 hover:bg-dnd-gold/10"
+      className="relative flex h-auto cursor-pointer flex-col gap-2 border-dnd-gold/20 py-4 hover:border-dnd-gold/40 hover:bg-dnd-gold/10"
     >
       {icon}
       <span className="text-sm font-medium">{label}</span>
+      {badge !== undefined && badge > 0 && (
+        <span className="absolute right-2 top-2 flex h-5 min-w-5 items-center justify-center rounded-full bg-dnd-blood px-1 text-xs font-bold text-white">
+          {badge > 99 ? "99+" : badge}
+        </span>
+      )}
     </Button>
   );
 }

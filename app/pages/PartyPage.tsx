@@ -8,6 +8,7 @@ import { usePartySync } from "@/app/lib/hooks/usePartySync";
 import { useMemo, useEffect, useState } from "react";
 import { useRecentParty } from "@/app/lib/hooks/useRecentParty";
 import { readDmToken } from "@/app/lib/dm-token";
+import { usePartyMessages } from "@/app/lib/hooks/usePartyMessages";
 import { isPartyDm } from "@/app/server/actions";
 import PartyInfoCard from "../components/PartyInfoCard";
 import { useBackNavigationGuard } from "@/app/lib/hooks/useBackNavigationGuard";
@@ -36,8 +37,17 @@ export default function PartyPage({ party }: PartyPageProps) {
   // DM status comes from the token stored in localStorage, verified against the
   // party's real token on the server. It is never derived from the URL, so
   // tampering with query params (e.g. `?dm=true`) cannot grant DM access.
-  const [isDm, setIsDm] = useState(false);
+  //
+  // "unknown" is a real third state, not a stand-in for false: until the server
+  // answers, a DM must not be treated as a player. That distinction is only
+  // cosmetic for the combat UI, but the messaging drawer would otherwise greet
+  // the DM with a character picker for half a second.
+  const [dmStatus, setDmStatus] = useState<"unknown" | "dm" | "player">(
+    "unknown",
+  );
   const [dmToken, setDmToken] = useState<string | null>(null);
+  const isDm = dmStatus === "dm";
+  const isRoleResolved = dmStatus !== "unknown";
   const router = useRouter();
 
   // Read the token from localStorage and validate it after mount. Doing this on
@@ -48,14 +58,36 @@ export default function PartyPage({ party }: PartyPageProps) {
   // "not a DM" case. setState runs only in the async callback.
   useEffect(() => {
     let cancelled = false;
+    let retryTimer: ReturnType<typeof setTimeout> | null = null;
     const token = readDmToken(party.code);
-    isPartyDm(party.code, token ?? "").then((ok) => {
-      if (cancelled) return;
-      setIsDm(ok);
-      setDmToken(ok ? token : null);
-    });
+
+    // A transient failure here (a network blip to the database, say) must not
+    // wedge the session forever: without a resolved role, isRoleResolved stays
+    // false and the messaging drawer spins on its loading state for the rest
+    // of the visit. Retry with a capped backoff instead of leaving dmStatus
+    // stuck at "unknown".
+    const attempt = (delayMs: number) => {
+      isPartyDm(party.code, token ?? "")
+        .then((ok) => {
+          if (cancelled) return;
+          setDmStatus(ok ? "dm" : "player");
+          setDmToken(ok ? token : null);
+        })
+        .catch((error) => {
+          if (cancelled) return;
+          console.error("Error checking DM status, retrying:", error);
+          retryTimer = setTimeout(
+            () => attempt(Math.min(delayMs * 2, 10000)),
+            delayMs,
+          );
+        });
+    };
+
+    attempt(1000);
+
     return () => {
       cancelled = true;
+      if (retryTimer) clearTimeout(retryTimer);
     };
   }, [party.code]);
 
@@ -92,6 +124,10 @@ export default function PartyPage({ party }: PartyPageProps) {
     party.name,
     dmToken,
   );
+
+  // Private DM ↔ player messaging. It holds off until the role is known so the
+  // DM is never briefly mistaken for a player without a character.
+  const messaging = usePartyMessages(party.code, isRoleResolved, dmToken);
 
   // Create updated party object with optimistic name
   const displayParty = {
@@ -254,6 +290,7 @@ export default function PartyPage({ party }: PartyPageProps) {
         isPending={false}
         isDm={isDm}
         dmToken={dmToken}
+        messaging={messaging}
         onReturnToMain={() => setShowConfirmation(true)}
       />
 

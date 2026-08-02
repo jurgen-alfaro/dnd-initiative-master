@@ -33,7 +33,11 @@ import {
   recalculateTurnIndexAfterVisibilityChange,
   visibleInInitiativeOrder,
 } from "@/app/lib/combat/turnCalculator";
-import { getPusherClient } from "@/app/lib/pusher-client";
+import {
+  subscribeConnected,
+  subscribePartyEvent,
+} from "@/app/lib/pusher-client";
+import { getOrCreateDeviceId } from "@/app/lib/device-id";
 
 /**
  * Keeps party state in sync via realtime push: subscribes to the party's
@@ -133,6 +137,11 @@ export function usePartySync(
   // The DM token is resolved asynchronously after mount, so it is mirrored in a
   // ref for fetchState to read without becoming a dependency.
   const dmTokenRef = useRef(dmToken);
+
+  // The device id only exists in the browser, so it is read after mount (never
+  // during render, which would break hydration) and kept in a ref for the same
+  // reason as the token above.
+  const deviceIdRef = useRef<string | null>(null);
 
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const previousStateRef = useRef<{
@@ -1270,13 +1279,17 @@ export function usePartySync(
   // clobbering the local turn/round the user just changed.
   const fetchState = useCallback(async () => {
     try {
+      // Read both credentials through refs so one arriving later doesn't
+      // rebuild the Pusher subscription below. The device id tells the server
+      // which character is this player's, so it can flag it back as
+      // `claimedByMe`; the stored claim itself never comes back.
+      const headers: Record<string, string> = {};
+      if (dmTokenRef.current) headers["x-dm-token"] = dmTokenRef.current;
+      if (deviceIdRef.current) headers["x-device-id"] = deviceIdRef.current;
+
       const res = await fetch(`/api/party/${partyCode}`, {
         cache: "no-store",
-        // Read through a ref so a token arriving later doesn't rebuild the
-        // Pusher subscription below.
-        headers: dmTokenRef.current
-          ? { "x-dm-token": dmTokenRef.current }
-          : undefined,
+        headers,
       });
       if (!res.ok) return;
 
@@ -1306,9 +1319,15 @@ export function usePartySync(
     if (dmToken) void fetchState();
   }, [dmToken, fetchState]);
 
+  // Same idea for the player side: the server render cannot know the device, so
+  // it flags every character as `claimedByMe: false`. Re-fetch once the id is
+  // available to find out which one belongs to this browser.
   useEffect(() => {
-    const channelName = `party-${partyCode.toUpperCase()}`;
+    deviceIdRef.current = getOrCreateDeviceId();
+    void fetchState();
+  }, [fetchState]);
 
+  useEffect(() => {
     // Coalesce bursts of signals into a single fetch.
     let debounceTimer: ReturnType<typeof setTimeout> | null = null;
     const scheduleFetch = () => {
@@ -1320,11 +1339,15 @@ export function usePartySync(
 
     // Realtime push: the server signals "updated" → fetch fresh state once.
     // Degrades gracefully to fallback-only sync when Pusher isn't configured.
-    const pusher = getPusherClient();
-    const channel = pusher?.subscribe(channelName);
-    channel?.bind("updated", scheduleFetch);
+    // The channel is shared with the messaging hook, so the subscription is
+    // reference-counted rather than torn down by whoever unmounts first.
+    const unsubscribeUpdates = subscribePartyEvent(
+      partyCode,
+      "updated",
+      scheduleFetch,
+    );
     // Resiliency: re-sync whenever the socket (re)connects.
-    pusher?.connection.bind("connected", scheduleFetch);
+    const unsubscribeConnected = subscribeConnected(scheduleFetch);
 
     // Low-frequency safety net for missed pushes / Pusher outages.
     timerRef.current = setInterval(() => {
@@ -1334,9 +1357,8 @@ export function usePartySync(
     return () => {
       if (debounceTimer) clearTimeout(debounceTimer);
       if (timerRef.current) clearInterval(timerRef.current);
-      channel?.unbind("updated", scheduleFetch);
-      pusher?.connection.unbind("connected", scheduleFetch);
-      pusher?.unsubscribe(channelName);
+      unsubscribeUpdates();
+      unsubscribeConnected();
     };
   }, [partyCode, fallbackIntervalMs, fetchState]);
 

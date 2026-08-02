@@ -66,3 +66,28 @@ export async function notifyPartyChanged(partyCode: string): Promise<void> {
     console.error("Failed to notify party change via Pusher", error);
   }
 }
+
+/**
+ * Notifies a party that its private messages changed. Like `notifyPartyChanged`
+ * the payload is empty — not even the combatant id travels, because every
+ * subscriber of `party-<CODE>` would then learn who is whispering to the DM.
+ * Each client re-fetches the messages endpoint and only ever receives the
+ * thread it is entitled to.
+ */
+export async function notifyPartyMessage(partyCode: string): Promise<void> {
+  const pusher = getPusherServer();
+
+  if (!pusher) {
+    console.warn(
+      "Pusher is not configured; skipping message notification for party",
+      partyCode,
+    );
+    return;
+  }
+
+  try {
+    await pusher.trigger(partyChannel(partyCode), "message", {});
+  } catch (error) {
+    console.error("Failed to notify party message via Pusher", error);
+  }
+}
