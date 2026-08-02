@@ -14,6 +14,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import type {
+  Ammo,
   Buff,
   Condition,
   DmParty,
@@ -126,6 +127,32 @@ const RemoveBuffSchema = z.object({
   partyCode: z.string(),
   combatantId: z.number(),
   buffId: z.string(),
+});
+
+const AmmoFieldsSchema = z.object({
+  name: z.string().min(1).max(30),
+  count: z.number().int().min(0).max(9999),
+  max: z.number().int().min(1).max(9999).nullable(),
+});
+
+const AddAmmoSchema = AmmoFieldsSchema.extend({
+  partyCode: z.string(),
+  combatantId: z.number(),
+  // Minted by the caller so the optimistic entry and the stored one share an
+  // id, and an edit right after creating still targets the right entry.
+  ammoId: z.string().min(1),
+});
+
+const UpdateAmmoSchema = AmmoFieldsSchema.extend({
+  partyCode: z.string(),
+  combatantId: z.number(),
+  ammoId: z.string(),
+});
+
+const RemoveAmmoSchema = z.object({
+  partyCode: z.string(),
+  combatantId: z.number(),
+  ammoId: z.string(),
 });
 
 const SetRoundSchema = z.object({
@@ -419,6 +446,157 @@ export async function removeBuffFromCombatant(
     return { success: true };
   } catch (error) {
     return { error: "Error removing buff" };
+  }
+}
+
+export async function addAmmoToCombatant(
+  partyCode: string,
+  combatantId: number,
+  ammoId: string,
+  name: string,
+  count: number,
+  max: number | null,
+) {
+  const validated = AddAmmoSchema.safeParse({
+    partyCode,
+    combatantId,
+    ammoId,
+    name,
+    count,
+    max,
+  });
+
+  if (!validated.success) {
+    return { error: "Invalid data" };
+  }
+
+  const newAmmo: Ammo = {
+    id: validated.data.ammoId,
+    name: validated.data.name,
+    count: validated.data.count,
+    max: validated.data.max,
+  };
+
+  try {
+    const combatant = await db.query.combatants.findFirst({
+      where: eq(combatants.id, validated.data.combatantId),
+    });
+
+    if (!combatant) {
+      return { error: "Combatant not found" };
+    }
+
+    await db
+      .update(combatants)
+      .set({ ammo: [...((combatant.ammo as Ammo[]) ?? []), newAmmo] })
+      .where(eq(combatants.id, validated.data.combatantId));
+
+    revalidatePath(`/party/${partyCode}`);
+    await notifyPartyChanged(partyCode);
+    return { success: true };
+  } catch (error) {
+    return { error: "Error adding ammo" };
+  }
+}
+
+export async function updateCombatantAmmo(
+  partyCode: string,
+  combatantId: number,
+  ammoId: string,
+  name: string,
+  count: number,
+  max: number | null,
+) {
+  const validated = UpdateAmmoSchema.safeParse({
+    partyCode,
+    combatantId,
+    ammoId,
+    name,
+    count,
+    max,
+  });
+
+  if (!validated.success) {
+    return { error: "Invalid data" };
+  }
+
+  try {
+    const combatant = await db.query.combatants.findFirst({
+      where: eq(combatants.id, validated.data.combatantId),
+    });
+
+    if (!combatant) {
+      return { error: "Combatant not found" };
+    }
+
+    const current = (combatant.ammo as Ammo[]) ?? [];
+
+    if (!current.some((a) => a.id === validated.data.ammoId)) {
+      return { error: "Ammo not found" };
+    }
+
+    const nextAmmo = current.map((a) =>
+      a.id === validated.data.ammoId
+        ? {
+            ...a,
+            name: validated.data.name,
+            count: validated.data.count,
+            max: validated.data.max,
+          }
+        : a,
+    );
+
+    await db
+      .update(combatants)
+      .set({ ammo: nextAmmo })
+      .where(eq(combatants.id, validated.data.combatantId));
+
+    revalidatePath(`/party/${partyCode}`);
+    await notifyPartyChanged(partyCode);
+    return { success: true };
+  } catch (error) {
+    return { error: "Error updating ammo" };
+  }
+}
+
+export async function removeAmmoFromCombatant(
+  partyCode: string,
+  combatantId: number,
+  ammoId: string,
+) {
+  const validated = RemoveAmmoSchema.safeParse({
+    partyCode,
+    combatantId,
+    ammoId,
+  });
+
+  if (!validated.success) {
+    return { error: "Invalid data" };
+  }
+
+  try {
+    const combatant = await db.query.combatants.findFirst({
+      where: eq(combatants.id, validated.data.combatantId),
+    });
+
+    if (!combatant) {
+      return { error: "Combatant not found" };
+    }
+
+    const nextAmmo = ((combatant.ammo as Ammo[]) ?? []).filter(
+      (a) => a.id !== validated.data.ammoId,
+    );
+
+    await db
+      .update(combatants)
+      .set({ ammo: nextAmmo })
+      .where(eq(combatants.id, validated.data.combatantId));
+
+    revalidatePath(`/party/${partyCode}`);
+    await notifyPartyChanged(partyCode);
+    return { success: true };
+  } catch (error) {
+    return { error: "Error removing ammo" };
   }
 }
 
@@ -768,6 +946,7 @@ export async function getPartyWithCombatants(code: string) {
         ...c,
         conditions: c.conditions as Condition[],
         buffs: (c.buffs as Buff[]) ?? [],
+        ammo: (c.ammo as Ammo[]) ?? [],
       })),
   };
 }

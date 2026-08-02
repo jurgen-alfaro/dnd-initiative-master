@@ -1,5 +1,11 @@
 import { useEffect, useRef, useState, useCallback } from "react";
-import type { Buff, BuffKind, Combatant, Condition } from "@/app/lib/types";
+import type {
+  Ammo,
+  Buff,
+  BuffKind,
+  Combatant,
+  Condition,
+} from "@/app/lib/types";
 import {
   advanceTurn,
   previousTurn,
@@ -13,6 +19,9 @@ import {
   updateCombatantConditions,
   addBuffToCombatants,
   removeBuffFromCombatant,
+  addAmmoToCombatant,
+  updateCombatantAmmo,
+  removeAmmoFromCombatant,
   setCombatantsHidden,
 } from "@/app/server/actions";
 import {
@@ -91,6 +100,20 @@ export function usePartySync(
     rounds: number,
   ) => Promise<void>;
   optimisticRemoveBuff: (combatantId: number, buffId: string) => Promise<void>;
+  optimisticAddAmmo: (
+    combatantId: number,
+    name: string,
+    count: number,
+    max: number | null,
+  ) => Promise<void>;
+  optimisticUpdateAmmo: (
+    combatantId: number,
+    ammoId: string,
+    name: string,
+    count: number,
+    max: number | null,
+  ) => Promise<void>;
+  optimisticRemoveAmmo: (combatantId: number, ammoId: string) => Promise<void>;
 } {
   const [combatants, setCombatants] = useState<Combatant[]>(initialCombatants);
   const [currentTurnIndex, setCurrentTurnIndex] = useState(initialTurnIndex);
@@ -1046,6 +1069,200 @@ export function usePartySync(
     [partyCode, combatants, currentTurnIndex, currentRound, pendingOperations],
   );
 
+  // Optimistic update function for adding an ammo entry to a combatant
+  const optimisticAddAmmo = useCallback(
+    async (
+      combatantId: number,
+      name: string,
+      count: number,
+      max: number | null,
+    ) => {
+      const opId = `add-ammo-${combatantId}-${Date.now()}`;
+      if (pendingOperations.has(opId)) return;
+
+      // Save current state for rollback
+      previousStateRef.current = {
+        turnIndex: currentTurnIndex,
+        round: currentRound,
+        combatants: combatants,
+      };
+
+      // The id is minted here and sent to the server so the optimistic entry
+      // and the stored one match, and an edit right after adding still lands.
+      const newAmmo: Ammo = { id: crypto.randomUUID(), name, count, max };
+
+      // Update optimistically
+      setCombatants((prev) =>
+        prev.map((c) =>
+          c.id === combatantId
+            ? { ...c, ammo: [...(c.ammo ?? []), newAmmo] }
+            : c,
+        ),
+      );
+
+      // Mark operation as pending
+      setPendingOperations((prev) => new Set(prev).add(opId));
+
+      try {
+        const result = await addAmmoToCombatant(
+          partyCode,
+          combatantId,
+          newAmmo.id,
+          name,
+          count,
+          max,
+        );
+
+        if (!result.success) {
+          if (previousStateRef.current) {
+            setCombatants(previousStateRef.current.combatants);
+          }
+          console.error("Failed to add ammo:", result.error);
+        }
+      } catch (error) {
+        if (previousStateRef.current) {
+          setCombatants(previousStateRef.current.combatants);
+        }
+        console.error("Error adding ammo:", error);
+      } finally {
+        setTimeout(() => {
+          setPendingOperations((prev) => {
+            const next = new Set(prev);
+            next.delete(opId);
+            return next;
+          });
+        }, 500);
+      }
+    },
+    [partyCode, combatants, currentTurnIndex, currentRound, pendingOperations],
+  );
+
+  // Optimistic update function for editing an ammo entry
+  const optimisticUpdateAmmo = useCallback(
+    async (
+      combatantId: number,
+      ammoId: string,
+      name: string,
+      count: number,
+      max: number | null,
+    ) => {
+      const opId = `update-ammo-${combatantId}-${ammoId}`;
+      if (pendingOperations.has(opId)) return;
+
+      // Save current state for rollback
+      previousStateRef.current = {
+        turnIndex: currentTurnIndex,
+        round: currentRound,
+        combatants: combatants,
+      };
+
+      // Update optimistically
+      setCombatants((prev) =>
+        prev.map((c) =>
+          c.id === combatantId
+            ? {
+                ...c,
+                ammo: (c.ammo ?? []).map((a) =>
+                  a.id === ammoId ? { ...a, name, count, max } : a,
+                ),
+              }
+            : c,
+        ),
+      );
+
+      // Mark operation as pending
+      setPendingOperations((prev) => new Set(prev).add(opId));
+
+      try {
+        const result = await updateCombatantAmmo(
+          partyCode,
+          combatantId,
+          ammoId,
+          name,
+          count,
+          max,
+        );
+
+        if (!result.success) {
+          if (previousStateRef.current) {
+            setCombatants(previousStateRef.current.combatants);
+          }
+          console.error("Failed to update ammo:", result.error);
+        }
+      } catch (error) {
+        if (previousStateRef.current) {
+          setCombatants(previousStateRef.current.combatants);
+        }
+        console.error("Error updating ammo:", error);
+      } finally {
+        setTimeout(() => {
+          setPendingOperations((prev) => {
+            const next = new Set(prev);
+            next.delete(opId);
+            return next;
+          });
+        }, 500);
+      }
+    },
+    [partyCode, combatants, currentTurnIndex, currentRound, pendingOperations],
+  );
+
+  // Optimistic update function for removing an ammo entry from a combatant
+  const optimisticRemoveAmmo = useCallback(
+    async (combatantId: number, ammoId: string) => {
+      const opId = `remove-ammo-${combatantId}-${ammoId}`;
+      if (pendingOperations.has(opId)) return;
+
+      // Save current state for rollback
+      previousStateRef.current = {
+        turnIndex: currentTurnIndex,
+        round: currentRound,
+        combatants: combatants,
+      };
+
+      // Update optimistically
+      setCombatants((prev) =>
+        prev.map((c) =>
+          c.id === combatantId
+            ? { ...c, ammo: (c.ammo ?? []).filter((a) => a.id !== ammoId) }
+            : c,
+        ),
+      );
+
+      // Mark operation as pending
+      setPendingOperations((prev) => new Set(prev).add(opId));
+
+      try {
+        const result = await removeAmmoFromCombatant(
+          partyCode,
+          combatantId,
+          ammoId,
+        );
+
+        if (!result.success) {
+          if (previousStateRef.current) {
+            setCombatants(previousStateRef.current.combatants);
+          }
+          console.error("Failed to remove ammo:", result.error);
+        }
+      } catch (error) {
+        if (previousStateRef.current) {
+          setCombatants(previousStateRef.current.combatants);
+        }
+        console.error("Error removing ammo:", error);
+      } finally {
+        setTimeout(() => {
+          setPendingOperations((prev) => {
+            const next = new Set(prev);
+            next.delete(opId);
+            return next;
+          });
+        }, 500);
+      }
+    },
+    [partyCode, combatants, currentTurnIndex, currentRound, pendingOperations],
+  );
+
   // Fetch the source-of-truth state and merge it into local state. Stable
   // across renders (reads pending ops through a ref) so the subscription effect
   // below never needs to re-subscribe. While an optimistic op is pending only
@@ -1143,5 +1360,8 @@ export function usePartySync(
     optimisticUpdateConditions,
     optimisticAddBuff,
     optimisticRemoveBuff,
+    optimisticAddAmmo,
+    optimisticUpdateAmmo,
+    optimisticRemoveAmmo,
   };
 }

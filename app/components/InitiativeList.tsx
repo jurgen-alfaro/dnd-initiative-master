@@ -32,6 +32,20 @@ interface InitiativeListProps {
   onHide?: (id: number) => void;
   onUpdateConditions?: (id: number, conditions: Condition[]) => Promise<void>;
   onRemoveBuff?: (combatantId: number, buffId: string) => Promise<void>;
+  onAddAmmo?: (
+    combatantId: number,
+    name: string,
+    count: number,
+    max: number | null,
+  ) => Promise<void>;
+  onUpdateAmmo?: (
+    combatantId: number,
+    ammoId: string,
+    name: string,
+    count: number,
+    max: number | null,
+  ) => Promise<void>;
+  onRemoveAmmo?: (combatantId: number, ammoId: string) => Promise<void>;
 }
 
 export default function InitiativeList({
@@ -48,6 +62,9 @@ export default function InitiativeList({
   onHide,
   onUpdateConditions,
   onRemoveBuff,
+  onAddAmmo,
+  onUpdateAmmo,
+  onRemoveAmmo,
 }: InitiativeListProps) {
   const [isPending, startTransition] = useTransition();
   const activeCardRef = useRef<HTMLDivElement | null>(null);
@@ -160,6 +177,50 @@ export default function InitiativeList({
     return Promise.resolve();
   };
 
+  const handleAddAmmo = async (
+    combatantId: number,
+    name: string,
+    count: number,
+    max: number | null,
+  ): Promise<void> => {
+    // Use optimistic function when available
+    if (onAddAmmo) {
+      return onAddAmmo(combatantId, name, count, max);
+    }
+
+    // Fallback for backward compatibility
+    return Promise.resolve();
+  };
+
+  const handleUpdateAmmo = async (
+    combatantId: number,
+    ammoId: string,
+    name: string,
+    count: number,
+    max: number | null,
+  ): Promise<void> => {
+    // Use optimistic function when available
+    if (onUpdateAmmo) {
+      return onUpdateAmmo(combatantId, ammoId, name, count, max);
+    }
+
+    // Fallback for backward compatibility
+    return Promise.resolve();
+  };
+
+  const handleRemoveAmmo = async (
+    combatantId: number,
+    ammoId: string,
+  ): Promise<void> => {
+    // Use optimistic function when available
+    if (onRemoveAmmo) {
+      return onRemoveAmmo(combatantId, ammoId);
+    }
+
+    // Fallback for backward compatibility
+    return Promise.resolve();
+  };
+
   return (
     <div className="space-y-4 max-w-2xl mx-auto p-4">
       {data.map((char, index) => (
@@ -178,6 +239,9 @@ export default function InitiativeList({
           onHide={onHide || (() => {})}
           onConditionsChange={handleConditionsChange}
           onRemoveBuff={handleRemoveBuff}
+          onAddAmmo={handleAddAmmo}
+          onUpdateAmmo={handleUpdateAmmo}
+          onRemoveAmmo={handleRemoveAmmo}
         />
       ))}
 

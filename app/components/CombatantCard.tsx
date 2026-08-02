@@ -13,6 +13,7 @@ import {
   Skull,
   Biohazard,
   Eye,
+  Plus,
 } from "lucide-react";
 import type { Combatant, Condition } from "@/app/lib/types";
 import StatEditDialog from "@/app/components/StatEditDialog";
@@ -22,7 +23,10 @@ import DamageHealDialog from "@/app/components/DamageHealDialog";
 import ConditionsEditDialog from "@/app/components/ConditionsEditDialog";
 import ConditionDescriptionDialog from "@/app/components/ConditionDescriptionDialog";
 import BuffsDetailDialog from "@/app/components/BuffsDetailDialog";
+import AddAmmoDialog from "@/app/components/AddAmmoDialog";
+import AmmoEditDialog from "@/app/components/AmmoEditDialog";
 import { CONDITION_ICONS, CONDITION_COLORS } from "@/app/lib/condition-icons";
+import { AMMO_GLYPH, formatAmmoCount } from "@/app/lib/ammo";
 
 interface CombatantCardProps {
   combatant: Combatant;
@@ -49,6 +53,20 @@ interface CombatantCardProps {
   onHide: (id: number) => void;
   onConditionsChange: (id: number, conditions: Condition[]) => Promise<void>;
   onRemoveBuff: (combatantId: number, buffId: string) => Promise<void>;
+  onAddAmmo: (
+    combatantId: number,
+    name: string,
+    count: number,
+    max: number | null,
+  ) => Promise<void>;
+  onUpdateAmmo: (
+    combatantId: number,
+    ammoId: string,
+    name: string,
+    count: number,
+    max: number | null,
+  ) => Promise<void>;
+  onRemoveAmmo: (combatantId: number, ammoId: string) => Promise<void>;
 }
 
 const CombatantCard = forwardRef<HTMLDivElement, CombatantCardProps>(
@@ -66,10 +84,19 @@ const CombatantCard = forwardRef<HTMLDivElement, CombatantCardProps>(
       onHide,
       onConditionsChange,
       onRemoveBuff,
+      onAddAmmo,
+      onUpdateAmmo,
+      onRemoveAmmo,
     },
     ref,
   ) => {
     const buffs = combatant.buffs ?? [];
+    const ammo = combatant.ammo ?? [];
+    const hasConditions =
+      combatant.conditions !== undefined && combatant.conditions.length > 0;
+    // An enemy's ammo is as secret as its AC and HP, and the "Ammo" heading
+    // doubles as the DM's add button so it stays up even with nothing tracked.
+    const showAmmo = isDm || (combatant.type === "player" && ammo.length > 0);
     return (
       <Card
         ref={ref}
@@ -263,95 +290,175 @@ const CombatantCard = forwardRef<HTMLDivElement, CombatantCardProps>(
           </div>
         </div>
 
-        {/* Conditions Display */}
-        {combatant.conditions && combatant.conditions.length > 0 && (
-          <div className="flex flex-wrap gap-1 pt-2">
-            {combatant.conditions.slice(0, 4).map((condition) => {
-              const Icon = CONDITION_ICONS[condition];
-              const colorClass = CONDITION_COLORS[condition];
-              return (
-                <ConditionDescriptionDialog
-                  key={condition}
-                  condition={condition}
+        {/* Effects on the left, ammo tucked into the free space on the right */}
+        {(hasConditions || buffs.length > 0 || showAmmo) && (
+          <div className="flex items-start justify-between gap-3">
+            <div className="flex min-w-0 flex-1 flex-col">
+              {/* Conditions Display */}
+              {hasConditions && (
+                <div className="flex flex-wrap gap-1 pt-2">
+                  {combatant.conditions.slice(0, 4).map((condition) => {
+                    const Icon = CONDITION_ICONS[condition];
+                    const colorClass = CONDITION_COLORS[condition];
+                    return (
+                      <ConditionDescriptionDialog
+                        key={condition}
+                        condition={condition}
+                        isPending={isPending}
+                        onRemove={
+                          isDm
+                            ? () =>
+                                onConditionsChange(
+                                  combatant.id,
+                                  combatant.conditions.filter(
+                                    (c) => c !== condition,
+                                  ),
+                                )
+                            : undefined
+                        }
+                      >
+                        <button className="flex items-center gap-1 px-2 py-1 rounded bg-dnd-parchment/10 border border-dnd-gold/20 hover:bg-dnd-parchment/15 hover:border-dnd-gold/30 transition-all duration-200 cursor-pointer active:scale-95">
+                          <Icon size={12} className={colorClass} />
+                          <span className="text-[10px] font-heading uppercase tracking-wider text-muted-foreground">
+                            {condition.slice(0, 3)}
+                          </span>
+                        </button>
+                      </ConditionDescriptionDialog>
+                    );
+                  })}
+                  {combatant.conditions.length > 4 && (
+                    <div className="flex items-center px-2 py-1 rounded bg-dnd-parchment/10 border border-dnd-gold/20">
+                      <span className="text-[10px] font-heading text-muted-foreground">
+                        +{combatant.conditions.length - 4}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Buffs / Debuffs Display (visible to everyone) */}
+              {buffs.length > 0 && (
+                <BuffsDetailDialog
+                  combatant={combatant}
+                  isDm={isDm}
                   isPending={isPending}
-                  onRemove={
-                    isDm
-                      ? () =>
-                          onConditionsChange(
-                            combatant.id,
-                            combatant.conditions.filter((c) => c !== condition),
-                          )
-                      : undefined
-                  }
+                  onRemoveBuff={onRemoveBuff}
                 >
-                  <button className="flex items-center gap-1 px-2 py-1 rounded bg-dnd-parchment/10 border border-dnd-gold/20 hover:bg-dnd-parchment/15 hover:border-dnd-gold/30 transition-all duration-200 cursor-pointer active:scale-95">
-                    <Icon size={12} className={colorClass} />
-                    <span className="text-[10px] font-heading uppercase tracking-wider text-muted-foreground">
-                      {condition.slice(0, 3)}
-                    </span>
+                  <button className="flex flex-wrap gap-1 pt-2 w-full cursor-pointer">
+                    {buffs.slice(0, 4).map((buff) => {
+                      const isBuff = buff.kind === "buff";
+                      const Icon = isBuff ? ShieldPlus : Biohazard;
+                      return (
+                        <span
+                          key={buff.id}
+                          className={`flex items-center gap-1 px-2 py-1 rounded border transition-all duration-200 ${
+                            isBuff
+                              ? "bg-emerald-900/20 border-emerald-500/30 hover:bg-emerald-900/30"
+                              : "bg-dnd-blood/10 border-dnd-blood/30 hover:bg-dnd-blood/20"
+                          }`}
+                        >
+                          <Icon
+                            size={12}
+                            className={
+                              isBuff
+                                ? "text-emerald-400"
+                                : "text-dnd-blood-bright"
+                            }
+                          />
+                          <span className="text-[10px] font-heading uppercase tracking-wider text-muted-foreground max-w-20 truncate">
+                            {buff.name}
+                          </span>
+                          <span
+                            className={`text-[10px] font-heading font-bold ${
+                              isBuff
+                                ? "text-emerald-400"
+                                : "text-dnd-blood-bright"
+                            }`}
+                          >
+                            {buff.remainingRounds}
+                          </span>
+                        </span>
+                      );
+                    })}
+                    {buffs.length > 4 && (
+                      <span className="flex items-center px-2 py-1 rounded bg-dnd-parchment/10 border border-dnd-gold/20">
+                        <span className="text-[10px] font-heading text-muted-foreground">
+                          +{buffs.length - 4}
+                        </span>
+                      </span>
+                    )}
                   </button>
-                </ConditionDescriptionDialog>
-              );
-            })}
-            {combatant.conditions.length > 4 && (
-              <div className="flex items-center px-2 py-1 rounded bg-dnd-parchment/10 border border-dnd-gold/20">
-                <span className="text-[10px] font-heading text-muted-foreground">
-                  +{combatant.conditions.length - 4}
-                </span>
+                </BuffsDetailDialog>
+              )}
+            </div>
+
+            {/* Ammo: a tiny "Ammo" heading (the DM's add button) over one line
+              per ammunition, e.g. "18 virotes". Enemy ammo is DM-only, like
+              their AC and HP. */}
+            {showAmmo && (
+              <div className="flex max-w-[45%] shrink-0 flex-col items-end gap-0.5 pt-2">
+                {isDm ? (
+                  <AddAmmoDialog
+                    combatant={combatant}
+                    onAddAmmo={onAddAmmo}
+                    isPending={isPending}
+                  >
+                    <button className="flex items-center gap-0.5 text-[10px] font-heading uppercase tracking-widest text-dnd-gold-dim transition-colors duration-200 hover:text-dnd-gold-bright active:scale-95">
+                      Ammo
+                      <Plus size={10} />
+                    </button>
+                  </AddAmmoDialog>
+                ) : (
+                  <span className="text-[10px] font-heading uppercase tracking-widest text-dnd-gold-dim">
+                    Ammo
+                  </span>
+                )}
+
+                {ammo.map((entry) => {
+                  const isEmpty = entry.count === 0;
+                  const label = (
+                    <>
+                      <span aria-hidden>{AMMO_GLYPH}</span>
+                      <span
+                        className={`font-mono font-bold ${
+                          isEmpty
+                            ? "text-dnd-blood-bright"
+                            : "text-dnd-parchment"
+                        }`}
+                      >
+                        {formatAmmoCount(entry)}
+                      </span>
+                      <span className="min-w-0 truncate text-muted-foreground">
+                        {entry.name}
+                      </span>
+                    </>
+                  );
+
+                  return isDm ? (
+                    <AmmoEditDialog
+                      key={entry.id}
+                      combatant={combatant}
+                      ammo={entry}
+                      onSave={onUpdateAmmo}
+                      onRemove={onRemoveAmmo}
+                      isPending={isPending}
+                    >
+                      <button className="flex max-w-full items-center gap-1 text-[11px] transition-colors duration-200 hover:text-dnd-gold-bright active:scale-95">
+                        {label}
+                      </button>
+                    </AmmoEditDialog>
+                  ) : (
+                    <span
+                      key={entry.id}
+                      className="flex max-w-full items-center gap-1 text-[11px]"
+                    >
+                      {label}
+                    </span>
+                  );
+                })}
               </div>
             )}
           </div>
-        )}
-
-        {/* Buffs / Debuffs Display (visible to everyone) */}
-        {buffs.length > 0 && (
-          <BuffsDetailDialog
-            combatant={combatant}
-            isDm={isDm}
-            isPending={isPending}
-            onRemoveBuff={onRemoveBuff}
-          >
-            <button className="flex flex-wrap gap-1 pt-2 w-full cursor-pointer">
-              {buffs.slice(0, 4).map((buff) => {
-                const isBuff = buff.kind === "buff";
-                const Icon = isBuff ? ShieldPlus : Biohazard;
-                return (
-                  <span
-                    key={buff.id}
-                    className={`flex items-center gap-1 px-2 py-1 rounded border transition-all duration-200 ${
-                      isBuff
-                        ? "bg-emerald-900/20 border-emerald-500/30 hover:bg-emerald-900/30"
-                        : "bg-dnd-blood/10 border-dnd-blood/30 hover:bg-dnd-blood/20"
-                    }`}
-                  >
-                    <Icon
-                      size={12}
-                      className={
-                        isBuff ? "text-emerald-400" : "text-dnd-blood-bright"
-                      }
-                    />
-                    <span className="text-[10px] font-heading uppercase tracking-wider text-muted-foreground max-w-20 truncate">
-                      {buff.name}
-                    </span>
-                    <span
-                      className={`text-[10px] font-heading font-bold ${
-                        isBuff ? "text-emerald-400" : "text-dnd-blood-bright"
-                      }`}
-                    >
-                      {buff.remainingRounds}
-                    </span>
-                  </span>
-                );
-              })}
-              {buffs.length > 4 && (
-                <span className="flex items-center px-2 py-1 rounded bg-dnd-parchment/10 border border-dnd-gold/20">
-                  <span className="text-[10px] font-heading text-muted-foreground">
-                    +{buffs.length - 4}
-                  </span>
-                </span>
-              )}
-            </button>
-          </BuffsDetailDialog>
         )}
 
         {/* Stat display: AC, HP, Tmp HP */}

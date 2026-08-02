@@ -81,6 +81,9 @@ export default function PartyPage({ party }: PartyPageProps) {
     optimisticUpdateConditions,
     optimisticAddBuff,
     optimisticRemoveBuff,
+    optimisticAddAmmo,
+    optimisticUpdateAmmo,
+    optimisticRemoveAmmo,
   } = usePartySync(
     party.code,
     party.combatants,
@@ -227,6 +230,9 @@ export default function PartyPage({ party }: PartyPageProps) {
         onHide={handleHideRequest}
         onUpdateConditions={optimisticUpdateConditions}
         onRemoveBuff={optimisticRemoveBuff}
+        onAddAmmo={optimisticAddAmmo}
+        onUpdateAmmo={optimisticUpdateAmmo}
+        onRemoveAmmo={optimisticRemoveAmmo}
       />
 
       <TurnControls

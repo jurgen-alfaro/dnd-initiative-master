@@ -40,6 +40,16 @@ export type Buff = {
   remainingRounds: number;
 };
 
+// Consumable ammunition (bolts, arrows, bullets...). Unlike buffs it is not
+// tied to the round counter: it only changes when someone spends or restocks it.
+export type Ammo = {
+  id: string; // crypto.randomUUID() — key estable y borrado individual
+  name: string;
+  count: number;
+  // Quiver capacity. Null when the DM doesn't care about a ceiling.
+  max: number | null;
+};
+
 export type Combatant = {
   id: number;
   name: string;
@@ -51,6 +61,7 @@ export type Combatant = {
   type: "player" | "enemy";
   conditions: Condition[];
   buffs: Buff[];
+  ammo: Ammo[];
   // Prepared but not yet in the fight. Only ever true in the DM's session:
   // players never receive hidden combatants from the server.
   isHidden: boolean;
