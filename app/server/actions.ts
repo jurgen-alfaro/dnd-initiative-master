@@ -48,7 +48,7 @@ const AddCombatantToPartySchema = z.object({
   combatantName: z.string().min(3, "Name must be at least 3 characters"),
   type: z.enum(["player", "enemy"]),
   initiative: z.coerce.number().min(0).max(999).default(0).optional(),
-  maxHp: z.coerce.number().min(0).max(999).default(0).optional(),
+  maxHp: z.coerce.number().min(0).max(9999).default(0).optional(),
   ac: z.coerce.number().min(0).max(999).default(0).optional(),
   quantity: z.coerce.number().int().min(1).max(5).catch(1),
   // Comes from a radio group, so it arrives as a string in the FormData.

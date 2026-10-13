@@ -70,7 +70,7 @@ const AddCombatantToPartyForm = ({
   }, [state, onSuccess]);
 
   const handleNumericChange =
-    (setter: (value: string) => void) =>
+    (setter: (value: string) => void, max = 100) =>
     (e: React.ChangeEvent<HTMLInputElement>) => {
       const value = e.target.value;
       if (value === "") {
@@ -78,10 +78,10 @@ const AddCombatantToPartyForm = ({
         return;
       }
 
-      // Allow only numbers and max 3 digits
+      // Allow only numbers up to `max` (digit count is capped by the input's maxLength)
       if (!/^\d*$/.test(value)) return;
 
-      if (Number(value) <= 100 && value.length <= 3) {
+      if (Number(value) <= max) {
         setter(value);
       }
     };
@@ -151,8 +151,8 @@ const AddCombatantToPartyForm = ({
                 name="hp"
                 placeholder="10"
                 value={hp}
-                onChange={handleNumericChange(setHp)}
-                maxLength={3}
+                onChange={handleNumericChange(setHp, 9999)}
+                maxLength={4}
               />
               <InputGroupAddon align="inline-start">
                 <Dice4Icon className="text-muted-foreground" />
