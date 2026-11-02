@@ -79,17 +79,20 @@ export function generateTreasure(level: number, die: Die): Treasure {
   const rows = COIN_TABLE[level - 1];
   if (!rows) throw new RangeError(`NE must be 1-20, got ${level}`);
 
+  const label = "Table 3-5, coins";
   const percentile = rollPercentile(die);
-  const coinRolls: Roll[] = [
-    { label: "Table 3-5, coins", dice: "d%", values: [percentile] },
-  ];
+  const coinRolls: Roll[] = [{ label, dice: "d%", values: [percentile] }];
   const row = pickRow(rows, percentile);
   if (!row.dice) {
     return { level, coins: NO_COINS, coinRolls, items: [] };
   }
 
   const values = rollDice(die, row.dice);
-  coinRolls.push({ label: `×${row.times} ${row.coin}`, dice: row.dice, values });
+  coinRolls.push({
+    label,
+    dice: `${row.dice}×${row.times.toLocaleString("en-US")} ${row.coin}`,
+    values,
+  });
   const amount = values.reduce((a, b) => a + b, 0) * row.times;
 
   return {

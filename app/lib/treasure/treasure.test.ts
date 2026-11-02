@@ -71,7 +71,7 @@ describe("generateTreasure", () => {
       treasure.coinRolls.map((r) => [r.dice, r.values]),
       [
         ["d%", [60]],
-        ["2d8", [3, 5]],
+        ["2d8×10 po", [3, 5]],
       ],
     );
   });
