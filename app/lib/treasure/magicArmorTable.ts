@@ -1,9 +1,12 @@
-import { pickRow, rollPercentile, type Die } from "./dice";
+import type { Die } from "./dice";
 import {
+  bonus,
+  byCategory,
   describeMagicGear,
-  gendered,
+  fixed,
   MAX_TOTAL_BONUS,
   rollAbilities,
+  rollTable,
   totalBonus,
   type AbilityRow,
   type Gender,
@@ -191,47 +194,6 @@ const SPECIFIC: Record<
   },
 };
 
-/** Top of an ability's range in the minor, medium and major columns; "—" is null. */
-type Columns = [number | null, number | null, number | null];
-type AbilityEntry = { ability: SpecialAbility; columns: Columns };
-
-/** An invariable name, or its masculine and feminine forms. */
-type Name = Parameters<typeof gendered>[0];
-
-const bonus = (
-  name: Name,
-  value: number,
-  columns: Columns,
-  version?: string,
-): AbilityEntry => ({
-  ability: { name: gendered(name), bonus: value, priceCp: 0, version },
-  columns,
-});
-
-const fixed = (
-  name: Name,
-  po: number,
-  columns: Columns,
-  version?: string,
-): AbilityEntry => ({
-  ability: { name: gendered(name), bonus: 0, priceCp: gp(po), version },
-  columns,
-});
-
-/** Splits a table printed with three columns into one row list per category. */
-function byCategory(
-  entries: readonly AbilityEntry[],
-): Record<MagicCategory, readonly AbilityRow[]> {
-  const column = (index: number): AbilityRow[] => [
-    ...entries.flatMap(({ ability, columns }) => {
-      const upTo = columns[index];
-      return upTo === null ? [] : [{ upTo, ability }];
-    }),
-    { upTo: 100, ability: "rollTwice" },
-  ];
-  return { minor: column(0), medium: column(1), major: column(2) };
-}
-
 /**
  * Table 7-5 ("Aptitudes especiales de las armaduras"). Row 100 of every
  * column is "Tira de nuevo dos veces". The book prints the feminine forms; the
@@ -344,17 +306,6 @@ function keepBest(abilities: readonly SpecialAbility[]): SpecialAbility[] {
   return [...best.values()];
 }
 
-/** Rolls d% on a table and keeps the roll. */
-function roll<Row extends { upTo: number }>(
-  label: string,
-  rows: readonly Row[],
-  die: Die,
-  rolls: Roll[],
-): Row {
-  const percentile = rollPercentile(die);
-  rolls.push({ label, dice: "d%", values: [percentile] });
-  return pickRow(rows, percentile);
-}
 
 /** Resolver of the "Armadura y escudos" family: tables 7-2 to 7-8. */
 export function rollMagicArmor(
@@ -364,22 +315,22 @@ export function rollMagicArmor(
   const rolls: Roll[] = [];
   const label = `Table 7-2, ${category}`;
   let abilityCount = 0;
-  let row = roll(label, ARMOR_TABLE[category], die, rolls);
+  let row = rollTable(label, ARMOR_TABLE[category], die, rolls);
   // A specific object can't take an ability, so after "tira de nuevo" one is
   // rolled again.
   while (!("kind" in row) && (abilityCount > 0 || !("specific" in row))) {
     if ("abilityAndRollAgain" in row) abilityCount += 1;
-    row = roll(label, ARMOR_TABLE[category], die, rolls);
+    row = rollTable(label, ARMOR_TABLE[category], die, rolls);
   }
   if ("specific" in row) {
     const specific = SPECIFIC[row.specific];
     const specificLabel = `${specific.label}, ${category}`;
-    const { name, priceCp } = roll(specificLabel, specific.rows[category], die, rolls);
+    const { name, priceCp } = rollTable(specificLabel, specific.rows[category], die, rolls);
     return { name, valueCp: priceCp, rolls };
   }
 
   const types = BASE_TYPES[row.kind];
-  const type = roll(types.label, types.rows, die, rolls);
+  const type = rollTable(types.label, types.rows, die, rolls);
   const table = ABILITIES[row.kind];
   const abilities = keepBest(rollAbilities(
     `${table.label}, ${category}`,

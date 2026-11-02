@@ -1,5 +1,6 @@
 import { pickRow, type Die } from "./dice";
 import { rollMagicArmor } from "./magicArmorTable";
+import { rollMagicWeapon } from "./magicWeaponTable";
 import { rollPotion } from "./potionTable";
 import { rollRing } from "./ringTable";
 import { rollRod } from "./rodTable";
@@ -90,6 +91,7 @@ export type MagicResolvers = Partial<Record<MagicFamily, MagicResolver>>;
  */
 export const MAGIC_RESOLVERS: MagicResolvers = {
   armor: rollMagicArmor,
+  weapon: rollMagicWeapon,
   potion: rollPotion,
   ring: rollRing,
   rod: rollRod,

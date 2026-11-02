@@ -1,4 +1,5 @@
 import { pickRow, rollPercentile, type Die } from "./dice";
+import type { MagicCategory } from "./magicTable";
 import type { Roll } from "./treasure";
 
 /**
@@ -72,7 +73,11 @@ export function rollAbilities(
 ): SpecialAbility[] {
   const chosen: SpecialAbility[] = [];
   let pending = count;
-  while (pending > 0) {
+  // Once no ability of the table could be accepted (a weapon already at +10),
+  // the rolls still pending are lost instead of rerolled forever.
+  const canAcceptMore = () =>
+    rows.some(({ ability }) => ability !== "rollTwice" && accepts(ability, chosen));
+  while (pending > 0 && canAcceptMore()) {
     const percentile = rollPercentile(die);
     rolls.push({ label, dice: "d%", values: [percentile] });
     const { ability } = pickRow(rows, percentile);
@@ -113,4 +118,57 @@ export function describeMagicGear(
       gp(bonusPrice) +
       abilities.reduce((sum, a) => sum + a.priceCp, 0),
   };
+}
+
+/** Rolls d% on a table and keeps the roll. */
+export function rollTable<Row extends { upTo: number }>(
+  label: string,
+  rows: readonly Row[],
+  die: Die,
+  rolls: Roll[],
+): Row {
+  const percentile = rollPercentile(die);
+  rolls.push({ label, dice: "d%", values: [percentile] });
+  return pickRow(rows, percentile);
+}
+
+/** Top of an ability's range in the minor, medium and major columns; "—" is null. */
+export type Columns = [number | null, number | null, number | null];
+export type AbilityEntry = { ability: SpecialAbility; columns: Columns };
+
+/** An invariable name, or its masculine and feminine forms. */
+type Name = Parameters<typeof gendered>[0];
+
+export const bonus = (
+  name: Name,
+  value: number,
+  columns: Columns,
+  version?: string,
+): AbilityEntry => ({
+  ability: { name: gendered(name), bonus: value, priceCp: 0, version },
+  columns,
+});
+
+export const fixed = (
+  name: Name,
+  po: number,
+  columns: Columns,
+  version?: string,
+): AbilityEntry => ({
+  ability: { name: gendered(name), bonus: 0, priceCp: gp(po), version },
+  columns,
+});
+
+/** Splits a table printed with three columns into one row list per category. */
+export function byCategory(
+  entries: readonly AbilityEntry[],
+): Record<MagicCategory, readonly AbilityRow[]> {
+  const column = (index: number): AbilityRow[] => [
+    ...entries.flatMap(({ ability, columns }) => {
+      const upTo = columns[index];
+      return upTo === null ? [] : [{ upTo, ability }];
+    }),
+    { upTo: 100, ability: "rollTwice" },
+  ];
+  return { minor: column(0), medium: column(1), major: column(2) };
 }
