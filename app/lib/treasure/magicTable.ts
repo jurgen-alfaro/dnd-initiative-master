@@ -1,4 +1,5 @@
 import { pickRow, type Die } from "./dice";
+import { rollMagicArmor } from "./magicArmorTable";
 import { rollPotion } from "./potionTable";
 import { rollRing } from "./ringTable";
 import { rollRod } from "./rodTable";
@@ -88,6 +89,7 @@ export type MagicResolvers = Partial<Record<MagicFamily, MagicResolver>>;
  * shown as "Objeto mágico <categoría>: <familia>", without a price.
  */
 export const MAGIC_RESOLVERS: MagicResolvers = {
+  armor: rollMagicArmor,
   potion: rollPotion,
   ring: rollRing,
   rod: rollRod,

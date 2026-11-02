@@ -60,8 +60,16 @@ const BOOK_GOODS: Record<number, string[]> = {
   20: ["01-25 —", "26-65 1d4 intermedios", "66-100 1d3 mayores"],
 };
 
-/** The rolls that resolve one item of each category: tools #1, or family #1. */
-const ITEM_ROLLS = { mundane: [84, 1], minor: [1], medium: [1], major: [1] };
+/**
+ * The rolls that resolve one item of each category: tools #1, or family #1
+ * (armor) with row #1 of table 7-2 (an enchanted shield) and of table 7-4.
+ */
+const ITEM_ROLLS = {
+  mundane: [84, 1],
+  minor: [1, 1, 1],
+  medium: [1, 1, 1],
+  major: [1, 1, 1],
+};
 
 describe("generateTreasure objects column (table 3-5)", () => {
   for (const [level, cells] of Object.entries(BOOK_GOODS)) {
