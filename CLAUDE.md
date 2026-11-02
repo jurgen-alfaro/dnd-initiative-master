@@ -262,5 +262,17 @@ When working in this project, you should:
 
 ---
 
+## Agent skills
+
+### Issue tracker
+
+Issues en GitHub Issues de `jurgen-alfaro/dnd-initiative-master` (CLI `gh`). See `docs/agents/issue-tracker.md`.
+
+### Domain docs
+
+Single-context: un `GLOSSARY.md` + `docs/adr/` en la raíz. See `docs/agents/domain.md`.
+
+---
+
 _Last updated: 2026-03-10_
 _Stack: Next.js 16 (App Router) · React 19 · Drizzle ORM · Neon PostgreSQL · TypeScript · Zod · Tailwind CSS 4_

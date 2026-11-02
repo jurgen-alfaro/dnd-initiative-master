@@ -42,3 +42,6 @@ next-env.d.ts
 
 # claude
 .claude/settings.local.json
+
+# reference scans of the DMG 3.5 treasure tables (local only)
+docs/*.png
