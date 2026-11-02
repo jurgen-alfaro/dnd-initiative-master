@@ -5,6 +5,7 @@ import {
   type DiceNotation,
   type Die,
 } from "./dice";
+import type { Gender } from "./magicGear";
 import type { Roll, TreasureItem } from "./treasure";
 
 /** What a leaf of the tables gives. */
@@ -21,10 +22,31 @@ type Priced = {
  * A d% range of a table: either an object, or a nested table with its own d%
  * (which is how table 3-8 hands over to tables 7-11, 7-12 and 7-13).
  */
-type Node = { upTo: number } & (
-  | { item: Priced }
-  | { table: string; rows: readonly Node[] }
+export type Node<Leaf = Priced> = { upTo: number } & (
+  | { item: Leaf }
+  | { table: string; rows: readonly Node<Leaf>[] }
 );
+
+/** Damage a weapon deals (PHB table 7-5). */
+export type DamageType = "bludgeoning" | "piercing" | "slashing";
+
+/**
+ * A weapon of tables 7-11 to 7-13, with what the magic weapon tables need:
+ * the gender its abilities agree with and the damage it deals.
+ */
+export type Weapon = {
+  /** Without "de gran calidad". */
+  name: string;
+  /** Price of the masterwork weapon, as the tables print it. */
+  priceCp: number;
+  gender: Gender;
+  /** Empty for a weapon that deals no damage (the net). */
+  damage: readonly DamageType[];
+  /** Takes the abilities of ranged weapons (table 7-15). */
+  isRanged?: true;
+  /** Has two heads (footnote 2 of tables 7-11 and 7-12). */
+  isDouble?: true;
+};
 
 const gp = (po: number) => Math.round(po * 100);
 
@@ -45,103 +67,137 @@ const armor = (upTo: number, name: string, po: number): Node => ({
   item: { name, priceCp: gp(po), sized: true },
 });
 
-/** A weapon of table 7-11 to 7-13: the price printed is for the masterwork one. */
-const weapon = (upTo: number, name: string, cp: number): Node =>
-  item(upTo, `${name} de gran calidad`, cp / 100);
+const M: Gender = "masculine";
+const F: Gender = "feminine";
+const B: DamageType = "bludgeoning";
+const P: DamageType = "piercing";
+const S: DamageType = "slashing";
+
+/** A weapon of tables 7-11 to 7-13, priced in pc as the masterwork one. */
+const weapon = (
+  upTo: number,
+  name: string,
+  priceCp: number,
+  gender: Gender,
+  damage: readonly DamageType[],
+  flags: Pick<Weapon, "isRanged" | "isDouble"> = {},
+): Node<Weapon> => ({ upTo, item: { name, priceCp, gender, damage, ...flags } });
+
+type WeaponArgs = [
+  upTo: number,
+  name: string,
+  priceCp: number,
+  gender: Gender,
+  damage: readonly DamageType[],
+];
+const ranged = (...args: WeaponArgs) => weapon(...args, { isRanged: true });
+const double = (...args: WeaponArgs) => weapon(...args, { isDouble: true });
+
+/** The mundane version of a weapon table: every weapon is "de gran calidad". */
+function masterwork(rows: readonly Node<Weapon>[]): Node[] {
+  return rows.map((row) =>
+    "rows" in row
+      ? { ...row, rows: masterwork(row.rows) }
+      : {
+          upTo: row.upTo,
+          item: { name: `${row.item.name} de gran calidad`, priceCp: row.item.priceCp },
+        },
+  );
+}
 
 const ARMOR_SIZE_LABEL = "Table 3-8, armor size";
 /** Armor size: d% 01-10 is Pequeña, 11-100 is Mediana. */
 const SMALL_ARMOR_UP_TO = 10;
 
 /** Ammunition of table 7-13, fifty pieces each. */
-const AMMUNITION: readonly Node[] = [
-  weapon(50, "Flechas (50)", 35000),
-  weapon(80, "Virotes de ballesta (50)", 35000),
-  weapon(100, "Balas de honda (50)", 35000),
+export const AMMUNITION: readonly Node<Weapon>[] = [
+  ranged(50, "Flechas (50)", 35000, F, [P]),
+  ranged(80, "Virotes de ballesta (50)", 35000, M, [P]),
+  ranged(100, "Balas de honda (50)", 35000, F, [B]),
 ];
 
 /** Table 7-11: armas cuerpo a cuerpo comunes. */
-const COMMON_MELEE: readonly Node[] = [
-  weapon(3, "Bastón", 60000),
-  weapon(8, "Cimitarra", 31500),
-  weapon(12, "Daga", 30200),
-  weapon(22, "Espada bastarda", 33500),
-  weapon(27, "Espada corta", 31000),
-  weapon(40, "Espada larga", 31500),
-  weapon(50, "Espadón", 35000),
-  weapon(54, "Estoque", 32000),
-  weapon(64, "Gran hacha", 32000),
-  weapon(75, "Hacha de guerra enana", 33000),
-  weapon(79, "Kama", 30200),
-  weapon(83, "Lanza corta", 30200),
-  weapon(87, "Maza ligera", 30500),
-  weapon(92, "Maza pesada", 31200),
-  weapon(96, "Nunchaku", 30200),
-  weapon(100, "Siangham", 30300),
+export const COMMON_MELEE: readonly Node<Weapon>[] = [
+  double(3, "Bastón", 60000, M, [B]),
+  weapon(8, "Cimitarra", 31500, F, [S]),
+  weapon(12, "Daga", 30200, F, [P, S]),
+  weapon(22, "Espada bastarda", 33500, F, [S]),
+  weapon(27, "Espada corta", 31000, F, [P]),
+  weapon(40, "Espada larga", 31500, F, [S]),
+  weapon(50, "Espadón", 35000, M, [S]),
+  weapon(54, "Estoque", 32000, M, [P]),
+  weapon(64, "Gran hacha", 32000, F, [S]),
+  weapon(75, "Hacha de guerra enana", 33000, F, [S]),
+  weapon(79, "Kama", 30200, F, [S]),
+  weapon(83, "Lanza corta", 30200, F, [P]),
+  weapon(87, "Maza ligera", 30500, F, [B]),
+  weapon(92, "Maza pesada", 31200, F, [B]),
+  weapon(96, "Nunchaku", 30200, M, [B]),
+  weapon(100, "Siangham", 30300, M, [P]),
 ];
 
 /** Table 7-12: armas infrecuentes. */
-const UNCOMMON_WEAPONS: readonly Node[] = [
-  weapon(3, "Alabarda", 31000),
-  weapon(5, "Alfanjón", 37500),
-  weapon(9, "Ballesta de mano", 40000),
-  weapon(12, "Ballesta de repetición", 55000),
-  weapon(14, "Bisarma", 30900),
-  weapon(16, "Cachiporra", 30100),
-  weapon(19, "Cadena armada", 32500),
-  weapon(21, "Clava", 30000),
-  weapon(24, "Espada de dos hojas", 70000),
-  weapon(26, "Gran clava", 30500),
-  weapon(28, "Guadaña", 31800),
-  weapon(30, "Guantelete", 30200),
-  weapon(32, "Guantelete armado", 30500),
-  weapon(34, "Guja", 30800),
-  weapon(38, "Hacha de batalla", 31000),
-  weapon(40, "Hacha de mano", 30600),
-  weapon(43, "Hacha doble orca", 66000),
-  weapon(45, "Hoz", 30600),
-  weapon(48, "Kukri", 30800),
-  weapon(50, "Lanza larga", 30500),
-  weapon(52, "Lanza ligera de caballería", 30600),
-  weapon(54, "Lanza pesada de caballería", 31000),
-  weapon(57, "Látigo", 30100),
-  weapon(60, "Mangual doble", 69000),
-  weapon(64, "Mangual ligero", 30800),
-  weapon(69, "Mangual pesado", 31500),
-  weapon(72, "Martillo de guerra", 31200),
-  weapon(75, "Martillo ganchudo gnomo", 62000),
-  weapon(77, "Martillo ligero", 30100),
-  weapon(80, "Maza de armas", 30800),
-  weapon(83, "Media lanza", 30100),
-  weapon(85, "Pico ligero", 30400),
-  weapon(87, "Pico pesado", 30800),
-  weapon(89, "Puñal", 30200),
-  weapon(91, "Red", 32000),
-  weapon(93, "Ronca", 31000),
-  weapon(95, "Shuriken", 30100),
-  weapon(97, "Tridente", 31500),
-  weapon(100, "Urgrosh enano", 65000),
+export const UNCOMMON_WEAPONS: readonly Node<Weapon>[] = [
+  weapon(3, "Alabarda", 31000, F, [P, S]),
+  weapon(5, "Alfanjón", 37500, M, [S]),
+  ranged(9, "Ballesta de mano", 40000, F, [P]),
+  ranged(12, "Ballesta de repetición", 55000, F, [P]),
+  weapon(14, "Bisarma", 30900, F, [S]),
+  weapon(16, "Cachiporra", 30100, F, [B]),
+  weapon(19, "Cadena armada", 32500, F, [P]),
+  weapon(21, "Clava", 30000, F, [B]),
+  double(24, "Espada de dos hojas", 70000, F, [S]),
+  weapon(26, "Gran clava", 30500, F, [B]),
+  weapon(28, "Guadaña", 31800, F, [P, S]),
+  weapon(30, "Guantelete", 30200, M, [B]),
+  weapon(32, "Guantelete armado", 30500, M, [P]),
+  weapon(34, "Guja", 30800, F, [S]),
+  weapon(38, "Hacha de batalla", 31000, F, [S]),
+  weapon(40, "Hacha de mano", 30600, F, [S]),
+  double(43, "Hacha doble orca", 66000, F, [S]),
+  weapon(45, "Hoz", 30600, F, [S]),
+  weapon(48, "Kukri", 30800, M, [S]),
+  weapon(50, "Lanza larga", 30500, F, [P]),
+  weapon(52, "Lanza ligera de caballería", 30600, F, [P]),
+  weapon(54, "Lanza pesada de caballería", 31000, F, [P]),
+  weapon(57, "Látigo", 30100, M, [S]),
+  double(60, "Mangual doble", 69000, M, [B]),
+  weapon(64, "Mangual ligero", 30800, M, [B]),
+  weapon(69, "Mangual pesado", 31500, M, [B]),
+  weapon(72, "Martillo de guerra", 31200, M, [B]),
+  double(75, "Martillo ganchudo gnomo", 62000, M, [B, P]),
+  weapon(77, "Martillo ligero", 30100, M, [B]),
+  weapon(80, "Maza de armas", 30800, F, [B, P]),
+  weapon(83, "Media lanza", 30100, F, [P]),
+  weapon(85, "Pico ligero", 30400, M, [P]),
+  weapon(87, "Pico pesado", 30800, M, [P]),
+  weapon(89, "Puñal", 30200, M, [P]),
+  ranged(91, "Red", 32000, F, []),
+  weapon(93, "Ronca", 31000, F, [P]),
+  ranged(95, "Shuriken", 30100, M, [P]),
+  weapon(97, "Tridente", 31500, M, [P]),
+  double(100, "Urgrosh enano", 65000, M, [P, S]),
 ];
 
 /** Table 7-13: armas a distancia comunes. */
-const RANGED_WEAPONS: readonly Node[] = [
+export const RANGED_WEAPONS: readonly Node<Weapon>[] = [
   { upTo: 10, table: "Table 7-13, ammunition", rows: AMMUNITION },
-  weapon(15, "Hacha arrojadiza", 30800),
-  weapon(25, "Ballesta pesada", 35000),
-  weapon(35, "Ballesta ligera", 33500),
-  weapon(39, "Dardos (50)", 30050),
-  weapon(41, "Jabalina", 30100),
-  weapon(46, "Arco corto", 33000),
-  weapon(51, "Arco corto compuesto (bonificador Fue +0)", 37500),
-  weapon(56, "Arco corto compuesto (bonificador Fue +1)", 45000),
-  weapon(61, "Arco corto compuesto (bonificador Fue +2)", 52500),
-  weapon(65, "Honda", 30000),
-  weapon(75, "Arco largo", 37500),
-  weapon(80, "Arco largo compuesto", 40000),
-  weapon(85, "Arco largo compuesto (bonificador Fue +1)", 50000),
-  weapon(90, "Arco largo compuesto (bonificador Fue +2)", 60000),
-  weapon(95, "Arco largo compuesto (bonificador Fue +3)", 70000),
-  weapon(100, "Arco largo compuesto (bonificador Fue +4)", 80000),
+  ranged(15, "Hacha arrojadiza", 30800, F, [S]),
+  ranged(25, "Ballesta pesada", 35000, F, [P]),
+  ranged(35, "Ballesta ligera", 33500, F, [P]),
+  ranged(39, "Dardos (50)", 30050, M, [P]),
+  ranged(41, "Jabalina", 30100, F, [P]),
+  ranged(46, "Arco corto", 33000, M, [P]),
+  ranged(51, "Arco corto compuesto (bonificador Fue +0)", 37500, M, [P]),
+  ranged(56, "Arco corto compuesto (bonificador Fue +1)", 45000, M, [P]),
+  ranged(61, "Arco corto compuesto (bonificador Fue +2)", 52500, M, [P]),
+  ranged(65, "Honda", 30000, F, [B]),
+  ranged(75, "Arco largo", 37500, M, [P]),
+  ranged(80, "Arco largo compuesto", 40000, M, [P]),
+  ranged(85, "Arco largo compuesto (bonificador Fue +1)", 50000, M, [P]),
+  ranged(90, "Arco largo compuesto (bonificador Fue +2)", 60000, M, [P]),
+  ranged(95, "Arco largo compuesto (bonificador Fue +3)", 70000, M, [P]),
+  ranged(100, "Arco largo compuesto (bonificador Fue +4)", 80000, M, [P]),
 ];
 
 /**
@@ -201,9 +257,9 @@ const MUNDANE_TABLE: readonly Node[] = [
     upTo: 83,
     table: "Table 3-8, weapons",
     rows: [
-      { upTo: 50, table: "Table 7-11", rows: COMMON_MELEE },
-      { upTo: 70, table: "Table 7-12", rows: UNCOMMON_WEAPONS },
-      { upTo: 100, table: "Table 7-13", rows: RANGED_WEAPONS },
+      { upTo: 50, table: "Table 7-11", rows: masterwork(COMMON_MELEE) },
+      { upTo: 70, table: "Table 7-12", rows: masterwork(UNCOMMON_WEAPONS) },
+      { upTo: 100, table: "Table 7-13", rows: masterwork(RANGED_WEAPONS) },
     ],
   },
   {
@@ -235,12 +291,12 @@ const MUNDANE_TABLE: readonly Node[] = [
 ];
 
 /** Follows the d% of each nested table down to a leaf, keeping every roll. */
-function pickLeaf(
+export function pickLeaf<Leaf>(
   table: string,
-  rows: readonly Node[],
+  rows: readonly Node<Leaf>[],
   die: Die,
   rolls: Roll[],
-): Priced {
+): Leaf {
   const percentile = rollPercentile(die);
   rolls.push({ label: table, dice: "d%", values: [percentile] });
   const node = pickRow(rows, percentile);

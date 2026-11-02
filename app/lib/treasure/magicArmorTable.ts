@@ -1,10 +1,15 @@
-import { pickRow, rollPercentile, type Die } from "./dice";
+import type { Die } from "./dice";
 import {
+  bonus,
+  byCategory,
   describeMagicGear,
+  fixed,
   MAX_TOTAL_BONUS,
   rollAbilities,
+  rollTable,
   totalBonus,
   type AbilityRow,
+  type Gender,
   type SpecialAbility,
 } from "./magicGear";
 import type { MagicCategory, MagicResolution } from "./magicTable";
@@ -70,34 +75,51 @@ const base = (upTo: number, name: string, po: number): BaseType => ({
   priceCp: gp(po),
 });
 
-/** Tables 7-3 and 7-4: the masterwork armor or shield that is enchanted. */
-const BASE_TYPES: Record<Kind, { label: string; rows: readonly BaseType[] }> = {
+/** An armor or shield that is enchanted, with the gender its abilities agree with. */
+type EnchantedType = BaseType & { gender: Gender };
+const masculine = (upTo: number, name: string, po: number): EnchantedType => ({
+  ...base(upTo, name, po),
+  gender: "masculine",
+});
+const feminine = (upTo: number, name: string, po: number): EnchantedType => ({
+  ...base(upTo, name, po),
+  gender: "feminine",
+});
+
+/**
+ * Tables 7-3 and 7-4: the masterwork armor or shield that is enchanted.
+ *
+ * NOTE: "Acolchada", "Pieles", "Laminada", "Placas y mallas" and "Completa"
+ * stand for "armadura …", so their abilities agree with a feminine singular
+ * ("Pieles +1 silenciosa").
+ */
+const BASE_TYPES: Record<Kind, { label: string; rows: readonly EnchantedType[] }> = {
   armor: {
     label: "Table 7-3",
     rows: [
-      base(1, "Acolchada", 155),
-      base(2, "Cuero", 160),
-      base(17, "Cuero tachonado", 175),
-      base(32, "Camisote de mallas", 250),
-      base(42, "Pieles", 165),
-      base(43, "Cota de escamas", 200),
-      base(44, "Cota de mallas", 300),
-      base(57, "Coraza", 350),
-      base(58, "Laminada", 350),
-      base(59, "Cota de bandas", 400),
-      base(60, "Placas y mallas", 750),
-      base(100, "Completa", 1650),
+      feminine(1, "Acolchada", 155),
+      masculine(2, "Cuero", 160),
+      masculine(17, "Cuero tachonado", 175),
+      masculine(32, "Camisote de mallas", 250),
+      feminine(42, "Pieles", 165),
+      feminine(43, "Cota de escamas", 200),
+      feminine(44, "Cota de mallas", 300),
+      feminine(57, "Coraza", 350),
+      feminine(58, "Laminada", 350),
+      feminine(59, "Cota de bandas", 400),
+      feminine(60, "Placas y mallas", 750),
+      feminine(100, "Completa", 1650),
     ],
   },
   shield: {
     label: "Table 7-4",
     rows: [
-      base(10, "Broquel o rodela", 165),
-      base(15, "Escudo ligero de madera", 153),
-      base(20, "Escudo ligero de acero", 159),
-      base(30, "Escudo pesado de madera", 157),
-      base(95, "Escudo pesado de acero", 170),
-      base(100, "Escudo pavés", 180),
+      masculine(10, "Broquel o rodela", 165),
+      masculine(15, "Escudo ligero de madera", 153),
+      masculine(20, "Escudo ligero de acero", 159),
+      masculine(30, "Escudo pesado de madera", 157),
+      masculine(95, "Escudo pesado de acero", 170),
+      masculine(100, "Escudo pavés", 180),
     ],
   },
 };
@@ -172,55 +194,25 @@ const SPECIFIC: Record<
   },
 };
 
-/** Top of an ability's range in the minor, medium and major columns; "—" is null. */
-type Columns = [number | null, number | null, number | null];
-type AbilityEntry = { ability: SpecialAbility; columns: Columns };
-
-const bonus = (
-  name: string,
-  value: number,
-  columns: Columns,
-  version?: string,
-): AbilityEntry => ({ ability: { name, bonus: value, priceCp: 0, version }, columns });
-
-const fixed = (
-  name: string,
-  po: number,
-  columns: Columns,
-  version?: string,
-): AbilityEntry => ({ ability: { name, bonus: 0, priceCp: gp(po), version }, columns });
-
-/** Splits a table printed with three columns into one row list per category. */
-function byCategory(
-  entries: readonly AbilityEntry[],
-): Record<MagicCategory, readonly AbilityRow[]> {
-  const column = (index: number): AbilityRow[] => [
-    ...entries.flatMap(({ ability, columns }) => {
-      const upTo = columns[index];
-      return upTo === null ? [] : [{ upTo, ability }];
-    }),
-    { upTo: 100, ability: "rollTwice" },
-  ];
-  return { minor: column(0), medium: column(1), major: column(2) };
-}
-
 /**
  * Table 7-5 ("Aptitudes especiales de las armaduras"). Row 100 of every
- * column is "Tira de nuevo dos veces".
+ * column is "Tira de nuevo dos veces". The book prints the feminine forms; the
+ * qualifier of a version ("mejorada", "intensa") agrees with the armor too,
+ * as table 7-6 prints it masculine for the shields.
  *
  * NOTE: the book prints "01-20" for Ilusoria in the minor column and the next
  * row starts at 26; it is given 01-25, as in the original English table.
  */
 const ARMOR_ABILITIES = byCategory([
-  fixed("Ilusoria", 2700, [25, 5, 3]),
+  fixed(["Ilusorio", "Ilusoria"], 2700, [25, 5, 3]),
   bonus("Fortificante leve", 1, [32, 8, 4], "fortificante"),
-  fixed("Resbaladiza", 3750, [52, 11, null], "resbaladiza"),
+  fixed(["Resbaladizo", "Resbaladiza"], 3750, [52, 11, null], "resbaladiza"),
   fixed("De las sombras", 3750, [72, 14, null], "sombras"),
-  fixed("Silenciosa", 3750, [92, 17, null], "silenciosa"),
+  fixed(["Silencioso", "Silenciosa"], 3750, [92, 17, null], "silenciosa"),
   bonus("Resistente a conjuros (13)", 2, [96, 19, null], "conjuros"),
-  fixed("Resbaladiza, mejorada", 15000, [97, 29, 7], "resbaladiza"),
-  fixed("De las sombras, mejorada", 15000, [98, 39, 10], "sombras"),
-  fixed("Silenciosa, mejorada", 15000, [99, 49, 13], "silenciosa"),
+  fixed(["Resbaladizo, mejorado", "Resbaladiza, mejorada"], 15000, [97, 29, 7], "resbaladiza"),
+  fixed(["De las sombras, mejorado", "De las sombras, mejorada"], 15000, [98, 39, 10], "sombras"),
+  fixed(["Silencioso, mejorado", "Silenciosa, mejorada"], 15000, [99, 49, 13], "silenciosa"),
   fixed("Resistente al ácido", 18000, [null, 54, 16], "ácido"),
   fixed("Resistente al frío", 18000, [null, 59, 19], "frío"),
   fixed("Resistente a la electricidad", 18000, [null, 64, 22], "electricidad"),
@@ -228,21 +220,21 @@ const ARMOR_ABILITIES = byCategory([
   fixed("Resistente al sonido", 18000, [null, 74, 28], "sonido"),
   bonus("Fantasmal", 3, [null, 79, 33]),
   bonus("De invulnerabilidad", 3, [null, 84, 35]),
-  bonus("Fortificante moderada", 3, [null, 89, 40], "fortificante"),
+  bonus(["Fortificante moderado", "Fortificante moderada"], 3, [null, 89, 40], "fortificante"),
   bonus("Resistente a conjuros (15)", 3, [null, 94, 42], "conjuros"),
   bonus("Salvaje", 3, [null, 99, 43]),
-  fixed("Resbaladiza, mayor", 37750, [null, null, 48], "resbaladiza"),
+  fixed(["Resbaladizo, mayor", "Resbaladiza, mayor"], 37750, [null, null, 48], "resbaladiza"),
   fixed("De las sombras, mayor", 37750, [null, null, 53], "sombras"),
-  fixed("Silenciosa, mayor", 37750, [null, null, 58], "silenciosa"),
-  fixed("Resistente al ácido, mejorada", 42000, [null, null, 63], "ácido"),
-  fixed("Resistente al frío, mejorada", 42000, [null, null, 68], "frío"),
-  fixed("Resistente a la electricidad, mejorada", 42000, [null, null, 73], "electricidad"),
-  fixed("Resistente al fuego, mejorada", 42000, [null, null, 78], "fuego"),
-  fixed("Resistente al sonido, mejorada", 42000, [null, null, 83], "sonido"),
+  fixed(["Silencioso, mayor", "Silenciosa, mayor"], 37750, [null, null, 58], "silenciosa"),
+  fixed(["Resistente al ácido, mejorado", "Resistente al ácido, mejorada"], 42000, [null, null, 63], "ácido"),
+  fixed(["Resistente al frío, mejorado", "Resistente al frío, mejorada"], 42000, [null, null, 68], "frío"),
+  fixed(["Resistente a la electricidad, mejorado", "Resistente a la electricidad, mejorada"], 42000, [null, null, 73], "electricidad"),
+  fixed(["Resistente al fuego, mejorado", "Resistente al fuego, mejorada"], 42000, [null, null, 78], "fuego"),
+  fixed(["Resistente al sonido, mejorado", "Resistente al sonido, mejorada"], 42000, [null, null, 83], "sonido"),
   bonus("Resistente a conjuros (17)", 4, [null, null, 88], "conjuros"),
   fixed("De etereidad", 49000, [null, null, 89]),
   fixed("De controlar muertos vivientes", 49000, [null, null, 90]),
-  bonus("Fortificante intensa", 5, [null, null, 92], "fortificante"),
+  bonus(["Fortificante intenso", "Fortificante intensa"], 5, [null, null, 92], "fortificante"),
   bonus("Resistente a conjuros (19)", 5, [null, null, 94], "conjuros"),
   fixed("Resistente al ácido, mayor", 66000, [null, null, 95], "ácido"),
   fixed("Resistente al frío, mayor", 66000, [null, null, 96], "frío"),
@@ -257,11 +249,11 @@ const ARMOR_ABILITIES = byCategory([
  */
 const SHIELD_ABILITIES = byCategory([
   bonus("Atrapaflechas", 1, [20, 10, 5]),
-  bonus("Golpeador", 1, [40, 20, 8]),
-  bonus("Cegador", 1, [50, 25, 10]),
+  bonus(["Golpeador", "Golpeadora"], 1, [40, 20, 8]),
+  bonus(["Cegador", "Cegadora"], 1, [50, 25, 10]),
   bonus("Fortificante leve", 1, [75, 40, 15], "fortificante"),
   bonus("Desviaflechas", 2, [92, 50, 20]),
-  bonus("Animado", 2, [97, 57, 25]),
+  bonus(["Animado", "Animada"], 2, [97, 57, 25]),
   bonus("Resistente a conjuros (13)", 2, [99, 59, null], "conjuros"),
   fixed("Resistente al ácido", 18000, [null, 63, 28], "ácido"),
   fixed("Resistente al frío", 18000, [null, 67, 31], "frío"),
@@ -269,17 +261,17 @@ const SHIELD_ABILITIES = byCategory([
   fixed("Resistente al fuego", 18000, [null, 75, 37], "fuego"),
   fixed("Resistente al sonido", 18000, [null, 79, 40], "sonido"),
   bonus("Fantasmal", 3, [null, 85, 46]),
-  bonus("Fortificante moderado", 3, [null, 95, 56], "fortificante"),
+  bonus(["Fortificante moderado", "Fortificante moderada"], 3, [null, 95, 56], "fortificante"),
   bonus("Resistente a conjuros (15)", 3, [null, 98, 58], "conjuros"),
   bonus("Salvaje", 3, [null, 99, 59]),
-  fixed("Resistente al ácido, mejorado", 42000, [null, null, 64], "ácido"),
-  fixed("Resistente al frío, mejorado", 42000, [null, null, 69], "frío"),
-  fixed("Resistente a la electricidad, mejorado", 42000, [null, null, 74], "electricidad"),
-  fixed("Resistente al fuego, mejorado", 42000, [null, null, 79], "fuego"),
-  fixed("Resistente al sonido, mejorado", 42000, [null, null, 84], "sonido"),
+  fixed(["Resistente al ácido, mejorado", "Resistente al ácido, mejorada"], 42000, [null, null, 64], "ácido"),
+  fixed(["Resistente al frío, mejorado", "Resistente al frío, mejorada"], 42000, [null, null, 69], "frío"),
+  fixed(["Resistente a la electricidad, mejorado", "Resistente a la electricidad, mejorada"], 42000, [null, null, 74], "electricidad"),
+  fixed(["Resistente al fuego, mejorado", "Resistente al fuego, mejorada"], 42000, [null, null, 79], "fuego"),
+  fixed(["Resistente al sonido, mejorado", "Resistente al sonido, mejorada"], 42000, [null, null, 84], "sonido"),
   bonus("Resistente a conjuros (17)", 4, [null, null, 86], "conjuros"),
   fixed("De controlar muertos vivientes", 49000, [null, null, 87]),
-  bonus("Fortificante intenso", 5, [null, null, 91], "fortificante"),
+  bonus(["Fortificante intenso", "Fortificante intensa"], 5, [null, null, 91], "fortificante"),
   bonus("Reflectante", 5, [null, null, 93]),
   bonus("Resistente a conjuros (19)", 5, [null, null, 94], "conjuros"),
   fixed("Resistente al ácido, mayor", 66000, [null, null, 95], "ácido"),
@@ -305,7 +297,7 @@ const ABILITIES: Record<
 function keepBest(abilities: readonly SpecialAbility[]): SpecialAbility[] {
   const best = new Map<string, SpecialAbility>();
   for (const ability of abilities) {
-    const key = ability.version ?? ability.name;
+    const key = ability.version ?? ability.name.masculine;
     const kept = best.get(key);
     if (!kept || ability.bonus + ability.priceCp > kept.bonus + kept.priceCp) {
       best.set(key, ability);
@@ -314,17 +306,6 @@ function keepBest(abilities: readonly SpecialAbility[]): SpecialAbility[] {
   return [...best.values()];
 }
 
-/** Rolls d% on a table and keeps the roll. */
-function roll<Row extends { upTo: number }>(
-  label: string,
-  rows: readonly Row[],
-  die: Die,
-  rolls: Roll[],
-): Row {
-  const percentile = rollPercentile(die);
-  rolls.push({ label, dice: "d%", values: [percentile] });
-  return pickRow(rows, percentile);
-}
 
 /** Resolver of the "Armadura y escudos" family: tables 7-2 to 7-8. */
 export function rollMagicArmor(
@@ -334,22 +315,22 @@ export function rollMagicArmor(
   const rolls: Roll[] = [];
   const label = `Table 7-2, ${category}`;
   let abilityCount = 0;
-  let row = roll(label, ARMOR_TABLE[category], die, rolls);
+  let row = rollTable(label, ARMOR_TABLE[category], die, rolls);
   // A specific object can't take an ability, so after "tira de nuevo" one is
   // rolled again.
   while (!("kind" in row) && (abilityCount > 0 || !("specific" in row))) {
     if ("abilityAndRollAgain" in row) abilityCount += 1;
-    row = roll(label, ARMOR_TABLE[category], die, rolls);
+    row = rollTable(label, ARMOR_TABLE[category], die, rolls);
   }
   if ("specific" in row) {
     const specific = SPECIFIC[row.specific];
     const specificLabel = `${specific.label}, ${category}`;
-    const { name, priceCp } = roll(specificLabel, specific.rows[category], die, rolls);
+    const { name, priceCp } = rollTable(specificLabel, specific.rows[category], die, rolls);
     return { name, valueCp: priceCp, rolls };
   }
 
   const types = BASE_TYPES[row.kind];
-  const type = roll(types.label, types.rows, die, rolls);
+  const type = rollTable(types.label, types.rows, die, rolls);
   const table = ABILITIES[row.kind];
   const abilities = keepBest(rollAbilities(
     `${table.label}, ${category}`,

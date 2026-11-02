@@ -1,4 +1,5 @@
 import { pickRow, rollPercentile, type Die } from "./dice";
+import type { MagicCategory } from "./magicTable";
 import type { Roll } from "./treasure";
 
 /**
@@ -12,8 +13,26 @@ const gp = (po: number) => Math.round(po * 100);
 /** Enhancement plus the bonus of the abilities can't go over +10. */
 export const MAX_TOTAL_BONUS = 10;
 
+/** Grammatical gender of a base object, which its abilities agree with. */
+export type Gender = "masculine" | "feminine";
+
+/** A word in the form that agrees with a masculine and a feminine base. */
+export type Gendered = Record<Gender, string>;
+
+/**
+ * An invariable word ("Fortificante leve"), or its masculine and feminine
+ * forms ("Silencioso", "Silenciosa").
+ */
+export function gendered(
+  name: string | readonly [masculine: string, feminine: string],
+): Gendered {
+  return typeof name === "string"
+    ? { masculine: name, feminine: name }
+    : { masculine: name[0], feminine: name[1] };
+}
+
 export type SpecialAbility = {
-  name: string;
+  name: Gendered;
   /** Bonus equivalent ("Bonif. +N"); 0 for an ability with a fixed price. */
   bonus: number;
   /** Fixed price ("+N po") in pc; 0 for an ability priced as a bonus. */
@@ -54,7 +73,11 @@ export function rollAbilities(
 ): SpecialAbility[] {
   const chosen: SpecialAbility[] = [];
   let pending = count;
-  while (pending > 0) {
+  // Once no ability of the table could be accepted (a weapon already at +10),
+  // the rolls still pending are lost instead of rerolled forever.
+  const canAcceptMore = () =>
+    rows.some(({ ability }) => ability !== "rollTwice" && accepts(ability, chosen));
+  while (pending > 0 && canAcceptMore()) {
     const percentile = rollPercentile(die);
     rolls.push({ label, dice: "d%", values: [percentile] });
     const { ability } = pickRow(rows, percentile);
@@ -71,11 +94,11 @@ export function rollAbilities(
 /**
  * Name and price of a magic armor, shield or weapon: the base object, plus the
  * price of its total bonus in `bonusPricesPo` (+1 to +10, as table 7-2 or 7-9
- * prints it), plus the abilities with a fixed price.
- * For example "Coraza +2 silenciosa".
+ * prints it), plus the abilities with a fixed price. The abilities agree with
+ * the gender of the base: "Coraza +2 silenciosa", "Cuero +2 silencioso".
  */
 export function describeMagicGear(
-  base: { name: string; priceCp: number },
+  base: { name: string; priceCp: number; gender: Gender },
   enhancement: number,
   abilities: readonly SpecialAbility[],
   bonusPricesPo: readonly number[],
@@ -85,7 +108,7 @@ export function describeMagicGear(
   if (bonusPrice === undefined) {
     throw new RangeError(`No price for a total bonus of +${total}`);
   }
-  const names = abilities.map((a) => a.name.toLowerCase());
+  const names = abilities.map((a) => a.name[base.gender].toLowerCase());
   const suffix = names.length ? ` ${new Intl.ListFormat("es").format(names)}` : "";
 
   return {
@@ -95,4 +118,57 @@ export function describeMagicGear(
       gp(bonusPrice) +
       abilities.reduce((sum, a) => sum + a.priceCp, 0),
   };
+}
+
+/** Rolls d% on a table and keeps the roll. */
+export function rollTable<Row extends { upTo: number }>(
+  label: string,
+  rows: readonly Row[],
+  die: Die,
+  rolls: Roll[],
+): Row {
+  const percentile = rollPercentile(die);
+  rolls.push({ label, dice: "d%", values: [percentile] });
+  return pickRow(rows, percentile);
+}
+
+/** Top of an ability's range in the minor, medium and major columns; "—" is null. */
+export type Columns = [number | null, number | null, number | null];
+export type AbilityEntry = { ability: SpecialAbility; columns: Columns };
+
+/** An invariable name, or its masculine and feminine forms. */
+type Name = Parameters<typeof gendered>[0];
+
+export const bonus = (
+  name: Name,
+  value: number,
+  columns: Columns,
+  version?: string,
+): AbilityEntry => ({
+  ability: { name: gendered(name), bonus: value, priceCp: 0, version },
+  columns,
+});
+
+export const fixed = (
+  name: Name,
+  po: number,
+  columns: Columns,
+  version?: string,
+): AbilityEntry => ({
+  ability: { name: gendered(name), bonus: 0, priceCp: gp(po), version },
+  columns,
+});
+
+/** Splits a table printed with three columns into one row list per category. */
+export function byCategory(
+  entries: readonly AbilityEntry[],
+): Record<MagicCategory, readonly AbilityRow[]> {
+  const column = (index: number): AbilityRow[] => [
+    ...entries.flatMap(({ ability, columns }) => {
+      const upTo = columns[index];
+      return upTo === null ? [] : [{ upTo, ability }];
+    }),
+    { upTo: 100, ability: "rollTwice" },
+  ];
+  return { minor: column(0), medium: column(1), major: column(2) };
 }
