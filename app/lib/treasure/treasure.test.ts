@@ -7,20 +7,7 @@ import {
   type Treasure,
 } from "./treasure";
 import type { Die } from "./dice";
-
-/**
- * A die that replays `values` in order and fails loudly when the code asks
- * for a roll the test did not plan, or one that cannot come out of that die.
- */
-function fixedDie(...values: number[]): Die {
-  let next = 0;
-  return (sides) => {
-    const value = values[next++];
-    assert.ok(value !== undefined, `unexpected roll of d${sides}`);
-    assert.ok(value >= 1 && value <= sides, `${value} is not a d${sides} roll`);
-    return value;
-  };
-}
+import { fixedDie } from "./testDice";
 
 /**
  * Coins column of table 3-5 copied cell by cell as the DMG prints it, kept

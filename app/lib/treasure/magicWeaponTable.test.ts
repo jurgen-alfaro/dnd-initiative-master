@@ -1,19 +1,7 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { rollMagicItem, type MagicCategory } from "./magicTable";
-import type { Die } from "./dice";
-
-/** A die that replays `values` in order and fails on any unplanned roll. */
-function fixedDie(...values: number[]): Die & { rest: () => number } {
-  let next = 0;
-  const die: Die = (sides) => {
-    const value = values[next++];
-    assert.ok(value !== undefined, `unexpected roll of d${sides}`);
-    assert.ok(value >= 1 && value <= sides, `${value} is not a d${sides} roll`);
-    return value;
-  };
-  return Object.assign(die, { rest: () => values.length - next });
-}
+import { fixedDie } from "./testDice";
 
 /** d% on table 7-1 that gives "Armas" in each category. */
 const WEAPON_FAMILY: Record<MagicCategory, number> = {

@@ -1,19 +1,8 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import type { Die } from "./dice";
+import { fixedDie } from "./testDice";
 import { rollMagicItem, type MagicCategory } from "./magicTable";
 import { BAG_OF_TRICKS_ANIMALS, WONDROUS_TABLES } from "./wondrousTable";
-
-/** Replays `values` in order and fails on any roll the test did not plan. */
-function fixedDie(...values: number[]): Die {
-  let next = 0;
-  return (sides) => {
-    const value = values[next++];
-    assert.ok(value !== undefined, `unexpected roll of d${sides}`);
-    assert.ok(value >= 1 && value <= sides, `${value} is not a d${sides} roll`);
-    return value;
-  };
-}
 
 /** Table 7-1 sends 100 to wondrous objects in every category. */
 const WONDROUS = 100;
