@@ -59,13 +59,13 @@ function maxDie(percentile: number, asked: number[]): Die {
 
 describe("generateTreasure", () => {
   it("should give 1d6×1,000 pc at NE 1 with d% 20", () => {
-    const treasure = generateTreasure(1, fixedDie(20, 4, 1));
+    const treasure = generateTreasure(1, fixedDie(20, 4, 1, 1));
 
     assert.deepEqual(treasure.coins, { pc: 4000, pp: 0, po: 0, ppt: 0 });
   });
 
   it("should keep the d% and each die of the coins roll", () => {
-    const treasure = generateTreasure(1, fixedDie(60, 3, 5, 1));
+    const treasure = generateTreasure(1, fixedDie(60, 3, 5, 1, 1));
 
     assert.deepEqual(treasure.coins, { pc: 0, pp: 0, po: 80, ppt: 0 });
     assert.deepEqual(
@@ -78,7 +78,7 @@ describe("generateTreasure", () => {
   });
 
   it("should keep only the d% when the coins column gives nothing", () => {
-    const treasure = generateTreasure(20, fixedDie(2, 1));
+    const treasure = generateTreasure(20, fixedDie(2, 1, 1));
 
     assert.deepEqual(
       treasure.coinRolls.map((r) => [r.dice, r.values]),
@@ -253,7 +253,7 @@ const gemNames = (examples: string) =>
 describe("generateTreasure gems and art", () => {
   it("should give one gem at NE 1 with d% 91", () => {
     // coins: none; column: 91; gem: d% 1 (4d4 po), its 4 dice, first example
-    const treasure = generateTreasure(1, fixedDie(1, 91, 1, 1, 2, 3, 4, 1));
+    const treasure = generateTreasure(1, fixedDie(1, 91, 1, 1, 2, 3, 4, 1, 1));
 
     assert.equal(treasure.items.length, 1);
     const [gem] = treasure.items;
@@ -276,7 +276,7 @@ describe("generateTreasure gems and art", () => {
     // Gem 2: d% 26, 2+2 ×10, example 2.
     const treasure = generateTreasure(
       2,
-      fixedDie(1, 82, 2, 1, 1, 1, 1, 1, 1, 26, 2, 2, 2),
+      fixedDie(1, 82, 2, 1, 1, 1, 1, 1, 1, 26, 2, 2, 2, 1),
     );
 
     assert.deepEqual(
@@ -290,7 +290,7 @@ describe("generateTreasure gems and art", () => {
 
   it("should give an art object at NE 1 with d% 96", () => {
     // art: d% 100 (2d6×1.000 po), 2+6, example 2
-    const treasure = generateTreasure(1, fixedDie(1, 96, 100, 2, 6, 2));
+    const treasure = generateTreasure(1, fixedDie(1, 96, 100, 2, 6, 2, 1));
 
     assert.deepEqual(
       treasure.items.map((i) => [i.category, i.name, i.valueCp]),
@@ -299,7 +299,7 @@ describe("generateTreasure gems and art", () => {
   });
 
   it("should include the gems and art in the total and the announcement", () => {
-    const treasure = generateTreasure(1, fixedDie(1, 91, 1, 1, 2, 3, 4, 1));
+    const treasure = generateTreasure(1, fixedDie(1, 91, 1, 1, 2, 3, 4, 1, 1));
 
     assert.equal(totalValueCp(treasure), 1000);
     assert.deepEqual(formatIndividualAnnouncement(treasure, "Aria"), [
@@ -359,7 +359,7 @@ describe("generateTreasure gems and art", () => {
             names.forEach((name, i) => {
               const treasure = generateTreasure(
                 1,
-                fixedDie(1, column, percentile, ...Array(count).fill(face), i + 1),
+                fixedDie(1, column, percentile, ...Array(count).fill(face), i + 1, 1),
               );
 
               assert.deepEqual(treasure.items.map((x) => [x.category, x.name, x.valueCp]), [
