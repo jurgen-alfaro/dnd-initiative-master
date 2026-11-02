@@ -59,7 +59,7 @@ const MINOR = rows([
   ["Polvo de aparición", 1800],
   ["Sombrero de disfraz", 1800],
   ["Flauta del son", 1800],
-  ["Carcaj de Ehlonnna", 1800],
+  ["Carcaj de Ehlonna", 1800],
   ["Amuleto de armadura natural (+1)", 2000],
   ["Morral práctico de Heward", 2000],
   ["Cuerno de niebla", 2000],
@@ -107,7 +107,7 @@ const MINOR = rows([
   ["Piedra Ioun (prisma rosa turbio)", 5000],
   ["Yelmo de comprensión idiomática y leer magia", 5200],
   ["Atuendo de fuga", 5200],
-  ["Botella siemprehumeante", 5400],
+  ["Botella humeante", 5400],
   ["Cuchara de Murlynd", 5400],
   ["Collar de bolas de fuego (tipo IV)", 5400],
   ["Botas de zancadas y brincos", 5500],
@@ -258,7 +258,7 @@ const MAJOR = rows([
   ["Piedra Ioun (elipsoide lavanda y verde)", 40000],
   ["Anillo umbral", 40000],
   ["Bola de cristal", 42000],
-  ["Manual gólem de piedra mayal", 44000],
+  ["Manual de gólem de piedra mayor", 44000],
   ["Orbe de las tormentas", 48000],
   ["Botas de teletransporte", 49000],
   ["Brazales de armadura (+7)", 49000],
@@ -353,8 +353,8 @@ type AnimalRow = { upTo: number; animal: string };
 /**
  * Animals of a bag of tricks, one subtable per colour (printed under table
  * 7-29). The capture prints Rinoceronte (91-100) in the rust column, which
- * overlaps Oso negro (86-100); it is placed in the tan column, where the
- * original 3.5 table has it and which leaves 91-100 covered there.
+ * overlaps Oso negro (86-100); it goes in the tan column, where the original
+ * 3.5 table has it and where the author confirmed it.
  */
 export const BAG_OF_TRICKS_ANIMALS: Record<BagColor, readonly AnimalRow[]> = {
   gris: [
