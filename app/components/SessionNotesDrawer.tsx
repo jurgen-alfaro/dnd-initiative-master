@@ -27,7 +27,7 @@ interface SessionNotesDrawerProps {
 }
 
 /** Returns today's date as a `yyyy-mm-dd` string in local time. */
-function todayInputValue(): string {
+export function todayInputValue(): string {
   const now = new Date();
   const local = new Date(now.getTime() - now.getTimezoneOffset() * 60000);
   return local.toISOString().slice(0, 10);

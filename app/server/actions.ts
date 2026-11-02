@@ -34,9 +34,12 @@ import {
 } from "@/app/lib/combat/turnCalculator";
 import { notifyPartyChanged, notifyPartyMessage } from "@/app/lib/pusher-server";
 import { toSafeCombatant } from "@/app/server/combatant-view";
+import { formatPartyAnnouncement } from "@/app/lib/treasure/party";
 import {
+  CoinsSchema,
   formatIndividualAnnouncement,
   TreasureSchema,
+  type Coins,
   type Treasure,
 } from "@/app/lib/treasure/treasure";
 import {
@@ -255,6 +258,23 @@ const DeliverIndividualTreasureSchema = z.object({
   dmToken: z.string().min(1),
   combatantId: z.number().int().positive(),
   treasure: TreasureSchema,
+});
+
+const DeliverPartyTreasureSchema = z.object({
+  partyCode: PartyCodeSchema,
+  dmToken: z.string().min(1),
+  treasure: TreasureSchema,
+  shares: z
+    .array(
+      z.object({
+        combatantId: z.number().int().positive(),
+        coins: CoinsSchema,
+        itemIndexes: z.array(z.number().int().min(0)).max(200),
+      }),
+    )
+    .min(1)
+    .max(100),
+  sessionDate: z.coerce.date(),
 });
 
 const MarkThreadReadSchema = z.object({
@@ -1873,6 +1893,85 @@ export async function deliverIndividualTreasure(
     return { success: true };
   } catch (error) {
     console.error("Error delivering treasure:", error);
+    return { error: "Error delivering treasure" };
+  }
+}
+
+/**
+ * Delivers a tesoro de party: announces the whole reparto as a public session
+ * note dated today (several numbered notes if it is too long). Only the DM may
+ * deliver, and every recipient must be a PJ of the party. The DM is trusted,
+ * so the treasure is not re-rolled, but each item must go to exactly one PJ.
+ */
+export async function deliverPartyTreasure(
+  partyCode: string,
+  dmToken: string,
+  treasure: Treasure,
+  shares: { combatantId: number; coins: Coins; itemIndexes: number[] }[],
+  sessionDate: string,
+): Promise<ActionResult> {
+  const validated = DeliverPartyTreasureSchema.safeParse({
+    partyCode,
+    dmToken,
+    treasure,
+    shares,
+    sessionDate,
+  });
+  if (!validated.success) {
+    return { error: "Invalid data" };
+  }
+
+  const data = validated.data;
+  const ids = data.shares.map((s) => s.combatantId);
+  const assigned = data.shares.flatMap((s) => s.itemIndexes).sort((a, b) => a - b);
+  const isEveryItemAssignedOnce =
+    assigned.length === data.treasure.items.length &&
+    assigned.every((index, i) => index === i);
+  if (new Set(ids).size !== ids.length || !isEveryItemAssignedOnce) {
+    return { error: "Invalid data" };
+  }
+
+  try {
+    const party = await getPartyByCode(data.partyCode);
+    if (!party) return { error: "Party not found" };
+    if (data.dmToken !== party.dmToken) return { error: "Not authorized" };
+
+    const recipients = await db.query.combatants.findMany({
+      where: and(
+        eq(combatants.partyId, party.id),
+        eq(combatants.type, "player"),
+        inArray(combatants.id, ids),
+      ),
+    });
+    if (recipients.length !== ids.length) {
+      return { error: "Treasure can only go to player characters of the party" };
+    }
+
+    const nameById = new Map(recipients.map((c) => [c.id, c.name]));
+    const parts = formatPartyAnnouncement(
+      data.treasure,
+      data.shares.map((share) => ({
+        // NOTE: every id was just matched against `recipients`, so the name exists.
+        name: nameById.get(share.combatantId) ?? "",
+        coins: share.coins,
+        itemIndexes: share.itemIndexes,
+      })),
+    );
+
+    await db.insert(notes).values(
+      parts.map((content) => ({
+        partyId: party.id,
+        content,
+        visibility: "public" as const,
+        sessionDate: data.sessionDate,
+      })),
+    );
+
+    revalidatePath(`/party/${party.code}`);
+    await notifyPartyChanged(party.code);
+    return { success: true };
+  } catch (error) {
+    console.error("Error delivering party treasure:", error);
     return { error: "Error delivering treasure" };
   }
 }
