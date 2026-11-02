@@ -35,6 +35,11 @@ import {
 import { notifyPartyChanged, notifyPartyMessage } from "@/app/lib/pusher-server";
 import { toSafeCombatant } from "@/app/server/combatant-view";
 import {
+  formatIndividualAnnouncement,
+  TreasureSchema,
+  type Treasure,
+} from "@/app/lib/treasure/treasure";
+import {
   messageRetentionCutoff,
   resolveMessageAccess,
 } from "@/app/server/messages";
@@ -243,6 +248,13 @@ const SendMessageSchema = z.object({
     .max(2000, "Message is too long"),
   dmToken: z.string().min(1).nullable(),
   deviceId: DeviceIdSchema.nullable(),
+});
+
+const DeliverIndividualTreasureSchema = z.object({
+  partyCode: PartyCodeSchema,
+  dmToken: z.string().min(1),
+  combatantId: z.number().int().positive(),
+  treasure: TreasureSchema,
 });
 
 const MarkThreadReadSchema = z.object({
@@ -1791,5 +1803,76 @@ export async function markThreadRead(
   } catch (error) {
     console.error("Error marking thread as read:", error);
     return { error: "Error updating messages" };
+  }
+}
+
+// --- Treasure Actions ---
+
+/**
+ * Delivers a tesoro individual: announces it as one or more DM messages in the
+ * recipient's private thread. Only the DM may deliver, and only to a claimed
+ * PJ of the party, so nobody but that player reads it. The DM is trusted, so
+ * the treasure is not re-rolled or checked against the tables.
+ */
+export async function deliverIndividualTreasure(
+  partyCode: string,
+  dmToken: string,
+  combatantId: number,
+  treasure: Treasure,
+): Promise<ActionResult> {
+  const validated = DeliverIndividualTreasureSchema.safeParse({
+    partyCode,
+    dmToken,
+    combatantId,
+    treasure,
+  });
+  if (!validated.success) {
+    return { error: "Invalid data" };
+  }
+
+  try {
+    const access = await resolveMessageAccess(
+      validated.data.partyCode,
+      validated.data.dmToken,
+      null,
+    );
+
+    if (access.role === "not-found") return { error: "Party not found" };
+    if (access.role !== "dm") return { error: "Not authorized" };
+
+    const target = await db.query.combatants.findFirst({
+      where: and(
+        eq(combatants.id, validated.data.combatantId),
+        eq(combatants.partyId, access.partyId),
+      ),
+    });
+
+    if (!target) return { error: "Character not found" };
+    if (target.type !== "player") {
+      return { error: "Treasure can only go to a player character" };
+    }
+    if (target.claimedByDeviceId === null) {
+      return { error: "That character hasn't been claimed yet" };
+    }
+
+    const parts = formatIndividualAnnouncement(
+      validated.data.treasure,
+      target.name,
+    );
+
+    await db.insert(messages).values(
+      parts.map((body) => ({
+        partyId: access.partyId,
+        combatantId: target.id,
+        sender: "dm" as const,
+        body,
+      })),
+    );
+
+    await notifyPartyMessage(access.partyCode);
+    return { success: true };
+  } catch (error) {
+    console.error("Error delivering treasure:", error);
+    return { error: "Error delivering treasure" };
   }
 }
