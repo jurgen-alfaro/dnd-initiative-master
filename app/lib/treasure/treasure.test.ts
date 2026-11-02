@@ -237,6 +237,19 @@ function parseValue(value: string) {
 
 const capitalize = (text: string) => text[0].toUpperCase() + text.slice(1);
 
+/**
+ * Gem examples name one gem per colour or variety: "perla blanca, dorada o
+ * argéntea" → "Perla blanca", "Perla dorada", "Perla argéntea".
+ */
+const gemNames = (examples: string) =>
+  examples.split("; ").flatMap((example) => {
+    const [noun, ...rest] = example.split(" ");
+    const varieties = rest.join(" ").split(/, | o /);
+    return varieties.length > 1
+      ? varieties.map((variety) => capitalize(`${noun} ${variety}`))
+      : [capitalize(example)];
+  });
+
 describe("generateTreasure gems and art", () => {
   it("should give one gem at NE 1 with d% 91", () => {
     // coins: none; column: 91; gem: d% 1 (4d4 po), its 4 dice, first example
@@ -245,7 +258,7 @@ describe("generateTreasure gems and art", () => {
     assert.equal(treasure.items.length, 1);
     const [gem] = treasure.items;
     assert.equal(gem.category, "gem");
-    assert.equal(gem.name, "Ágata listada, musgosa o aojada");
+    assert.equal(gem.name, "Ágata listada");
     assert.equal(gem.valueCp, 10 * 100);
     assert.deepEqual(
       gem.rolls.map((r) => [r.dice, r.values]),
@@ -253,7 +266,7 @@ describe("generateTreasure gems and art", () => {
         ["d%", [91]],
         ["d%", [1]],
         ["4d4 po", [1, 2, 3, 4]],
-        ["d10", [1]],
+        ["d12", [1]],
       ],
     );
   });
@@ -269,7 +282,7 @@ describe("generateTreasure gems and art", () => {
     assert.deepEqual(
       treasure.items.map((i) => [i.category, i.name, i.valueCp]),
       [
-        ["gem", "Ágata listada, musgosa o aojada", 400],
+        ["gem", "Ágata listada", 400],
         ["gem", "Cornalina", 4000],
       ],
     );
@@ -290,7 +303,7 @@ describe("generateTreasure gems and art", () => {
 
     assert.equal(totalValueCp(treasure), 1000);
     assert.deepEqual(formatIndividualAnnouncement(treasure, "Aria"), [
-      "Treasure for Aria\n- Ágata listada, musgosa o aojada (10 po)\nTotal: 10 po",
+      "Treasure for Aria\n- Ágata listada (10 po)\nTotal: 10 po",
     ]);
   });
 
@@ -331,14 +344,14 @@ describe("generateTreasure gems and art", () => {
     }
   }
 
-  for (const [category, label, book, column] of [
-    ["gem", "gem", BOOK_GEMS, 91],
-    ["art", "art object", BOOK_ART, 96],
+  for (const [category, label, book, column, toNames] of [
+    ["gem", "gem", BOOK_GEMS, 91, gemNames],
+    ["art", "art object", BOOK_ART, 96, (e: string) => e.split("; ").map(capitalize)],
   ] as const) {
     for (const [range, value, examples] of book) {
       const [low, high = low] = range.split("-").map(Number);
       const { count, sides, times } = parseValue(value);
-      const names = examples.split("; ").map(capitalize);
+      const names = toNames(examples);
 
       for (const percentile of new Set([low, high])) {
         it(`should give a ${label} worth ${value} for d% ${percentile}`, () => {
