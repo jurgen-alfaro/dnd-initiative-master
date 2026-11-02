@@ -155,6 +155,35 @@ describe("magic armor and shields (tables 7-2 to 7-8)", () => {
     });
   });
 
+  describe("grammatical gender", () => {
+    it("should make the abilities agree with a masculine armor", () => {
+      // 7-2 minor 92 → 61-80 Armadura +1 → 7-3 02 Cuero (+160) → 7-5 minor
+      // 73-92 Silenciosa (+3.750 po). 160 + 1.000 + 3.750 = 4.910 po.
+      assert.deepEqual(rollArmor("minor", 92, 70, 2, 80), {
+        name: "Cuero +1 silencioso",
+        po: 4910,
+      });
+    });
+
+    it("should make the qualifier of a version agree with the armor", () => {
+      // 7-3 03-17 Cuero tachonado (+175) → 7-5 minor 97 Resbaladiza, mejorada
+      // (+15.000 po). 175 + 1.000 + 15.000 = 16.175 po.
+      assert.deepEqual(rollArmor("minor", 92, 70, 10, 97), {
+        name: "Cuero tachonado +1 resbaladizo, mejorado",
+        po: 16175,
+      });
+    });
+
+    it("should leave an invariable ability as the book prints it", () => {
+      // 7-3 18-32 Camisote de mallas (+250) → 7-5 minor 26-32 Fortificante
+      // leve (Bonif. +1): 250 + 4.000 = 4.250 po.
+      assert.deepEqual(rollArmor("minor", 92, 70, 20, 30), {
+        name: "Camisote de mallas +1 fortificante leve",
+        po: 4250,
+      });
+    });
+  });
+
   it("should roll again an ability that takes the total bonus over +10", () => {
     // 7-2 major 64, 64, then 50-57 Armadura +5 → Coraza (+350) → 7-5 major
     // 91-92 Fortificante intensa (+5, total +10), 93-94 Resistente a conjuros

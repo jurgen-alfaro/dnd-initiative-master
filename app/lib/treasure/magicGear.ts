@@ -12,8 +12,26 @@ const gp = (po: number) => Math.round(po * 100);
 /** Enhancement plus the bonus of the abilities can't go over +10. */
 export const MAX_TOTAL_BONUS = 10;
 
+/** Grammatical gender of a base object, which its abilities agree with. */
+export type Gender = "masculine" | "feminine";
+
+/** A word in the form that agrees with a masculine and a feminine base. */
+export type Gendered = Record<Gender, string>;
+
+/**
+ * An invariable word ("Fortificante leve"), or its masculine and feminine
+ * forms ("Silencioso", "Silenciosa").
+ */
+export function gendered(
+  name: string | readonly [masculine: string, feminine: string],
+): Gendered {
+  return typeof name === "string"
+    ? { masculine: name, feminine: name }
+    : { masculine: name[0], feminine: name[1] };
+}
+
 export type SpecialAbility = {
-  name: string;
+  name: Gendered;
   /** Bonus equivalent ("Bonif. +N"); 0 for an ability with a fixed price. */
   bonus: number;
   /** Fixed price ("+N po") in pc; 0 for an ability priced as a bonus. */
@@ -71,11 +89,11 @@ export function rollAbilities(
 /**
  * Name and price of a magic armor, shield or weapon: the base object, plus the
  * price of its total bonus in `bonusPricesPo` (+1 to +10, as table 7-2 or 7-9
- * prints it), plus the abilities with a fixed price.
- * For example "Coraza +2 silenciosa".
+ * prints it), plus the abilities with a fixed price. The abilities agree with
+ * the gender of the base: "Coraza +2 silenciosa", "Cuero +2 silencioso".
  */
 export function describeMagicGear(
-  base: { name: string; priceCp: number },
+  base: { name: string; priceCp: number; gender: Gender },
   enhancement: number,
   abilities: readonly SpecialAbility[],
   bonusPricesPo: readonly number[],
@@ -85,7 +103,7 @@ export function describeMagicGear(
   if (bonusPrice === undefined) {
     throw new RangeError(`No price for a total bonus of +${total}`);
   }
-  const names = abilities.map((a) => a.name.toLowerCase());
+  const names = abilities.map((a) => a.name[base.gender].toLowerCase());
   const suffix = names.length ? ` ${new Intl.ListFormat("es").format(names)}` : "";
 
   return {
