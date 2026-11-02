@@ -150,7 +150,7 @@ export function formatIndividualAnnouncement(
 }
 
 /** Packs whole lines into texts of at most `limit` characters. */
-function splitIntoParts(
+export function splitIntoParts(
   title: string,
   lines: string[],
   limit: number,
