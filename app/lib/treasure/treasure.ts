@@ -59,7 +59,7 @@ export type ItemCategory = z.infer<typeof ItemCategorySchema>;
 /** An indivisible object of a treasure, with the rolls that produced it. */
 export const TreasureItemSchema = z.object({
   category: ItemCategorySchema,
-  name: z.string().min(1).max(200),
+  name: z.string().min(1).max(500),
   valueCp: z.number().int().min(0),
   rolls: z.array(RollSchema).max(50),
 });
@@ -171,7 +171,7 @@ export function splitIntoParts(
 
   // Room for the widest header possible: never more parts than lines.
   // ponytail: a single line longer than the budget overflows its part; the
-  // schema caps item names at 200 characters, far below any channel limit.
+  // schema caps item names at 500 characters, far below any channel limit.
   const budget = limit - `${title} (${lines.length}/${lines.length})\n`.length;
   const chunks: string[][] = [];
   let size = Infinity;
