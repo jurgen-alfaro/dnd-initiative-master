@@ -149,7 +149,7 @@ const RANGED_WEAPONS: readonly Node[] = [
  * to (7-11 to 7-13).
  *
  * NOTE: the book prints no quantity and no price for the antorcha
- * siempreardiente; it is given price 0, which the announcement leaves out.
+ * siempreardiente; it uses the SRD price of 110 po, as the author chose.
  */
 const MUNDANE_TABLE: readonly Node[] = [
   {
@@ -161,7 +161,7 @@ const MUNDANE_TABLE: readonly Node[] = [
       alchemical(36, "Ahumadera", "1d4", 20),
       alchemical(48, "Agua bendita", "1d4", 25),
       alchemical(62, "Contraveneno", "1d4", 50),
-      item(74, "Antorcha siempreardiente", 0),
+      item(74, "Antorcha siempreardiente", 110),
       alchemical(88, "Bolsas de maraña", "1d4", 50),
       alchemical(100, "Piedras de trueno", "1d4", 30),
     ],
