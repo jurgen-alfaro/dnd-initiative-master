@@ -200,6 +200,13 @@ function TreasureGeneratorForm({
             />
           ))
         )}
+        {treasure.items.map((item, i) => (
+          <PreviewLine
+            key={i}
+            label={`${item.name} (${formatCpAsGp(item.valueCp)})`}
+            rolls={item.rolls}
+          />
+        ))}
         <p className="border-t border-dnd-gold/20 pt-2 text-sm font-heading text-dnd-gold">
           Total: {formatCpAsGp(totalValueCp(treasure))}
         </p>
