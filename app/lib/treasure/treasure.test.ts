@@ -1,6 +1,10 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { generateTreasure } from "./treasure";
+import {
+  formatIndividualAnnouncement,
+  generateTreasure,
+  type Treasure,
+} from "./treasure";
 import type { Die } from "./dice";
 
 /**
@@ -112,4 +116,52 @@ describe("generateTreasure", () => {
       }
     }
   }
+});
+
+describe("formatIndividualAnnouncement", () => {
+  const empty: Treasure = {
+    level: 1,
+    coins: { pc: 0, pp: 0, po: 0, ppt: 0 },
+    coinRolls: [],
+    items: [],
+  };
+
+  it("should list the coins from platinum down and the total in po", () => {
+    const parts = formatIndividualAnnouncement(
+      { ...empty, coins: { pc: 4005, pp: 0, po: 80, ppt: 3 } },
+      "Aria",
+    );
+
+    assert.deepEqual(parts, [
+      "Treasure for Aria\n- 3 ppt\n- 80 po\n- 4,005 pc\nTotal: 150.05 po",
+    ]);
+  });
+
+  it("should say so when the treasure is empty", () => {
+    assert.deepEqual(formatIndividualAnnouncement(empty, "Aria"), [
+      "Treasure for Aria\n- Nothing\nTotal: 0 po",
+    ]);
+  });
+
+  it("should split an announcement over 2,000 characters into numbered parts", () => {
+    const items = Array.from({ length: 120 }, (_, i) => ({
+      category: "gem" as const,
+      name: `Gema de prueba ${i + 1}`,
+      valueCp: 1250,
+      rolls: [],
+    }));
+
+    const parts = formatIndividualAnnouncement({ ...empty, items }, "Aria");
+
+    assert.ok(parts.length > 1);
+    parts.forEach((part, i) => {
+      assert.ok(part.length <= 2000, `part ${i + 1} has ${part.length} chars`);
+      assert.ok(part.startsWith(`Treasure for Aria (${i + 1}/${parts.length})\n`));
+    });
+    const body = parts.flatMap((p) => p.split("\n").slice(1));
+    assert.deepEqual(body, [
+      ...items.map((item) => `- ${item.name} (12.5 po)`),
+      "Total: 1,500 po",
+    ]);
+  });
 });
