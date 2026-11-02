@@ -236,7 +236,7 @@ const BOOK_ALCHEMICAL = [
   "25-36|Ahumadera|1d4|20",
   "37-48|Agua bendita|1d4|25",
   "49-62|Contraveneno|1d4|50",
-  "63-74|Antorcha siempreardiente||0",
+  "63-74|Antorcha siempreardiente||110",
   "75-88|Bolsas de maraña|1d4|50",
   "89-100|Piedras de trueno|1d4|30",
 ];
