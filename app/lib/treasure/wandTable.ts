@@ -11,7 +11,8 @@ const e = entry;
  * "Sugestión". Read as Intermedia 58-59 and no Mayor.
  *
  * NOTE: "Rayo relampagueante (5.°)" (mayor 20-21) prints 13.500 po, the price
- * of the 6th-level ones; "Bola de fuego (5.°)" prints 11.250 po. Kept as printed.
+ * of the 6th-level ones; it uses 11.250 po like "Bola de fuego (5.°)", as the
+ * author chose.
  */
 export const WAND_ROWS: readonly ColumnRow[] = [
   e("01-02", "-", "-", "Detectar magia", 375),
@@ -59,7 +60,7 @@ export const WAND_ROWS: readonly ColumnRow[] = [
   e("-", "75-77", "14-15", "Disipar magia", 11250),
   e("-", "78-81", "16-17", "Bola de fuego (5.°)", 11250),
   e("-", "82-83", "18-19", "Afiladura", 11250),
-  e("-", "84-87", "20-21", "Rayo relampagueante (5.°)", 13500),
+  e("-", "84-87", "20-21", "Rayo relampagueante (5.°)", 11250),
   e("-", "88-89", "22-23", "Imagen mayor", 11250),
   e("-", "90-91", "24-25", "Ralentizar", 11250),
   e("-", "92-94", "26-27", "Sugestión", 11250),

@@ -107,7 +107,7 @@ const MINOR = rows([
   ["Piedra Ioun (prisma rosa turbio)", 5000],
   ["Yelmo de comprensión idiomática y leer magia", 5200],
   ["Atuendo de fuga", 5200],
-  ["Botella humeante", 5400],
+  ["Botella siemprehumeante", 5400],
   ["Cuchara de Murlynd", 5400],
   ["Collar de bolas de fuego (tipo IV)", 5400],
   ["Botas de zancadas y brincos", 5500],

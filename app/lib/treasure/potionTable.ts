@@ -7,7 +7,7 @@ const e = entry;
  * Table 7-20: Pociones y aceites, columns Menor / Intermedio / Mayor.
  *
  * NOTE: the capture prints "50 po" for "Curar heridas graves" (intermedio
- * 56-60, mayor 21-28), where its CL 5 price would be 750 po. Kept as printed.
+ * 56-60, mayor 21-28); it uses its CL 5 price of 750 po, as the author chose.
  */
 export const POTION_ROWS: readonly ColumnRow[] = [
   e("01-10", "-", "-", "Curar heridas leves (poción)", 50),
@@ -54,7 +54,7 @@ export const POTION_ROWS: readonly ColumnRow[] = [
   e("-", "51", "16", "Piel robliza +3 (poción)", 600),
   e("-", "52", "17-18", "Escudo de la fe +4 (poción)", 600),
   e("-", "53-55", "19-20", "Resistir energía (tipo) 20 (poción)", 700),
-  e("-", "56-60", "21-28", "Curar heridas graves (poción)", 50),
+  e("-", "56-60", "21-28", "Curar heridas graves (poción)", 750),
   e("-", "61", "29", "Luz del día (aceite)", 750),
   e("-", "62-64", "30-32", "Desplazamiento (poción)", 750),
   e("-", "65", "33", "Flecha flamígera (aceite)", 750),
