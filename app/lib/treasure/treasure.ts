@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { COIN_TABLE } from "./coinTable";
 import { pickRow, rollDice, rollPercentile, type Die } from "./dice";
+import { rollValuables } from "./valuables";
 
 /**
  * Treasure generator for the DMG 3.5 tables (see ADR-0001). Pure logic: no
@@ -84,7 +85,8 @@ export function generateTreasure(level: number, die: Die): Treasure {
   const coinRolls: Roll[] = [{ label, dice: "d%", values: [percentile] }];
   const row = pickRow(rows, percentile);
   if (!row.dice) {
-    return { level, coins: NO_COINS, coinRolls, items: [] };
+    const items = rollValuables(level, die);
+    return { level, coins: NO_COINS, coinRolls, items };
   }
 
   const values = rollDice(die, row.dice);
@@ -99,7 +101,7 @@ export function generateTreasure(level: number, die: Die): Treasure {
     level,
     coins: { ...NO_COINS, [row.coin]: amount },
     coinRolls,
-    items: [],
+    items: rollValuables(level, die),
   };
 }
 
