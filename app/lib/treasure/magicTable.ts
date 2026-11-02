@@ -1,5 +1,11 @@
 import { pickRow, type Die } from "./dice";
 import { rollMagicArmor } from "./magicArmorTable";
+import { rollPotion } from "./potionTable";
+import { rollRing } from "./ringTable";
+import { rollRod } from "./rodTable";
+import { rollStaff } from "./staffTable";
+import { rollWand } from "./wandTable";
+import { rollWondrous } from "./wondrousTable";
 import type { ItemCategory, Roll, TreasureItem } from "./treasure";
 
 /** Categories of magic objects: menor, intermedio, mayor. */
@@ -84,6 +90,12 @@ export type MagicResolvers = Partial<Record<MagicFamily, MagicResolver>>;
  */
 export const MAGIC_RESOLVERS: MagicResolvers = {
   armor: rollMagicArmor,
+  potion: rollPotion,
+  ring: rollRing,
+  rod: rollRod,
+  staff: rollStaff,
+  wand: rollWand,
+  wondrous: rollWondrous,
 };
 
 /** Rolls a magic object of `category`: table 7-1, then the family's resolver. */

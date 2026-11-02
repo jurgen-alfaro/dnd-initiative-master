@@ -1,7 +1,7 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { formatIndividualAnnouncement, generateTreasure } from "./treasure";
-import { rollMagicItem, type MagicResolvers } from "./magicTable";
+import { rollMagicItem, type MagicCategory, type MagicResolvers } from "./magicTable";
 import type { Die } from "./dice";
 
 /**
@@ -60,8 +60,16 @@ const BOOK_GOODS: Record<number, string[]> = {
   20: ["01-25 —", "26-65 1d4 intermedios", "66-100 1d3 mayores"],
 };
 
-/** The rolls that resolve one item of each category: tools #1, or family #1. */
-const ITEM_ROLLS = { mundane: [84, 1], minor: [1], medium: [1], major: [1] };
+/**
+ * The rolls that resolve one item of each category: tools #1, or family #1
+ * (armor) with row #1 of table 7-2 (an enchanted shield) and of table 7-4.
+ */
+const ITEM_ROLLS = {
+  mundane: [84, 1],
+  minor: [1, 1, 1],
+  medium: [1, 1, 1],
+  major: [1, 1, 1],
+};
 
 describe("generateTreasure objects column (table 3-5)", () => {
   for (const [level, cells] of Object.entries(BOOK_GOODS)) {
@@ -158,16 +166,8 @@ const BOOK_MAGIC: Record<"minor" | "medium" | "major", string[]> = {
   ],
 };
 
-/** A way to reach a magic object of each category through table 3-5. */
-const MAGIC_PATH = {
-  minor: { level: 1, goods: 96 },
-  medium: { level: 6, goods: 100 },
-  major: { level: 10, goods: 100 },
-} as const;
-
 describe("generateTreasure magic family (table 7-1)", () => {
   for (const [category, cells] of Object.entries(BOOK_MAGIC)) {
-    const { level, goods } = MAGIC_PATH[category as keyof typeof MAGIC_PATH];
     const word = { minor: "menor", medium: "intermedio", major: "mayor" }[category];
 
     it(`should give the family printed for every d% in the ${category} column`, () => {
@@ -179,11 +179,12 @@ describe("generateTreasure magic family (table 7-1)", () => {
         assert.ok(cell, `d% ${percentile} must have a row in ${category}`);
         const family = cell.slice(cell.indexOf(" ") + 1);
 
-        const treasure = generateTreasure(level, fixedDie(1, 1, goods, percentile));
+        // No resolvers: this test is about table 7-1 only, so every family stays unresolved.
+        const item = rollMagicItem(category as MagicCategory, fixedDie(percentile), {});
 
         assert.deepEqual(
-          treasure.items.map((i) => [i.category, i.name, i.valueCp]),
-          [[category, `Objeto mágico ${word}: ${family}`, 0]],
+          [item.category, item.name, item.valueCp],
+          [category, `Objeto mágico ${word}: ${family}`, 0],
           `${category} d% ${percentile}`,
         );
       }
@@ -191,13 +192,14 @@ describe("generateTreasure magic family (table 7-1)", () => {
   }
 
   it("should keep the family roll on the item", () => {
-    const treasure = generateTreasure(1, fixedDie(1, 1, 96, 20));
+    const treasure = generateTreasure(1, fixedDie(1, 1, 96, 20, 33));
 
     assert.deepEqual(
       treasure.items[0].rolls.map((r) => [r.dice, r.values]),
       [
         ["d%", [96]],
         ["d%", [20]],
+        ["d%", [33]],
       ],
     );
   });
@@ -223,15 +225,15 @@ describe("rollMagicItem family resolvers", () => {
 });
 
 describe("formatIndividualAnnouncement objects", () => {
-  it("should show the price of a mundane object and none for an unresolved magic one", () => {
+  it("should show the price of a mundane object and of a resolved magic one", () => {
     const mundaneTreasure = generateTreasure(1, fixedDie(1, 1, 72, 18, 19, 11));
-    const magicTreasure = generateTreasure(1, fixedDie(1, 1, 96, 10));
+    const magicTreasure = generateTreasure(1, fixedDie(1, 1, 96, 10, 1));
 
     assert.deepEqual(formatIndividualAnnouncement(mundaneTreasure, "Aria"), [
       "Treasure for Aria\n- Coraza (Mediana) (200 po)\nTotal: 200 po",
     ]);
     assert.deepEqual(formatIndividualAnnouncement(magicTreasure, "Aria"), [
-      "Treasure for Aria\n- Objeto mágico menor: Pociones\nTotal: 0 po",
+      "Treasure for Aria\n- Curar heridas leves (poción) (50 po)\nTotal: 50 po",
     ]);
   });
 });
@@ -243,7 +245,7 @@ const BOOK_ALCHEMICAL = [
   "25-36|Ahumadera|1d4|20",
   "37-48|Agua bendita|1d4|25",
   "49-62|Contraveneno|1d4|50",
-  "63-74|Antorcha siempreardiente||0",
+  "63-74|Antorcha siempreardiente||110",
   "75-88|Bolsas de maraña|1d4|50",
   "89-100|Piedras de trueno|1d4|30",
 ];
