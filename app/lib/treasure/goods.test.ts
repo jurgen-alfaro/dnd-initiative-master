@@ -184,13 +184,14 @@ describe("generateTreasure magic family (table 7-1)", () => {
   }
 
   it("should keep the family roll on the item", () => {
-    const treasure = generateTreasure(1, fixedDie(1, 1, 96, 20));
+    const treasure = generateTreasure(1, fixedDie(1, 1, 96, 20, 33));
 
     assert.deepEqual(
       treasure.items[0].rolls.map((r) => [r.dice, r.values]),
       [
         ["d%", [96]],
         ["d%", [20]],
+        ["d%", [33]],
       ],
     );
   });
@@ -216,15 +217,15 @@ describe("rollMagicItem family resolvers", () => {
 });
 
 describe("formatIndividualAnnouncement objects", () => {
-  it("should show the price of a mundane object and none for an unresolved magic one", () => {
+  it("should show the price of a mundane object and of a resolved magic one", () => {
     const mundaneTreasure = generateTreasure(1, fixedDie(1, 1, 72, 18, 19, 11));
-    const magicTreasure = generateTreasure(1, fixedDie(1, 1, 96, 10));
+    const magicTreasure = generateTreasure(1, fixedDie(1, 1, 96, 10, 1));
 
     assert.deepEqual(formatIndividualAnnouncement(mundaneTreasure, "Aria"), [
       "Treasure for Aria\n- Coraza (Mediana) (200 po)\nTotal: 200 po",
     ]);
     assert.deepEqual(formatIndividualAnnouncement(magicTreasure, "Aria"), [
-      "Treasure for Aria\n- Objeto mágico menor: Pociones\nTotal: 0 po",
+      "Treasure for Aria\n- Curar heridas leves (poción) (50 po)\nTotal: 50 po",
     ]);
   });
 });
