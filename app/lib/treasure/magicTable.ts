@@ -4,6 +4,7 @@ import { rollMagicWeapon } from "./magicWeaponTable";
 import { rollPotion } from "./potionTable";
 import { rollRing } from "./ringTable";
 import { rollRod } from "./rodTable";
+import { rollScroll } from "./scrollTable";
 import { rollStaff } from "./staffTable";
 import { rollWand } from "./wandTable";
 import { rollWondrous } from "./wondrousTable";
@@ -95,6 +96,7 @@ export const MAGIC_RESOLVERS: MagicResolvers = {
   potion: rollPotion,
   ring: rollRing,
   rod: rollRod,
+  scroll: rollScroll,
   staff: rollStaff,
   wand: rollWand,
   wondrous: rollWondrous,
