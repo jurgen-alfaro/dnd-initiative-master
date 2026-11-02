@@ -28,6 +28,7 @@ import {
   MIN_ENCOUNTER_LEVEL,
   formatCoins,
   formatCpAsGp,
+  formatItem,
   generateTreasure,
   totalValueCp,
   type Roll,
@@ -203,7 +204,7 @@ function TreasureGeneratorForm({
         {treasure.items.map((item, i) => (
           <PreviewLine
             key={i}
-            label={`${item.name} (${formatCpAsGp(item.valueCp)})`}
+            label={formatItem(item)}
             rolls={item.rolls}
           />
         ))}

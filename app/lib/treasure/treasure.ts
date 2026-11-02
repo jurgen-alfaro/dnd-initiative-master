@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { COIN_TABLE } from "./coinTable";
 import { pickRow, rollDice, rollPercentile, type Die } from "./dice";
+import { rollGoods } from "./goodsTable";
 import { rollValuables } from "./valuables";
 
 /**
@@ -75,6 +76,11 @@ export type Treasure = z.infer<typeof TreasureSchema>;
 
 const NO_COINS: Coins = { pc: 0, pp: 0, po: 0, ppt: 0 };
 
+/** Gems and art first, then the mundane and magic objects of table 3-5. */
+function rollItems(level: number, die: Die): TreasureItem[] {
+  return [...rollValuables(level, die), ...rollGoods(level, die)];
+}
+
 /** Rolls a whole treasure for an encounter level (NE) from 1 to 20. */
 export function generateTreasure(level: number, die: Die): Treasure {
   const rows = COIN_TABLE[level - 1];
@@ -85,7 +91,7 @@ export function generateTreasure(level: number, die: Die): Treasure {
   const coinRolls: Roll[] = [{ label, dice: "d%", values: [percentile] }];
   const row = pickRow(rows, percentile);
   if (!row.dice) {
-    const items = rollValuables(level, die);
+    const items = rollItems(level, die);
     return { level, coins: NO_COINS, coinRolls, items };
   }
 
@@ -101,7 +107,7 @@ export function generateTreasure(level: number, die: Die): Treasure {
     level,
     coins: { ...NO_COINS, [row.coin]: amount },
     coinRolls,
-    items: rollValuables(level, die),
+    items: rollItems(level, die),
   };
 }
 
@@ -124,6 +130,13 @@ export function formatCpAsGp(cp: number): string {
   return `${(cp / 100).toLocaleString("en-US", { maximumFractionDigits: 2 })} po`;
 }
 
+/** An item and its value, e.g. "Coraza (Mediana) (200 po)"; no value, no price. */
+export function formatItem(item: TreasureItem): string {
+  return item.valueCp > 0
+    ? `${item.name} (${formatCpAsGp(item.valueCp)})`
+    : item.name;
+}
+
 /** Longest body a DM chat message may have. */
 const MESSAGE_LIMIT = 2000;
 
@@ -139,9 +152,7 @@ export function formatIndividualAnnouncement(
     ...DENOMINATIONS.filter((d) => treasure.coins[d] > 0).map(
       (d) => `- ${formatCoins(treasure.coins[d], d)}`,
     ),
-    ...treasure.items.map(
-      (item) => `- ${item.name} (${formatCpAsGp(item.valueCp)})`,
-    ),
+    ...treasure.items.map((item) => `- ${formatItem(item)}`),
   ];
   if (lines.length === 0) lines.push("- Nothing");
   lines.push(`Total: ${formatCpAsGp(totalValueCp(treasure))}`);
