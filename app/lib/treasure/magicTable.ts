@@ -1,4 +1,9 @@
 import { pickRow, type Die } from "./dice";
+import { rollPotion } from "./potionTable";
+import { rollRing } from "./ringTable";
+import { rollRod } from "./rodTable";
+import { rollStaff } from "./staffTable";
+import { rollWand } from "./wandTable";
 import { rollWondrous } from "./wondrousTable";
 import type { ItemCategory, Roll, TreasureItem } from "./treasure";
 
@@ -82,7 +87,14 @@ export type MagicResolvers = Partial<Record<MagicFamily, MagicResolver>>;
  * on) to this object once that family's tables exist. Until then a family is
  * shown as "Objeto mágico <categoría>: <familia>", without a price.
  */
-export const MAGIC_RESOLVERS: MagicResolvers = { wondrous: rollWondrous };
+export const MAGIC_RESOLVERS: MagicResolvers = {
+  potion: rollPotion,
+  ring: rollRing,
+  rod: rollRod,
+  staff: rollStaff,
+  wand: rollWand,
+  wondrous: rollWondrous,
+};
 
 /** Rolls a magic object of `category`: table 7-1, then the family's resolver. */
 export function rollMagicItem(
