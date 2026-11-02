@@ -10,7 +10,9 @@ export type ValuableRow = {
 
 /**
  * DMG 3.5 table 3-6 ("Gemas"). Each gem takes one name picked at random from
- * the examples of its row. Names are transcribed as printed in Spanish.
+ * the examples of its row. Names are transcribed as printed in Spanish, with
+ * each colour or variety of an example ("perla blanca, dorada…") as its own
+ * name.
  */
 export const GEM_TABLE: readonly ValuableRow[] = [
   {
@@ -18,7 +20,9 @@ export const GEM_TABLE: readonly ValuableRow[] = [
     dice: "4d4",
     times: 1,
     names: [
-      "Ágata listada, musgosa o aojada",
+      "Ágata listada",
+      "Ágata musgosa",
+      "Ágata aojada",
       "Azurita",
       "Cuarzo azul",
       "Hematites",
@@ -47,7 +51,10 @@ export const GEM_TABLE: readonly ValuableRow[] = [
       "Cristal de roca (cuarzo transparente)",
       "Sarda",
       "Sardónice",
-      "Cuarzo citrino, rosado estrella, ahumado, rosado",
+      "Cuarzo citrino",
+      "Cuarzo rosado estrella",
+      "Cuarzo ahumado",
+      "Cuarzo rosado",
       "Circón",
     ],
   },
@@ -60,11 +67,17 @@ export const GEM_TABLE: readonly ValuableRow[] = [
       "Amatista",
       "Crisoberilo",
       "Coral",
-      "Granate rojo o amarillo verdoso",
+      "Granate rojo",
+      "Granate amarillo verdoso",
       "Jade",
       "Azabache",
-      "Perla blanca, dorada, rosada o argéntea",
-      "Espinela roja, verde intenso o rojo vinoso",
+      "Perla blanca",
+      "Perla dorada",
+      "Perla rosada",
+      "Perla argéntea",
+      "Espinela roja",
+      "Espinela verde intenso",
+      "Espinela rojo vinoso",
       "Turmalina",
     ],
   },
@@ -87,10 +100,14 @@ export const GEM_TABLE: readonly ValuableRow[] = [
     times: 100,
     names: [
       "Esmeralda",
-      "Ópalo de fuego, blanco o negro",
+      "Ópalo de fuego",
+      "Ópalo blanco",
+      "Ópalo negro",
       "Zafiro azul",
-      "Corindón amarillo intenso o violado",
-      "Zafiro negro o azul estrella",
+      "Corindón amarillo intenso",
+      "Corindón violado",
+      "Zafiro negro",
+      "Zafiro azul estrella",
       "Rubí estrella",
     ],
   },
@@ -100,7 +117,11 @@ export const GEM_TABLE: readonly ValuableRow[] = [
     times: 1000,
     names: [
       "Esmeralda diáfana y de color verde de gran brillo",
-      "Diamante azulado, castaño, rosa, ambarino o hialino",
+      "Diamante azulado",
+      "Diamante castaño",
+      "Diamante rosa",
+      "Diamante ambarino",
+      "Diamante hialino",
       "Jacinto",
     ],
   },

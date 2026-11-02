@@ -3,6 +3,7 @@ import {
   DENOMINATIONS,
   formatCoins,
   formatCpAsGp,
+  formatItem,
   splitIntoParts,
   totalValueCp,
   type Coins,
@@ -80,10 +81,7 @@ export function formatPartyAnnouncement(
       ...DENOMINATIONS.filter((d) => share.coins[d] > 0).map(
         (d) => `- ${formatCoins(share.coins[d], d)}`,
       ),
-      ...share.itemIndexes.map((i) => {
-        const item = treasure.items[i];
-        return `- ${item.name} (${formatCpAsGp(item.valueCp)})`;
-      }),
+      ...share.itemIndexes.map((i) => `- ${formatItem(treasure.items[i])}`),
     ];
     return [share.name, ...(received.length > 0 ? received : ["- Nothing"])];
   });
