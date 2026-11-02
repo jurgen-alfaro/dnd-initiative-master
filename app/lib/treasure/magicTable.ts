@@ -1,6 +1,12 @@
 import { pickRow, type Die } from "./dice";
-import { rollWondrous } from "./wondrousTable";
+import { rollMagicArmor } from "./magicArmorTable";
+import { rollPotion } from "./potionTable";
+import { rollRing } from "./ringTable";
+import { rollRod } from "./rodTable";
 import { rollScroll } from "./scrollTable";
+import { rollStaff } from "./staffTable";
+import { rollWand } from "./wandTable";
+import { rollWondrous } from "./wondrousTable";
 import type { ItemCategory, Roll, TreasureItem } from "./treasure";
 
 /** Categories of magic objects: menor, intermedio, mayor. */
@@ -83,7 +89,16 @@ export type MagicResolvers = Partial<Record<MagicFamily, MagicResolver>>;
  * on) to this object once that family's tables exist. Until then a family is
  * shown as "Objeto mágico <categoría>: <familia>", without a price.
  */
-export const MAGIC_RESOLVERS: MagicResolvers = { wondrous: rollWondrous, scroll: rollScroll };
+export const MAGIC_RESOLVERS: MagicResolvers = {
+  armor: rollMagicArmor,
+  potion: rollPotion,
+  ring: rollRing,
+  rod: rollRod,
+  scroll: rollScroll,
+  staff: rollStaff,
+  wand: rollWand,
+  wondrous: rollWondrous,
+};
 
 /** Rolls a magic object of `category`: table 7-1, then the family's resolver. */
 export function rollMagicItem(
