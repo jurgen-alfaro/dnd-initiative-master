@@ -26,8 +26,8 @@ const coins = (
 /**
  * Coins column of DMG 3.5 table 3-5 ("Tesoro"), indexed by NE − 1.
  *
- * NOTE: NE 11, 15-75 is transcribed as printed in the Spanish DMG
- * (4d8×1.000 po). The English SRD prints 4d8×100 gp for that cell.
+ * NOTE: NE 11, 15-75 uses the English SRD value (4d8×100 po). The Spanish
+ * DMG prints 4d8×1.000 po, a misprint confirmed by the author.
  */
 export const COIN_TABLE: readonly (readonly CoinRow[])[] = [
   // NE 1
@@ -113,7 +113,7 @@ export const COIN_TABLE: readonly (readonly CoinRow[])[] = [
   [
     none(8),
     coins(14, "3d10", 1000, "pp"),
-    coins(75, "4d8", 1000, "po"),
+    coins(75, "4d8", 100, "po"),
     coins(100, "4d10", 10, "ppt"),
   ],
   // NE 12
