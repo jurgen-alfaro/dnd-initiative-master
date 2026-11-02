@@ -237,14 +237,9 @@ For deeper rules on each topic, read the relevant file before working in that ar
 
 | Topic                   | File                            |
 | ----------------------- | ------------------------------- |
-| Code style & patterns   | `.claude/CODE_STANDARDS.md`     |
 | Architecture decisions  | `.claude/ARCHITECTURE.md`       |
 | Naming conventions      | `.claude/NAMING_CONVENTIONS.md` |
-| Testing strategy        | `.claude/TESTING.md`            |
 | Error handling patterns | `.claude/ERROR_HANDLING.md`     |
-| State management        | `.claude/STATE_MANAGEMENT.md`   |
-| Security rules          | `.claude/SECURITY.md`           |
-| Performance guidelines  | `.claude/PERFORMANCE.md`        |
 | Commit conventions      | `.claude/COMMITS.md`            |
 
 ---
