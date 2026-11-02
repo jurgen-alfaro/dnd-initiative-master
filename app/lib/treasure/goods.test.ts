@@ -1,7 +1,7 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { formatIndividualAnnouncement, generateTreasure } from "./treasure";
-import { rollMagicItem, type MagicResolvers } from "./magicTable";
+import { rollMagicItem, type MagicCategory, type MagicResolvers } from "./magicTable";
 import type { Die } from "./dice";
 
 /**
@@ -158,16 +158,8 @@ const BOOK_MAGIC: Record<"minor" | "medium" | "major", string[]> = {
   ],
 };
 
-/** A way to reach a magic object of each category through table 3-5. */
-const MAGIC_PATH = {
-  minor: { level: 1, goods: 96 },
-  medium: { level: 6, goods: 100 },
-  major: { level: 10, goods: 100 },
-} as const;
-
 describe("generateTreasure magic family (table 7-1)", () => {
   for (const [category, cells] of Object.entries(BOOK_MAGIC)) {
-    const { level, goods } = MAGIC_PATH[category as keyof typeof MAGIC_PATH];
     const word = { minor: "menor", medium: "intermedio", major: "mayor" }[category];
 
     it(`should give the family printed for every d% in the ${category} column`, () => {
@@ -179,11 +171,12 @@ describe("generateTreasure magic family (table 7-1)", () => {
         assert.ok(cell, `d% ${percentile} must have a row in ${category}`);
         const family = cell.slice(cell.indexOf(" ") + 1);
 
-        const treasure = generateTreasure(level, fixedDie(1, 1, goods, percentile));
+        // No resolvers: this test is about table 7-1 only, so every family stays unresolved.
+        const item = rollMagicItem(category as MagicCategory, fixedDie(percentile), {});
 
         assert.deepEqual(
-          treasure.items.map((i) => [i.category, i.name, i.valueCp]),
-          [[category, `Objeto mágico ${word}: ${family}`, 0]],
+          [item.category, item.name, item.valueCp],
+          [category, `Objeto mágico ${word}: ${family}`, 0],
           `${category} d% ${percentile}`,
         );
       }
