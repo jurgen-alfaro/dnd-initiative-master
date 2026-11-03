@@ -212,18 +212,26 @@ const ABILITIES: Record<
   ranged: { label: "Table 7-15", rows: RANGED_ABILITIES },
 };
 
+const deals = (weapon: Weapon, ...types: DamageType[]) =>
+  types.some((type) => weapon.damage.includes(type));
+
 /**
- * Footnotes 2 and 3 of table 7-14: abilities that only fit a weapon dealing
- * this damage, keyed by their feminine name.
+ * Abilities that only fit some weapons, keyed by their feminine name: the
+ * footnotes of table 7-14 for damage, and the descriptions of the abilities
+ * of table 7-15 (SRD: returning needs a thrown weapon, distance and seeking a
+ * ranged one, ammunition included).
  *
- * NOTE: footnote 2 says "Sólo para armas cortantes" for both Afilada and
- * Vorpalina, as the ticket does, although the description of Afilada also
- * allows piercing weapons.
+ * NOTE: footnote 2 says "Sólo para armas cortantes" for Afilada, but its
+ * description and the SRD also allow piercing weapons; the author chose to
+ * follow the description and the SRD.
  */
-const ONLY_FOR_DAMAGE: ReadonlyMap<string, DamageType> = new Map([
-  ["Afilada", "slashing"],
-  ["Vorpalina", "slashing"],
-  ["Disruptora", "bludgeoning"],
+const FITS_WEAPON: ReadonlyMap<string, (weapon: Weapon) => boolean> = new Map([
+  ["Afilada", (w: Weapon) => deals(w, "slashing", "piercing")],
+  ["Vorpalina", (w: Weapon) => deals(w, "slashing")],
+  ["Disruptora", (w: Weapon) => deals(w, "bludgeoning")],
+  ["Retornante", (w: Weapon) => w.isThrown === true],
+  ["Distante", (w: Weapon) => w.isRanged === true],
+  ["Buscadora", (w: Weapon) => w.isRanged === true],
 ]);
 
 /**
@@ -237,10 +245,10 @@ function accepts(
   candidate: SpecialAbility,
   chosen: readonly SpecialAbility[],
 ): boolean {
-  const damage = ONLY_FOR_DAMAGE.get(candidate.name.feminine);
+  const fits = FITS_WEAPON.get(candidate.name.feminine);
   const key = (a: SpecialAbility) => a.version ?? a.name.feminine;
   return (
-    (damage === undefined || weapon.damage.includes(damage)) &&
+    (fits === undefined || fits(weapon)) &&
     !chosen.some((a) => key(a) === key(candidate)) &&
     totalBonus(enhancement, [...chosen, candidate]) <= MAX_TOTAL_BONUS
   );

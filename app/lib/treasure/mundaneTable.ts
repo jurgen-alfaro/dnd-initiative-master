@@ -45,6 +45,8 @@ export type Weapon = {
   damage: readonly DamageType[];
   /** Takes the abilities of ranged weapons (table 7-15). */
   isRanged?: true;
+  /** Can be thrown: has a range increment and isn't shot (PHB table 7-5). */
+  isThrown?: true;
   /** Has two heads (footnote 2 of tables 7-11 and 7-12). */
   isDouble?: true;
 };
@@ -79,7 +81,7 @@ const weapon = (
   priceCp: number,
   gender: Gender,
   damage: readonly DamageType[],
-  flags: Pick<Weapon, "isRanged" | "isDouble"> = {},
+  flags: Pick<Weapon, "isRanged" | "isThrown" | "isDouble"> = {},
 ): Node<Weapon> => ({ upTo, item: { name, priceCp, gender, damage, ...flags } });
 
 type WeaponArgs = [
@@ -90,6 +92,11 @@ type WeaponArgs = [
   damage: readonly DamageType[],
 ];
 const ranged = (...args: WeaponArgs) => weapon(...args, { isRanged: true });
+/** A melee weapon that can also be thrown (dagger, spear…). */
+const thrown = (...args: WeaponArgs) => weapon(...args, { isThrown: true });
+/** A weapon made to be thrown (javelin, dart…): ranged and thrown. */
+const thrownRanged = (...args: WeaponArgs) =>
+  weapon(...args, { isRanged: true, isThrown: true });
 const double = (...args: WeaponArgs) => weapon(...args, { isDouble: true });
 
 /** The mundane version of a weapon table: every weapon is "de gran calidad". */
@@ -119,7 +126,7 @@ export const AMMUNITION: readonly Node<Weapon>[] = [
 export const COMMON_MELEE: readonly Node<Weapon>[] = [
   double(3, "Bastón", 60000, M, [B]),
   weapon(8, "Cimitarra", 31500, F, [S]),
-  weapon(12, "Daga", 30200, F, [P, S]),
+  thrown(12, "Daga", 30200, F, [P, S]),
   weapon(22, "Espada bastarda", 33500, F, [S]),
   weapon(27, "Espada corta", 31000, F, [P]),
   weapon(40, "Espada larga", 31500, F, [S]),
@@ -128,7 +135,7 @@ export const COMMON_MELEE: readonly Node<Weapon>[] = [
   weapon(64, "Gran hacha", 32000, F, [S]),
   weapon(75, "Hacha de guerra enana", 33000, F, [S]),
   weapon(79, "Kama", 30200, F, [S]),
-  weapon(83, "Lanza corta", 30200, F, [P]),
+  thrown(83, "Lanza corta", 30200, F, [P]),
   weapon(87, "Maza ligera", 30500, F, [B]),
   weapon(92, "Maza pesada", 31200, F, [B]),
   weapon(96, "Nunchaku", 30200, M, [B]),
@@ -144,7 +151,7 @@ export const UNCOMMON_WEAPONS: readonly Node<Weapon>[] = [
   weapon(14, "Bisarma", 30900, F, [S]),
   weapon(16, "Cachiporra", 30100, F, [B]),
   weapon(19, "Cadena armada", 32500, F, [P]),
-  weapon(21, "Clava", 30000, F, [B]),
+  thrown(21, "Clava", 30000, F, [B]),
   double(24, "Espada de dos hojas", 70000, F, [S]),
   weapon(26, "Gran clava", 30500, F, [B]),
   weapon(28, "Guadaña", 31800, F, [P, S]),
@@ -165,27 +172,27 @@ export const UNCOMMON_WEAPONS: readonly Node<Weapon>[] = [
   weapon(69, "Mangual pesado", 31500, M, [B]),
   weapon(72, "Martillo de guerra", 31200, M, [B]),
   double(75, "Martillo ganchudo gnomo", 62000, M, [B, P]),
-  weapon(77, "Martillo ligero", 30100, M, [B]),
+  thrown(77, "Martillo ligero", 30100, M, [B]),
   weapon(80, "Maza de armas", 30800, F, [B, P]),
-  weapon(83, "Media lanza", 30100, F, [P]),
+  thrown(83, "Media lanza", 30100, F, [P]),
   weapon(85, "Pico ligero", 30400, M, [P]),
   weapon(87, "Pico pesado", 30800, M, [P]),
   weapon(89, "Puñal", 30200, M, [P]),
-  ranged(91, "Red", 32000, F, []),
+  thrownRanged(91, "Red", 32000, F, []),
   weapon(93, "Ronca", 31000, F, [P]),
-  ranged(95, "Shuriken", 30100, M, [P]),
-  weapon(97, "Tridente", 31500, M, [P]),
+  thrownRanged(95, "Shuriken", 30100, M, [P]),
+  thrown(97, "Tridente", 31500, M, [P]),
   double(100, "Urgrosh enano", 65000, M, [P, S]),
 ];
 
 /** Table 7-13: armas a distancia comunes. */
 export const RANGED_WEAPONS: readonly Node<Weapon>[] = [
   { upTo: 10, table: "Table 7-13, ammunition", rows: AMMUNITION },
-  ranged(15, "Hacha arrojadiza", 30800, F, [S]),
+  thrownRanged(15, "Hacha arrojadiza", 30800, F, [S]),
   ranged(25, "Ballesta pesada", 35000, F, [P]),
   ranged(35, "Ballesta ligera", 33500, F, [P]),
-  ranged(39, "Dardos (50)", 30050, M, [P]),
-  ranged(41, "Jabalina", 30100, F, [P]),
+  thrownRanged(39, "Dardos (50)", 30050, M, [P]),
+  thrownRanged(41, "Jabalina", 30100, F, [P]),
   ranged(46, "Arco corto", 33000, M, [P]),
   ranged(51, "Arco corto compuesto (bonificador Fue +0)", 37500, M, [P]),
   ranged(56, "Arco corto compuesto (bonificador Fue +1)", 45000, M, [P]),

@@ -115,9 +115,9 @@ describe("magic weapons (tables 7-9 to 7-16)", () => {
   });
 
   describe("abilities that don't fit the weapon", () => {
-    it("should roll again a keen ability on a weapon that isn't slashing", () => {
-      // 7-11 84-87 Maza ligera (+305) → 7-14 minor 57-67 Afilada (only for
-      // slashing weapons: rolled again) → 01-10 Azote. 305 + 8.000 = 8.305 po.
+    it("should roll again a keen ability on a bludgeoning weapon", () => {
+      // 7-11 84-87 Maza ligera (+305) → 7-14 minor 57-67 Afilada (slashing or
+      // piercing only: rolled again) → 01-10 Azote. 305 + 8.000 = 8.305 po.
       assert.deepEqual(rollWeapon("minor", 91, 1, 1, 85, 60, 1), {
         name: "Maza ligera +1 azote",
         po: 8305,
@@ -129,6 +129,47 @@ describe("magic weapons (tables 7-9 to 7-16)", () => {
       assert.deepEqual(rollWeapon("minor", 91, 1, 1, 10, 60), {
         name: "Daga +1 afilada",
         po: 8302,
+      });
+    });
+
+    it("should let a weapon that is only piercing be keen", () => {
+      // 7-11 23-27 Espada corta (+310, piercing) → 7-14 minor 57-67 Afilada.
+      assert.deepEqual(rollWeapon("minor", 91, 1, 1, 25, 60), {
+        name: "Espada corta +1 afilada",
+        po: 8310,
+      });
+    });
+
+    it("should only let a thrown weapon be returning", () => {
+      // 7-13 66-75 Arco largo → 7-15 minor 61-68 Retornante (rolled again)
+      // → 01-12 Azote. 375 + 8.000 = 8.375 po.
+      assert.deepEqual(rollWeapon("minor", 91, 1, 81, 70, 65, 1), {
+        name: "Arco largo +1 azote",
+        po: 8375,
+      });
+      // Ammunition isn't thrown either: Munición 01-50 Flechas (50) →
+      // Retornante (rolled again) → Azote. 350 + 8.000 = 8.350 po.
+      assert.deepEqual(rollWeapon("minor", 91, 1, 81, 5, 30, 65, 1), {
+        name: "Flechas (50) +1 azote",
+        po: 8350,
+      });
+      // 7-13 40-41 Jabalina (+301) → Retornante: 301 + 8.000 = 8.301 po.
+      assert.deepEqual(rollWeapon("minor", 91, 1, 81, 41, 65), {
+        name: "Jabalina +1 retornante",
+        po: 8301,
+      });
+    });
+
+    it("should let ammunition be distance or seeking, as a ranged weapon", () => {
+      // Munición 01-50 Flechas (50) → 7-15 minor 13-25 Distante.
+      assert.deepEqual(rollWeapon("minor", 91, 1, 81, 5, 30, 20), {
+        name: "Flechas (50) +1 distante",
+        po: 8350,
+      });
+      // Flechas (50) → 7-15 minor 84-93 Buscadora.
+      assert.deepEqual(rollWeapon("minor", 91, 1, 81, 5, 30, 90), {
+        name: "Flechas (50) +1 buscadora",
+        po: 8350,
       });
     });
 
