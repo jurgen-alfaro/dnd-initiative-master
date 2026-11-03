@@ -13,6 +13,7 @@ import {
   Languages,
   LogOut,
   EyeOff,
+  Coins,
   X,
 } from "lucide-react";
 import { Button } from "@/app/components/ui/button";
@@ -23,6 +24,7 @@ import SelectPartyDialog from "@/app/components/SelectPartyDialog";
 import SessionNotesDrawer from "@/app/components/SessionNotesDrawer";
 import ReserveDrawer from "@/app/components/ReserveDrawer";
 import MessagesDrawer from "@/app/components/MessagesDrawer";
+import TreasureGeneratorDialog from "@/app/components/TreasureGeneratorDialog";
 import { getPartiesForDevice } from "@/app/server/actions";
 import { getOrCreateDeviceId } from "@/app/lib/device-id";
 import type { PartyMessagingState } from "@/app/lib/hooks/usePartyMessages";
@@ -75,6 +77,7 @@ export default function PartyActionsMenu({
   const [createOpen, setCreateOpen] = useState(false);
   const [notesOpen, setNotesOpen] = useState(false);
   const [reserveOpen, setReserveOpen] = useState(false);
+  const [treasureOpen, setTreasureOpen] = useState(false);
   const [parties, setParties] = useState<DmParty[]>([]);
 
   // DM-only: load this device's parties to power the "Switch party" action.
@@ -202,6 +205,11 @@ export default function PartyActionsMenu({
                         }
                         onClick={() => openAction(setReserveOpen)}
                       />
+                      <ActionButton
+                        icon={<Coins className="size-6 text-dnd-gold" />}
+                        label="Treasure"
+                        onClick={() => openAction(setTreasureOpen)}
+                      />
                     </>
                   )}
                   <ActionButton
@@ -266,6 +274,17 @@ export default function PartyActionsMenu({
           onReveal={onRevealCombatants}
           open={reserveOpen}
           onOpenChange={setReserveOpen}
+        />
+      )}
+      {isDm && dmToken && (
+        <TreasureGeneratorDialog
+          partyCode={partyCode}
+          dmToken={dmToken}
+          // Treasure can go to a PJ held in reserve too, so the dialog gets
+          // the hidden combatants as well as those in the fight.
+          combatants={[...combatants, ...hiddenCombatants]}
+          open={treasureOpen}
+          onOpenChange={setTreasureOpen}
         />
       )}
       <SessionNotesDrawer

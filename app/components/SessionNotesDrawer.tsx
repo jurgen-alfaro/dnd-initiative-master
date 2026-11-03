@@ -16,7 +16,7 @@ import { Textarea } from "./ui/textarea";
 import { Badge } from "./ui/badge";
 import { addNote, getNotes } from "@/app/server/actions";
 import type { Note, NoteVisibility } from "@/app/lib/types";
-import { formatSessionDate } from "@/app/lib/date-format";
+import { formatSessionDate, todayInputValue } from "@/app/lib/date-format";
 
 interface SessionNotesDrawerProps {
   partyCode: string;
@@ -24,13 +24,6 @@ interface SessionNotesDrawerProps {
   dmToken: string | null;
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
-}
-
-/** Returns today's date as a `yyyy-mm-dd` string in local time. */
-function todayInputValue(): string {
-  const now = new Date();
-  const local = new Date(now.getTime() - now.getTimezoneOffset() * 60000);
-  return local.toISOString().slice(0, 10);
 }
 
 export default function SessionNotesDrawer({
