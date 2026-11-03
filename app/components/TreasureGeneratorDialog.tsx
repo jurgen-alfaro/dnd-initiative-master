@@ -41,7 +41,6 @@ import {
   formatItem,
   generateTreasure,
   totalValueCp,
-  type Roll,
 } from "@/app/lib/treasure/treasure";
 import type { Combatant } from "@/app/lib/types";
 
@@ -303,11 +302,9 @@ function TreasureGeneratorForm({
 
       <div className="flex flex-col gap-2 rounded-md border border-dnd-gold/20 p-3">
         {coinLines.length === 0 ? (
-          <PreviewLine label="No coins" rolls={treasure.coinRolls} />
+          <PreviewLine label="No coins" />
         ) : (
-          coinLines.map((line) => (
-            <PreviewLine key={line} label={line} rolls={treasure.coinRolls} />
-          ))
+          coinLines.map((line) => <PreviewLine key={line} label={line} />)
         )}
         {destination === "party" && coinLines.length > 0 && (
           <ul className="text-xs text-muted-foreground">
@@ -323,7 +320,7 @@ function TreasureGeneratorForm({
           <div key={i} className="flex items-center justify-between gap-2">
             <PreviewLine
               label={formatItem(item)}
-              rolls={item.rolls}
+              description={item.description}
             />
             {destination === "party" && (
               <Select
@@ -378,18 +375,21 @@ function TreasureGeneratorForm({
   );
 }
 
-/** One line of the preview; expanding it shows the rolls behind it. */
-function PreviewLine({ label, rolls }: { label: string; rolls: Roll[] }) {
+/** One line of the preview; expanding it shows its descripción, if any. */
+function PreviewLine({
+  label,
+  description,
+}: {
+  label: string;
+  description?: string;
+}) {
+  if (!description) return <p className="text-sm font-heading">{label}</p>;
   return (
     <details className="text-sm">
       <summary className="cursor-pointer font-heading">{label}</summary>
-      <ul className="mt-1 pl-4 text-xs text-muted-foreground">
-        {rolls.map((roll, i) => (
-          <li key={i}>
-            {roll.label}: {roll.dice} → {roll.values.join(" + ")}
-          </li>
-        ))}
-      </ul>
+      <p className="mt-1 pl-4 text-xs text-muted-foreground whitespace-pre-line">
+        {description}
+      </p>
     </details>
   );
 }

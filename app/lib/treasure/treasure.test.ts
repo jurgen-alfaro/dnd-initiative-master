@@ -302,7 +302,7 @@ describe("generateTreasure gems and art", () => {
 
     assert.equal(totalValueCp(treasure), 1000);
     assert.deepEqual(formatIndividualAnnouncement(treasure, "Aria"), [
-      "Treasure for Aria\n- Ágata listada (10 po)\nTotal: 10 po",
+      "Treasure for Aria\n- Ágata listada (10 po)\n  Piedra opaca con bandas paralelas de pardo, blanco y rojo.\nTotal: 10 po",
     ]);
   });
 

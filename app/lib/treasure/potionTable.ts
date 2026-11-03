@@ -1,5 +1,6 @@
 import { entry, rollColumnTable, type ColumnRow } from "./columnTable";
 import type { MagicResolver } from "./magicTable";
+import { describePotion } from "./spellDescriptions";
 
 const e = entry;
 
@@ -97,5 +98,13 @@ export const POTION_ROWS: readonly ColumnRow[] = [
   e("-", "-", "100", "Vestidura mágica +5 (aceite)", 3000),
 ];
 
+const POTION_DESCRIPTIONS = Object.fromEntries(
+  POTION_ROWS.map((row) => [row.name, describePotion(row.name)]),
+);
+
 export const rollPotion: MagicResolver = (category, die) =>
-  rollColumnTable({ table: "7-20", rows: POTION_ROWS }, category, die);
+  rollColumnTable(
+    { table: "7-20", rows: POTION_ROWS, descriptions: POTION_DESCRIPTIONS },
+    category,
+    die,
+  );

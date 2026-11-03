@@ -1,8 +1,16 @@
 import { poToCp } from "./coins";
+import {
+  joinDescription,
+  MUNDANE_DESCRIPTIONS,
+  SPECIFIC_DESCRIPTIONS,
+  WEAPON_ABILITY_DESCRIPTIONS,
+  weaponBonus,
+} from "./descriptions";
 import { rollPercentile, rollTable, type Die } from "./dice";
 import {
   bonus,
   byCategory,
+  describeGearParts,
   describeMagicGear,
   MAX_TOTAL_BONUS,
   rollAbilities,
@@ -77,7 +85,7 @@ const specific = (upTo: number, name: string, po: number): Specific => ({
 });
 
 /** Table 7-16 ("Armas específicas"), one column per category, at market price. */
-const SPECIFIC_WEAPONS: Record<MagicCategory, readonly Specific[]> = {
+export const SPECIFIC_WEAPONS: Record<MagicCategory, readonly Specific[]> = {
   minor: [
     specific(15, "Flecha adormecedora", 132),
     specific(25, "Virote aullante", 267),
@@ -149,7 +157,7 @@ const ELECTRICITY = "electricidad";
  * prints the feminine forms. Row 100 (minor) and 96-100 or 91-100 of the other
  * columns are "Tira de nuevo dos veces".
  */
-const MELEE_ABILITIES = byCategory([
+export const MELEE_ABILITIES = byCategory([
   bonus("Azote", 1, [10, 6, 3]),
   bonus(["Defensor", "Defensora"], 1, [17, 12, null]),
   bonus(["Flamígero", "Flamígera"], 1, [27, 19, 6], FIRE),
@@ -183,7 +191,7 @@ const MELEE_ABILITIES = byCategory([
  * Table 7-15 ("Aptitudes especiales de las armas a distancia"). The book
  * prints the feminine forms.
  */
-const RANGED_ABILITIES = byCategory([
+export const RANGED_ABILITIES = byCategory([
   bonus("Azote", 1, [12, 8, 4]),
   bonus("Distante", 1, [25, 16, 8]),
   bonus(["Flamígero", "Flamígera"], 1, [40, 28, 12], FIRE),
@@ -305,7 +313,7 @@ export function rollMagicWeapon(
   if ("specific" in row) {
     const specificLabel = `Table 7-16, ${category}`;
     const { name, priceCp } = rollTable(specificLabel, SPECIFIC_WEAPONS[category], die, rolls);
-    return { name, valueCp: priceCp, rolls };
+    return { name, valueCp: priceCp, description: SPECIFIC_DESCRIPTIONS[name], rolls };
   }
 
   const { enhancement } = row;
@@ -320,12 +328,20 @@ export function rollMagicWeapon(
     (candidate, chosen) => accepts(weapon, enhancement, candidate, chosen),
   );
   const first = describeMagicGear(weapon, enhancement, abilities, WEAPON_BONUS_PRICES_PO);
-  if (!weapon.isDouble) return { ...first, rolls };
+  const description = describeGearParts(
+    MUNDANE_DESCRIPTIONS[weapon.name],
+    weaponBonus(enhancement),
+    weapon.gender,
+    abilities,
+    WEAPON_ABILITY_DESCRIPTIONS,
+  );
+  if (!weapon.isDouble) return { ...first, description, rolls };
 
   const second = rollSecondHead(weapon, enhancement, abilities, die, rolls);
   return {
     name: `${first.name}/${second.name}`,
     valueCp: first.valueCp + second.valueCp,
+    description: joinDescription([description, `Segundo extremo: ${second.name}.`]),
     rolls,
   };
 }

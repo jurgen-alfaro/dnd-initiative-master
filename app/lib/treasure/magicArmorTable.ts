@@ -1,8 +1,15 @@
 import { poToCp } from "./coins";
+import {
+  ARMOR_ABILITY_DESCRIPTIONS,
+  armorBonus,
+  MUNDANE_DESCRIPTIONS,
+  SPECIFIC_DESCRIPTIONS,
+} from "./descriptions";
 import { rollTable, type Die } from "./dice";
 import {
   bonus,
   byCategory,
+  describeGearParts,
   describeMagicGear,
   fixed,
   MAX_TOTAL_BONUS,
@@ -91,7 +98,7 @@ const feminine = (upTo: number, name: string, po: number): EnchantedType => ({
  * stand for "armadura …", so their abilities agree with a feminine singular
  * ("Pieles +1 silenciosa").
  */
-const BASE_TYPES: Record<Kind, { label: string; rows: readonly EnchantedType[] }> = {
+export const BASE_TYPES: Record<Kind, { label: string; rows: readonly EnchantedType[] }> = {
   armor: {
     label: "Table 7-3",
     rows: [
@@ -130,7 +137,7 @@ const BASE_TYPES: Record<Kind, { label: string; rows: readonly EnchantedType[] }
  * de bandas de la suerte (a misprint, as 01-10 is the Coraza adamantina); it
  * is given 21-32, the only gap left in that column.
  */
-const SPECIFIC: Record<
+export const SPECIFIC: Record<
   Kind,
   { label: string; rows: Record<MagicCategory, readonly BaseType[]> }
 > = {
@@ -201,7 +208,7 @@ const SPECIFIC: Record<
  * NOTE: the book prints "01-20" for Ilusoria in the minor column and the next
  * row starts at 26; it is given 01-25, as in the original English table.
  */
-const ARMOR_ABILITIES = byCategory([
+export const ARMOR_ABILITIES = byCategory([
   fixed(["Ilusorio", "Ilusoria"], 2700, [25, 5, 3]),
   bonus("Fortificante leve", 1, [32, 8, 4], "fortificante"),
   fixed(["Resbaladizo", "Resbaladiza"], 3750, [52, 11, null], "resbaladiza"),
@@ -245,7 +252,7 @@ const ARMOR_ABILITIES = byCategory([
  * Table 7-6 ("Aptitudes especiales de los escudos"). Row 100 of every column
  * is "Tira de nuevo dos veces".
  */
-const SHIELD_ABILITIES = byCategory([
+export const SHIELD_ABILITIES = byCategory([
   bonus("Atrapaflechas", 1, [20, 10, 5]),
   bonus(["Golpeador", "Golpeadora"], 1, [40, 20, 8]),
   bonus(["Cegador", "Cegadora"], 1, [50, 25, 10]),
@@ -324,7 +331,7 @@ export function rollMagicArmor(
     const specific = SPECIFIC[row.specific];
     const specificLabel = `${specific.label}, ${category}`;
     const { name, priceCp } = rollTable(specificLabel, specific.rows[category], die, rolls);
-    return { name, valueCp: priceCp, rolls };
+    return { name, valueCp: priceCp, description: SPECIFIC_DESCRIPTIONS[name], rolls };
   }
 
   const types = BASE_TYPES[row.kind];
@@ -342,6 +349,13 @@ export function rollMagicArmor(
   ));
   return {
     ...describeMagicGear(type, row.enhancement, abilities, ARMOR_BONUS_PRICES_PO),
+    description: describeGearParts(
+      MUNDANE_DESCRIPTIONS[type.name],
+      armorBonus(row.enhancement),
+      type.gender,
+      abilities,
+      ARMOR_ABILITY_DESCRIPTIONS,
+    ),
     rolls,
   };
 }

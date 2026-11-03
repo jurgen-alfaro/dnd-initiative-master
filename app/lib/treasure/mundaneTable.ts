@@ -1,4 +1,5 @@
 import { poToCp } from "./coins";
+import { describeMundane } from "./descriptions";
 import {
   rollDice,
   rollPercentile,
@@ -213,7 +214,7 @@ export const RANGED_WEAPONS: readonly Node<Weapon>[] = [
  * NOTE: the book prints no quantity and no price for the antorcha
  * siempreardiente; it uses the SRD price of 110 po, as the author chose.
  */
-const MUNDANE_TABLE: readonly Node[] = [
+export const MUNDANE_TABLE: readonly Node[] = [
   {
     upTo: 17,
     table: "Table 3-8, alchemical",
@@ -311,6 +312,7 @@ export function pickLeaf<Leaf>(
 export function rollMundaneItem(die: Die): TreasureItem {
   const rolls: Roll[] = [];
   const leaf = pickLeaf("Table 3-8", MUNDANE_TABLE, die, rolls);
+  const description = describeMundane(leaf.name);
 
   if (leaf.quantity) {
     const values = rollDice(die, leaf.quantity);
@@ -321,6 +323,7 @@ export function rollMundaneItem(die: Die): TreasureItem {
       name: `${leaf.name} ×${amount}`,
       valueCp: leaf.priceCp * amount,
       rolls,
+      description,
     };
   }
 
@@ -333,6 +336,7 @@ export function rollMundaneItem(die: Die): TreasureItem {
       name: `${leaf.name} (${size})`,
       valueCp: leaf.priceCp,
       rolls,
+      description,
     };
   }
 
@@ -341,5 +345,6 @@ export function rollMundaneItem(die: Die): TreasureItem {
     name: leaf.name,
     valueCp: leaf.priceCp,
     rolls,
+    description,
   };
 }

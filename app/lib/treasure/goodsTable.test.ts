@@ -213,10 +213,10 @@ describe("formatIndividualAnnouncement objects", () => {
     const magicTreasure = generateTreasure(1, fixedDie(1, 1, 96, 10, 1));
 
     assert.deepEqual(formatIndividualAnnouncement(mundaneTreasure, "Aria"), [
-      "Treasure for Aria\n- Coraza (Mediana) (200 po)\nTotal: 200 po",
+      "Treasure for Aria\n- Coraza (Mediana) (200 po)\n  Armadura intermedia: CA 14 + Destreza (máx. 2).\nTotal: 200 po",
     ]);
     assert.deepEqual(formatIndividualAnnouncement(magicTreasure, "Aria"), [
-      "Treasure for Aria\n- Curar heridas leves (poción) (50 po)\nTotal: 50 po",
+      "Treasure for Aria\n- Curar heridas leves (poción) (50 po)\n  Quien la bebe, o el objeto o arma que recibe el aceite, obtiene el efecto del conjuro, sin necesidad de concentración:\n  Una criatura recupera 1d8 + 1 PG.\nTotal: 50 po",
     ]);
   });
 });

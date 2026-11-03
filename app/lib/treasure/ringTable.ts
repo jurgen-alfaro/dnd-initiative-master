@@ -1,4 +1,5 @@
 import { entry, rollColumnTable, type ColumnRow } from "./columnTable";
+import { RING_DESCRIPTIONS } from "./descriptions";
 import type { MagicResolver } from "./magicTable";
 
 const e = entry;
@@ -60,4 +61,8 @@ export const RING_ROWS: readonly ColumnRow[] = [
 ];
 
 export const rollRing: MagicResolver = (category, die) =>
-  rollColumnTable({ table: "7-17", rows: RING_ROWS, kind: "Anillo" }, category, die);
+  rollColumnTable(
+    { table: "7-17", rows: RING_ROWS, kind: "Anillo", descriptions: RING_DESCRIPTIONS },
+    category,
+    die,
+  );

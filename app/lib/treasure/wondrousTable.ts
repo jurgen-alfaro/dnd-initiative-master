@@ -2,6 +2,7 @@ import { poToCp } from "./coins";
 import { rollTable, type Die } from "./dice";
 import type { MagicCategory, MagicResolution } from "./magicTable";
 import type { Roll } from "./treasure";
+import { WONDROUS_DESCRIPTIONS } from "./wondrousDescriptions";
 
 type BagColor = "gris" | "óxido" | "canela";
 
@@ -388,8 +389,11 @@ export function rollWondrous(
   const rolls: Roll[] = [];
   const label = `Table ${TABLE_NUMBERS[category]}`;
   const row = rollTable(label, WONDROUS_TABLES[category], die, rolls);
+  const description = WONDROUS_DESCRIPTIONS[row.name];
 
-  if (!row.bag) return { name: row.name, valueCp: row.valueCp, rolls };
+  if (!row.bag) {
+    return { name: row.name, valueCp: row.valueCp, description, rolls };
+  }
 
   const { animal } = rollTable(
     `Bag of tricks (${row.bag})`,
@@ -397,5 +401,10 @@ export function rollWondrous(
     die,
     rolls,
   );
-  return { name: `${row.name}: ${animal}`, valueCp: row.valueCp, rolls };
+  return {
+    name: `${row.name}: ${animal}`,
+    valueCp: row.valueCp,
+    description,
+    rolls,
+  };
 }

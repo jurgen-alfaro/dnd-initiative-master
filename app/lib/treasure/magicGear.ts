@@ -1,4 +1,5 @@
 import { poToCp } from "./coins";
+import { joinDescription, type Descriptions } from "./descriptions";
 import { rollTable, type Die } from "./dice";
 import type { MagicCategory } from "./magicTable";
 import type { Roll } from "./treasure";
@@ -115,6 +116,27 @@ export function describeMagicGear(
       poToCp(bonusPrice) +
       abilities.reduce((sum, a) => sum + a.priceCp, 0),
   };
+}
+
+/**
+ * Description of a magic armor, shield or weapon, one line per part: its base,
+ * its bonus and each ability, named as it agrees with the base.
+ */
+export function describeGearParts(
+  baseDescription: string | undefined,
+  bonusLine: string,
+  gender: Gender,
+  abilities: readonly SpecialAbility[],
+  abilityDescriptions: Descriptions,
+): string | undefined {
+  return joinDescription([
+    baseDescription,
+    bonusLine,
+    ...abilities.map((a) => {
+      const text = abilityDescriptions[a.name.feminine];
+      return text && `${a.name[gender]}: ${text}`;
+    }),
+  ]);
 }
 
 /** Top of an ability's range in the minor, medium and major columns; "—" is null. */

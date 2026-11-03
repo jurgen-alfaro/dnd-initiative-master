@@ -1,4 +1,5 @@
 import { poToCp } from "./coins";
+import type { Descriptions } from "./descriptions";
 import { rollDice, rollTable, type DiceNotation, type Die } from "./dice";
 import type { MagicCategory, MagicResolution } from "./magicTable";
 import type { Roll } from "./treasure";
@@ -50,6 +51,8 @@ export type ColumnTable = {
   kind?: string;
   /** Wands and staffs hold 1d50 charges. */
   isCharged?: true;
+  /** Keyed by the name the table prints, before any random part. */
+  descriptions?: Descriptions;
 };
 
 const pluralCharges = (n: number) => `${n} ${n === 1 ? "carga" : "cargas"}`;
@@ -60,7 +63,7 @@ const pluralCharges = (n: number) => `${n} ${n === 1 ? "carga" : "cargas"}`;
  * and staffs get their charges.
  */
 export function rollColumnTable(
-  { table, rows, kind, isCharged }: ColumnTable,
+  { table, rows, kind, isCharged, descriptions }: ColumnTable,
   category: MagicCategory,
   die: Die,
 ): MagicResolution {
@@ -96,5 +99,10 @@ export function rollColumnTable(
     rolls.push({ label: "Charges", dice: "1d50", values: [charges] });
     name = `${name} (${pluralCharges(charges)})`;
   }
-  return { name, valueCp: row.priceCp, rolls };
+  return {
+    name,
+    valueCp: row.priceCp,
+    description: descriptions?.[row.name],
+    rolls,
+  };
 }

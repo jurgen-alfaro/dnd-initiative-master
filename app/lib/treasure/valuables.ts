@@ -1,5 +1,6 @@
 import { ART_TABLE } from "./artTable";
 import { poToCp } from "./coins";
+import { VALUABLE_DESCRIPTIONS } from "./descriptions";
 import { rollDice, rollTable, type Die } from "./dice";
 import { GEM_TABLE, type ValuableRow } from "./gemTable";
 import type { Roll, TreasureItem } from "./treasure";
@@ -54,10 +55,12 @@ function rollValuable(
     { label, dice: `d${row.names.length}`, values: [nameRoll] },
   );
 
+  const name = row.names[nameRoll - 1];
   return {
     category,
-    name: row.names[nameRoll - 1],
+    name,
     valueCp: poToCp(values.reduce((a, b) => a + b, 0) * row.times),
     rolls,
+    description: VALUABLE_DESCRIPTIONS[name],
   };
 }

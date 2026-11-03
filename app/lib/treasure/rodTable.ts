@@ -1,4 +1,5 @@
 import { entry, rollColumnTable, type ColumnRow } from "./columnTable";
+import { ROD_DESCRIPTIONS } from "./descriptions";
 import type { MagicResolver } from "./magicTable";
 
 const e = entry;
@@ -44,4 +45,8 @@ export const ROD_ROWS: readonly ColumnRow[] = [
 ];
 
 export const rollRod: MagicResolver = (category, die) =>
-  rollColumnTable({ table: "7-19", rows: ROD_ROWS, kind: "Cetro" }, category, die);
+  rollColumnTable(
+    { table: "7-19", rows: ROD_ROWS, kind: "Cetro", descriptions: ROD_DESCRIPTIONS },
+    category,
+    die,
+  );

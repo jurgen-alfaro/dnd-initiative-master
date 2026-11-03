@@ -1,5 +1,6 @@
 import { entry, rollColumnTable, type ColumnRow } from "./columnTable";
 import type { MagicResolver } from "./magicTable";
+import { describeWand } from "./spellDescriptions";
 
 const e = entry;
 
@@ -98,9 +99,19 @@ export const WAND_ROWS: readonly ColumnRow[] = [
   e("-", "-", "100", "Piel pétrea", 33500),
 ];
 
+const WAND_DESCRIPTIONS = Object.fromEntries(
+  WAND_ROWS.map((row) => [row.name, describeWand(row.name)]),
+);
+
 export const rollWand: MagicResolver = (category, die) =>
   rollColumnTable(
-    { table: "7-26", rows: WAND_ROWS, kind: "Varita", isCharged: true },
+    {
+      table: "7-26",
+      rows: WAND_ROWS,
+      kind: "Varita",
+      isCharged: true,
+      descriptions: WAND_DESCRIPTIONS,
+    },
     category,
     die,
   );

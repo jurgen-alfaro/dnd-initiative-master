@@ -34,6 +34,10 @@ Tesoro que se reparte entre los PJs que el DM elige como destinatarios.
 **Tesoro individual**:
 Tesoro que recibe entero un único PJ.
 
+**Descripción**:
+Texto breve en español que acompaña a cada objeto de un tesoro y dice qué es o qué hace, siempre en reglas de 5e aunque el objeto venga de las tablas 3.5. Un objeto compuesto (arma o armadura con bono y aptitudes) se describe por partes: base, bono y cada aptitud.
+_Avoid_: Detalle, ficha
+
 **Reparto**:
 Asignación de cada moneda y objeto de un tesoro a sus PJs destinatarios. Las monedas se dividen a partes iguales; cada objeto indivisible lo asigna el DM a un PJ.
 

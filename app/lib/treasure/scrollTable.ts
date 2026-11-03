@@ -1,5 +1,6 @@
 import { rollDice, rollTable, type DiceNotation, type Die } from "./dice";
 import type { MagicCategory, MagicResolution } from "./magicTable";
+import { describeScroll } from "./spellDescriptions";
 import { SCROLL_SPELL_TABLES } from "./scrollSpellTable";
 import type { Roll } from "./treasure";
 
@@ -80,6 +81,7 @@ export function rollScroll(category: MagicCategory, die: Die): MagicResolution {
       .map((s) => `${s.name} (NL ${s.casterLevel})`)
       .join(", ")}`,
     valueCp: spells.reduce((sum, s) => sum + s.valueCp, 0),
+    description: describeScroll(spells.map((s) => s.name)),
     rolls,
   };
 }

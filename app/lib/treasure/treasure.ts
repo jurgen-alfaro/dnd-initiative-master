@@ -53,12 +53,16 @@ export const ItemCategorySchema = z.enum([
 ]);
 export type ItemCategory = z.infer<typeof ItemCategorySchema>;
 
-/** An indivisible object of a treasure, with the rolls that produced it. */
+/**
+ * An indivisible object of a treasure, with the rolls that produced it and its
+ * descripción (ADR-0002), when its name has one: one line per part.
+ */
 export const TreasureItemSchema = z.object({
   category: ItemCategorySchema,
   name: z.string().min(1).max(500),
   valueCp: z.number().int().min(0),
   rolls: z.array(RollSchema).max(50),
+  description: z.string().min(1).max(3000).optional(),
 });
 export type TreasureItem = z.infer<typeof TreasureItemSchema>;
 
@@ -122,6 +126,17 @@ export function formatItem(item: TreasureItem): string {
 }
 
 /**
+ * An item as an announcement lists it: "- name (price)", then each line of its
+ * description indented below. One entry, so a split never parts them.
+ */
+export function formatItemEntry(item: TreasureItem): string {
+  const lines = item.description?.split("\n") ?? [];
+  return [`- ${formatItem(item)}`, ...lines.map((line) => `  ${line}`)].join(
+    "\n",
+  );
+}
+
+/**
  * The private message that announces a tesoro individual to its PJ. Returns
  * one text, or several numbered parts when it would not fit in one message.
  */
@@ -131,7 +146,7 @@ export function formatIndividualAnnouncement(
 ): string[] {
   const lines = [
     ...formatCoinList(treasure.coins).map((coins) => `- ${coins}`),
-    ...treasure.items.map((item) => `- ${formatItem(item)}`),
+    ...treasure.items.map(formatItemEntry),
   ];
   if (lines.length === 0) lines.push("- Nothing");
   lines.push(`Total: ${formatCpAsPo(totalValueCp(treasure))}`);
@@ -153,8 +168,9 @@ export function splitIntoParts(
   if (whole.length <= limit) return [whole];
 
   // Room for the widest header possible: never more parts than lines.
-  // ponytail: a single line longer than the budget overflows its part; the
-  // schema caps item names at 500 characters, far below any channel limit.
+  // ponytail: a single entry longer than the budget overflows its part; an
+  // item caps at 500 characters of name and 3,000 of description, so only an
+  // item with a huge description can overflow a 2,000-character message.
   const budget = limit - `${title} (${lines.length}/${lines.length})\n`.length;
   const chunks: string[][] = [];
   let size = Infinity;

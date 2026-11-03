@@ -2,7 +2,7 @@ import { MAX_NOTE_LENGTH } from "../types";
 import { DENOMINATIONS, formatCoinList, formatCpAsPo, NO_COINS } from "./coins";
 import type { Die } from "./dice";
 import {
-  formatItem,
+  formatItemEntry,
   splitIntoParts,
   totalValueCp,
   type Coins,
@@ -146,7 +146,7 @@ export function formatPartyAnnouncement(
   const lines = shares.flatMap((share) => {
     const received = [
       ...formatCoinList(share.coins).map((coins) => `- ${coins}`),
-      ...share.itemIndexes.map((i) => `- ${formatItem(treasure.items[i])}`),
+      ...share.itemIndexes.map((i) => formatItemEntry(treasure.items[i])),
     ];
     return [share.name, ...(received.length > 0 ? received : ["- Nothing"])];
   });
