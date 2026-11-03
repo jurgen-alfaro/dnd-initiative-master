@@ -1,6 +1,13 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { formatPartyAnnouncement, splitCoins } from "./party";
+import {
+  formatPartyAnnouncement,
+  isEveryItemAssigned,
+  partyShares,
+  splitAmong,
+  splitCoins,
+  toggleRecipient,
+} from "./party";
 import { COPPER_PER_COIN, DENOMINATIONS } from "./coins";
 import type { Coins, Treasure } from "./treasure";
 import type { Die } from "./dice";
@@ -155,5 +162,99 @@ describe("formatPartyAnnouncement", () => {
       ...items.slice(150).map((item) => `- ${item.name} (12.5 po)`),
       "Total: 3,750 po",
     ]);
+  });
+});
+
+describe("party reparto", () => {
+  const noCoins = { pc: 0, pp: 0, po: 0, ppt: 0 };
+  const gem = (name: string) => ({
+    category: "gem" as const,
+    name,
+    valueCp: 100,
+    rolls: [],
+  });
+  const treasure: Treasure = {
+    level: 1,
+    coins: { ...noCoins, po: 10 },
+    coinRolls: [],
+    items: [gem("Ágata"), gem("Rubí"), gem("Ópalo")],
+  };
+
+  describe("toggleRecipient", () => {
+    it("should free the items of a PJ that is unticked", () => {
+      const next = toggleRecipient(
+        { recipientIds: new Set([1, 2]), assignments: { 0: 1, 1: 2, 2: 1 } },
+        1,
+        false,
+      );
+
+      assert.deepEqual([...next.recipientIds], [2]);
+      assert.deepEqual(next.assignments, { 1: 2 });
+    });
+
+    it("should tick a PJ without touching the assignments", () => {
+      const next = toggleRecipient(
+        { recipientIds: new Set([2]), assignments: { 1: 2 } },
+        1,
+        true,
+      );
+
+      assert.deepEqual([...next.recipientIds].sort(), [1, 2]);
+      assert.deepEqual(next.assignments, { 1: 2 });
+    });
+  });
+
+  describe("splitAmong", () => {
+    it("should give nothing to split when nobody is ticked", () => {
+      assert.deepEqual(splitAmong(treasure.coins, 0, noDie), []);
+    });
+
+    it("should split the coins among the ticked PJs", () => {
+      assert.deepEqual(splitAmong(treasure.coins, 2, noDie), [
+        { ...noCoins, po: 5 },
+        { ...noCoins, po: 5 },
+      ]);
+    });
+  });
+
+  describe("isEveryItemAssigned", () => {
+    it("should be true only when every item has a ticked owner", () => {
+      const ticked = new Set([1, 2]);
+
+      assert.equal(isEveryItemAssigned(treasure, { 0: 1, 1: 2, 2: 2 }, ticked), true);
+      assert.equal(isEveryItemAssigned(treasure, { 0: 1, 1: 2 }, ticked), false);
+      // Owner 3 left the party (or was unticked) since the item was assigned.
+      assert.equal(isEveryItemAssigned(treasure, { 0: 1, 1: 2, 2: 3 }, ticked), false);
+    });
+
+    it("should be true for a treasure with no items", () => {
+      assert.equal(isEveryItemAssigned({ ...treasure, items: [] }, {}, new Set()), true);
+    });
+  });
+
+  describe("partyShares", () => {
+    it("should pair each PJ with its coins and the positions of its items", () => {
+      const shares = partyShares(
+        treasure,
+        [1, 2],
+        [
+          { ...noCoins, po: 6 },
+          { ...noCoins, po: 4 },
+        ],
+        { 0: 2, 1: 1, 2: 2 },
+      );
+
+      assert.deepEqual(shares, [
+        { combatantId: 1, coins: { ...noCoins, po: 6 }, itemIndexes: [1] },
+        { combatantId: 2, coins: { ...noCoins, po: 4 }, itemIndexes: [0, 2] },
+      ]);
+    });
+
+    it("should refuse coin shares that don't match the PJs", () => {
+      assert.throws(
+        () => partyShares(treasure, [1, 2], [{ ...noCoins, po: 10 }], {}),
+        RangeError,
+      );
+    });
   });
 });

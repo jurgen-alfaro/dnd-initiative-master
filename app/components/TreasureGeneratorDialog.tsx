@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Coins as CoinsIcon, Dices } from "lucide-react";
 import {
   Dialog,
@@ -21,13 +21,19 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/app/components/ui/select";
-import { todayInputValue } from "@/app/components/SessionNotesDrawer";
+import { todayInputValue } from "@/app/lib/date-format";
 import {
   deliverIndividualTreasure,
   deliverPartyTreasure,
 } from "@/app/server/actions";
 import { randomDie } from "@/app/lib/treasure/dice";
-import { splitCoins } from "@/app/lib/treasure/party";
+import {
+  isEveryItemAssigned,
+  partyShares,
+  splitAmong,
+  toggleRecipient,
+  type PartySelection,
+} from "@/app/lib/treasure/party";
 import { formatCoinList, formatCpAsPo } from "@/app/lib/treasure/coins";
 import {
   MAX_ENCOUNTER_LEVEL,
@@ -35,9 +41,7 @@ import {
   formatItem,
   generateTreasure,
   totalValueCp,
-  type Coins,
   type Roll,
-  type Treasure,
 } from "@/app/lib/treasure/treasure";
 import type { Combatant } from "@/app/lib/types";
 
@@ -106,31 +110,46 @@ function TreasureGeneratorForm({
 
   const [level, setLevel] = useState(MIN_ENCOUNTER_LEVEL);
   const [destination, setDestination] = useState<Destination>("party");
-  // Party treasure: the PJs ticked (unhidden ones to start with), the coins
-  // each one gets and the PJ each item goes to.
-  const [selectedIds, setSelectedIds] = useState<Set<number>>(
-    () => new Set(players.filter((c) => !c.isHidden).map((c) => c.id)),
-  );
   const [treasure, setTreasure] = useState(() =>
     generateTreasure(MIN_ENCOUNTER_LEVEL, randomDie),
   );
-  const [coinShares, setCoinShares] = useState<Coins[]>(() =>
-    splitAmong(treasure, selectedIds.size),
-  );
-  const [assignments, setAssignments] = useState<Record<number, number>>({});
+  // Party treasure: the PJs ticked (unhidden ones to start with) and the PJ
+  // each item goes to.
+  const [selection, setSelection] = useState<PartySelection>(() => ({
+    recipientIds: new Set(players.filter((c) => !c.isHidden).map((c) => c.id)),
+    assignments: {},
+  }));
   const [recipientId, setRecipientId] = useState<number | null>(
     claimedPlayers.length === 1 ? claimedPlayers[0].id : null,
   );
   const [error, setError] = useState<string | null>(null);
   const [isDelivering, setIsDelivering] = useState(false);
 
-  const partyRecipients = players.filter((c) => selectedIds.has(c.id));
+  // Derived from the PJs present right now: polling can add or remove one
+  // while the dialog is open.
+  const partyRecipients = players.filter((c) =>
+    selection.recipientIds.has(c.id),
+  );
+  const recipientIds = partyRecipients.map((c) => c.id);
+  const recipientIdSet = new Set(recipientIds);
+  const recipientCount = recipientIds.length;
+  // The coin split is redone only when the treasure or the number of
+  // recipients changes, so the leftover copper keeps its lucky owner between
+  // renders.
+  const coinShares = useMemo(
+    () => splitAmong(treasure.coins, recipientCount, randomDie),
+    [treasure, recipientCount],
+  );
+  const shares = partyShares(
+    treasure,
+    recipientIds,
+    coinShares,
+    selection.assignments,
+  );
 
   const roll = (nextLevel: number) => {
-    const next = generateTreasure(nextLevel, randomDie);
-    setTreasure(next);
-    setCoinShares(splitAmong(next, partyRecipients.length));
-    setAssignments({});
+    setTreasure(generateTreasure(nextLevel, randomDie));
+    setSelection((current) => ({ ...current, assignments: {} }));
   };
 
   const handleLevelChange = (value: string) => {
@@ -141,30 +160,22 @@ function TreasureGeneratorForm({
 
   const handleReroll = () => roll(level);
 
-  // Changing who is ticked redoes the coin split and frees the items of
-  // whoever was unticked.
   const handleToggleRecipient = (id: number, isChecked: boolean) => {
-    const next = new Set(selectedIds);
-    if (isChecked) next.add(id);
-    else next.delete(id);
-    setSelectedIds(next);
-    setCoinShares(splitAmong(treasure, next.size));
-    setAssignments((current) =>
-      Object.fromEntries(
-        Object.entries(current).filter(([, owner]) => next.has(owner)),
-      ),
-    );
+    setSelection((current) => toggleRecipient(current, id, isChecked));
   };
 
   const handleAssign = (itemIndex: number, owner: number) => {
-    setAssignments((current) => ({ ...current, [itemIndex]: owner }));
+    setSelection((current) => ({
+      ...current,
+      assignments: { ...current.assignments, [itemIndex]: owner },
+    }));
   };
 
   const canDeliver =
     destination === "party"
       ? partyRecipients.length > 0 &&
-        treasure.items.every((_, i) => assignments[i] !== undefined)
-      : recipientId !== null;
+        isEveryItemAssigned(treasure, selection.assignments, recipientIdSet)
+      : claimedPlayers.some((c) => c.id === recipientId);
 
   const handleDeliver = async () => {
     if (!canDeliver) {
@@ -184,13 +195,7 @@ function TreasureGeneratorForm({
               partyCode,
               dmToken,
               treasure,
-              partyRecipients.map((c, i) => ({
-                combatantId: c.id,
-                coins: coinShares[i],
-                itemIndexes: treasure.items.flatMap((_, itemIndex) =>
-                  assignments[itemIndex] === c.id ? [itemIndex] : [],
-                ),
-              })),
+              shares,
               new Date(`${todayInputValue()}T12:00:00`).toISOString(),
             )
           : await deliverIndividualTreasure(
@@ -287,7 +292,7 @@ function TreasureGeneratorForm({
           {players.map((c) => (
             <label key={c.id} className="flex items-center gap-2 text-sm">
               <Checkbox
-                checked={selectedIds.has(c.id)}
+                checked={selection.recipientIds.has(c.id)}
                 onCheckedChange={(v) => handleToggleRecipient(c.id, v === true)}
               />
               {c.name}
@@ -309,7 +314,7 @@ function TreasureGeneratorForm({
             {partyRecipients.map((c, i) => (
               <li key={c.id}>
                 <span className="font-heading">{c.name}:</span>{" "}
-                {formatCoinList(coinShares[i]).join(", ") || "no coins"}
+                {formatCoinList(shares[i].coins).join(", ") || "no coins"}
               </li>
             ))}
           </ul>
@@ -322,7 +327,11 @@ function TreasureGeneratorForm({
             />
             {destination === "party" && (
               <Select
-                value={assignments[i] === undefined ? "" : String(assignments[i])}
+                value={
+                  recipientIdSet.has(selection.assignments[i])
+                    ? String(selection.assignments[i])
+                    : ""
+                }
                 onValueChange={(v) => handleAssign(i, Number(v))}
                 disabled={partyRecipients.length === 0}
               >
@@ -367,11 +376,6 @@ function TreasureGeneratorForm({
       </DialogFooter>
     </div>
   );
-}
-
-/** Coins each of `count` PJs gets; nobody ticked means nothing to split. */
-function splitAmong(treasure: Treasure, count: number): Coins[] {
-  return count > 0 ? splitCoins(treasure.coins, count, randomDie) : [];
 }
 
 /** One line of the preview; expanding it shows the rolls behind it. */

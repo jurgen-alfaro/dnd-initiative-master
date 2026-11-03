@@ -53,6 +53,80 @@ export function splitCoins(
   return shares;
 }
 
+/** Coins each of `count` PJs gets; nobody ticked means nothing to split. */
+export function splitAmong(coins: Coins, count: number, die: Die): Coins[] {
+  return count > 0 ? splitCoins(coins, count, die) : [];
+}
+
+/** The PJ (combatant id) each item goes to, keyed by its position in `items`. */
+export type Assignments = Record<number, number>;
+
+/** Who is ticked to receive a tesoro de party and who gets each item. */
+export type PartySelection = {
+  recipientIds: ReadonlySet<number>;
+  assignments: Assignments;
+};
+
+/** Ticks or unticks a PJ; an unticked PJ frees the items it was given. */
+export function toggleRecipient(
+  { recipientIds, assignments }: PartySelection,
+  id: number,
+  isChecked: boolean,
+): PartySelection {
+  const next = new Set(recipientIds);
+  if (isChecked) next.add(id);
+  else next.delete(id);
+  return {
+    recipientIds: next,
+    assignments: Object.fromEntries(
+      Object.entries(assignments).filter(([, owner]) => next.has(owner)),
+    ),
+  };
+}
+
+/** Whether every item goes to one of `recipientIds`. */
+export function isEveryItemAssigned(
+  treasure: Treasure,
+  assignments: Assignments,
+  recipientIds: ReadonlySet<number>,
+): boolean {
+  return treasure.items.every((_, i) => {
+    const owner = assignments[i];
+    return owner !== undefined && recipientIds.has(owner);
+  });
+}
+
+/** What one PJ is delivered: its coins and the positions of its items. */
+export type RecipientShare = {
+  combatantId: number;
+  coins: Coins;
+  itemIndexes: number[];
+};
+
+/**
+ * Pairs each PJ of `recipientIds` with the coins at the same position of
+ * `coinShares` and the items assigned to it.
+ */
+export function partyShares(
+  treasure: Treasure,
+  recipientIds: readonly number[],
+  coinShares: readonly Coins[],
+  assignments: Assignments,
+): RecipientShare[] {
+  if (coinShares.length !== recipientIds.length) {
+    throw new RangeError(
+      `${coinShares.length} coin shares for ${recipientIds.length} recipients`,
+    );
+  }
+  return recipientIds.map((combatantId, i) => ({
+    combatantId,
+    coins: coinShares[i],
+    itemIndexes: treasure.items.flatMap((_, itemIndex) =>
+      assignments[itemIndex] === combatantId ? [itemIndex] : [],
+    ),
+  }));
+}
+
 /** What one PJ receives: its share of the coins and the items assigned to it. */
 export type PartyShare = {
   name: string;
