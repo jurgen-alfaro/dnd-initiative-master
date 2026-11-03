@@ -10,7 +10,7 @@ import {
   messages,
 } from "@/app/db/schema";
 import { generatePartyCode, generateRecoveryCode } from "@/app/lib/code-gen";
-import { and, desc, eq, inArray, isNull, lt, sql } from "drizzle-orm";
+import { and, desc, eq, inArray, isNull, sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
@@ -44,7 +44,7 @@ import {
   type Treasure,
 } from "@/app/lib/treasure/treasure";
 import {
-  messageRetentionCutoff,
+  sweepExpiredMessages,
   resolveMessageAccess,
 } from "@/app/server/messages";
 
@@ -1114,7 +1114,7 @@ export async function getNotes(
         ? eq(notes.partyId, party.id)
         : and(eq(notes.partyId, party.id), eq(notes.visibility, "public")),
     )
-    .orderBy(desc(notes.sessionDate), desc(notes.createdAt));
+    .orderBy(desc(notes.sessionDate), desc(notes.createdAt), desc(notes.id));
 
   return rows.map((n) => ({
     id: n.id,
@@ -1730,18 +1730,7 @@ export async function sendPartyMessage(
       })
       .returning();
 
-    // Opportunistic retention sweep, scoped to this party so it stays an index
-    // range scan and can never stall on another party's traffic. It is
-    // best-effort cleanup only: the read path filters by the same cutoff, so an
-    // idle party still never serves messages past the window.
-    await db
-      .delete(messages)
-      .where(
-        and(
-          eq(messages.partyId, access.partyId),
-          lt(messages.createdAt, messageRetentionCutoff()),
-        ),
-      );
+    await sweepExpiredMessages(access.partyId);
 
     // No revalidatePath here: nothing in the server render depends on messages,
     // and no notifyPartyChanged either — that would make every browser in the
@@ -1830,6 +1819,20 @@ export async function markThreadRead(
 // --- Treasure Actions ---
 
 /**
+ * The party whose DM holds `dmToken`, or the error to hand back. Not exported:
+ * in a "use server" file that would publish it as an action.
+ */
+async function findPartyForDm(
+  partyCode: string,
+  dmToken: string,
+): Promise<{ party: typeof parties.$inferSelect } | { error: string }> {
+  const party = await getPartyByCode(partyCode);
+  if (!party) return { error: "Party not found" };
+  if (party.dmToken !== dmToken) return { error: "Not authorized" };
+  return { party };
+}
+
+/**
  * Delivers a tesoro individual: announces it as one or more DM messages in the
  * recipient's private thread. Only the DM may deliver, and only to a claimed
  * PJ of the party, so nobody but that player reads it. The DM is trusted, so
@@ -1852,19 +1855,17 @@ export async function deliverIndividualTreasure(
   }
 
   try {
-    const access = await resolveMessageAccess(
+    const found = await findPartyForDm(
       validated.data.partyCode,
       validated.data.dmToken,
-      null,
     );
-
-    if (access.role === "not-found") return { error: "Party not found" };
-    if (access.role !== "dm") return { error: "Not authorized" };
+    if ("error" in found) return found;
+    const { party } = found;
 
     const target = await db.query.combatants.findFirst({
       where: and(
         eq(combatants.id, validated.data.combatantId),
-        eq(combatants.partyId, access.partyId),
+        eq(combatants.partyId, party.id),
       ),
     });
 
@@ -1883,14 +1884,15 @@ export async function deliverIndividualTreasure(
 
     await db.insert(messages).values(
       parts.map((body) => ({
-        partyId: access.partyId,
+        partyId: party.id,
         combatantId: target.id,
         sender: "dm" as const,
         body,
       })),
     );
+    await sweepExpiredMessages(party.id);
 
-    await notifyPartyMessage(access.partyCode);
+    await notifyPartyMessage(party.code);
     return { success: true };
   } catch (error) {
     console.error("Error delivering treasure:", error);
@@ -1933,9 +1935,9 @@ export async function deliverPartyTreasure(
   }
 
   try {
-    const party = await getPartyByCode(data.partyCode);
-    if (!party) return { error: "Party not found" };
-    if (data.dmToken !== party.dmToken) return { error: "Not authorized" };
+    const found = await findPartyForDm(data.partyCode, data.dmToken);
+    if ("error" in found) return found;
+    const { party } = found;
 
     const recipients = await db.query.combatants.findMany({
       where: and(
@@ -1959,8 +1961,10 @@ export async function deliverPartyTreasure(
       })),
     );
 
+    // Notes are read newest first, ties broken by the highest id, so the
+    // parts go in last to first: part 1 gets the highest id and reads first.
     await db.insert(notes).values(
-      parts.map((content) => ({
+      parts.toReversed().map((content) => ({
         partyId: party.id,
         content,
         visibility: "public" as const,
