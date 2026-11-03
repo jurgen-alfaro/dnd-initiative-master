@@ -1,5 +1,6 @@
 import { ART_TABLE } from "./artTable";
-import { pickRow, rollDice, rollPercentile, type Die } from "./dice";
+import { poToCp } from "./coins";
+import { rollDice, rollTable, type Die } from "./dice";
 import { GEM_TABLE, type ValuableRow } from "./gemTable";
 import type { Roll, TreasureItem } from "./treasure";
 import { VALUABLES_COLUMN } from "./valuablesColumn";
@@ -9,8 +10,6 @@ const TABLES = {
   art: { rows: ART_TABLE, label: "Table 3-7, art object" },
 } as const;
 
-const CP_PER_PO = 100;
-
 /**
  * Rolls the gems and art of a treasure: the column of table 3-5 for the NE,
  * then each gem on table 3-6 and each art object on table 3-7. Each item keeps
@@ -18,9 +17,13 @@ const CP_PER_PO = 100;
  */
 export function rollValuables(level: number, die: Die): TreasureItem[] {
   const label = "Table 3-5, gems and art";
-  const percentile = rollPercentile(die);
-  const columnRolls: Roll[] = [{ label, dice: "d%", values: [percentile] }];
-  const { valuable, count } = pickRow(VALUABLES_COLUMN[level - 1], percentile);
+  const columnRolls: Roll[] = [];
+  const { valuable, count } = rollTable(
+    label,
+    VALUABLES_COLUMN[level - 1],
+    die,
+    columnRolls,
+  );
   if (!valuable) return [];
 
   let amount = 1;
@@ -41,21 +44,20 @@ function rollValuable(
   die: Die,
 ): TreasureItem {
   const { rows, label } = TABLES[category];
-  const percentile = rollPercentile(die);
-  const row: ValuableRow = pickRow(rows, percentile);
+  const rolls = [...columnRolls];
+  const row: ValuableRow = rollTable(label, rows, die, rolls);
   const values = rollDice(die, row.dice);
   const nameRoll = die(row.names.length);
   const times = row.times > 1 ? `×${row.times.toLocaleString("en-US")}` : "";
+  rolls.push(
+    { label, dice: `${row.dice}${times} po`, values },
+    { label, dice: `d${row.names.length}`, values: [nameRoll] },
+  );
 
   return {
     category,
     name: row.names[nameRoll - 1],
-    valueCp: values.reduce((a, b) => a + b, 0) * row.times * CP_PER_PO,
-    rolls: [
-      ...columnRolls,
-      { label, dice: "d%", values: [percentile] },
-      { label, dice: `${row.dice}${times} po`, values },
-      { label, dice: `d${row.names.length}`, values: [nameRoll] },
-    ],
+    valueCp: poToCp(values.reduce((a, b) => a + b, 0) * row.times),
+    rolls,
   };
 }

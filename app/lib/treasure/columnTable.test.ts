@@ -1,25 +1,13 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { rollMagicItem, type MagicCategory } from "./magicTable";
-import type { Die } from "./dice";
+import { fixedDie } from "./testDice";
 import { POTION_ROWS } from "./potionTable";
 import { RING_ROWS } from "./ringTable";
 import { ROD_ROWS } from "./rodTable";
 import { STAFF_ROWS } from "./staffTable";
 import { WAND_ROWS } from "./wandTable";
 import type { ColumnRow } from "./columnTable";
-
-/** Replays `values` in order and fails on an unplanned or impossible roll. */
-function fixedDie(...values: number[]): Die & { rest: () => number } {
-  let next = 0;
-  const die: Die = (sides) => {
-    const value = values[next++];
-    assert.ok(value !== undefined, `unexpected roll of d${sides}`);
-    assert.ok(value >= 1 && value <= sides, `${value} is not a d${sides} roll`);
-    return value;
-  };
-  return Object.assign(die, { rest: () => values.length - next });
-}
 
 /** A d% of table 7-1 that lands on each family, per category. */
 const FAMILY_ROLL = {

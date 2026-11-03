@@ -1,3 +1,5 @@
+import type { Roll } from "./treasure";
+
 /**
  * Randomness for the treasure tables. The die is always injected, so every
  * table can be replayed with a fixed sequence of rolls.
@@ -34,4 +36,16 @@ export function pickRow<Row extends { upTo: number }>(
   const row = rows.find((r) => roll <= r.upTo);
   if (!row) throw new RangeError(`No row covers a roll of ${roll}`);
   return row;
+}
+
+/** Rolls d% on a table, keeps the roll in `rolls` and returns its row. */
+export function rollTable<Row extends { upTo: number }>(
+  label: string,
+  rows: readonly Row[],
+  die: Die,
+  rolls: Roll[],
+): Row {
+  const percentile = rollPercentile(die);
+  rolls.push({ label, dice: "d%", values: [percentile] });
+  return pickRow(rows, percentile);
 }

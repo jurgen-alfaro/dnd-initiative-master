@@ -1,4 +1,5 @@
-import { pickRow, type Die } from "./dice";
+import { poToCp } from "./coins";
+import { rollTable, type Die } from "./dice";
 import type { MagicCategory, MagicResolution } from "./magicTable";
 import type { Roll } from "./treasure";
 
@@ -20,7 +21,7 @@ const rows = (entries: readonly Entry[]): readonly WondrousRow[] =>
   entries.map(([name, po, bag], index) => ({
     upTo: index + 1,
     name,
-    valueCp: po * 100,
+    valueCp: poToCp(po),
     ...(bag && { bag }),
   }));
 
@@ -384,19 +385,17 @@ export function rollWondrous(
   category: MagicCategory,
   die: Die,
 ): MagicResolution {
+  const rolls: Roll[] = [];
   const label = `Table ${TABLE_NUMBERS[category]}`;
-  const percentile = die(100);
-  const row = pickRow(WONDROUS_TABLES[category], percentile);
-  const rolls: Roll[] = [{ label, dice: "d%", values: [percentile] }];
+  const row = rollTable(label, WONDROUS_TABLES[category], die, rolls);
 
   if (!row.bag) return { name: row.name, valueCp: row.valueCp, rolls };
 
-  const animalRoll = die(100);
-  const { animal } = pickRow(BAG_OF_TRICKS_ANIMALS[row.bag], animalRoll);
-  rolls.push({
-    label: `Bag of tricks (${row.bag})`,
-    dice: "d%",
-    values: [animalRoll],
-  });
+  const { animal } = rollTable(
+    `Bag of tricks (${row.bag})`,
+    BAG_OF_TRICKS_ANIMALS[row.bag],
+    die,
+    rolls,
+  );
   return { name: `${row.name}: ${animal}`, valueCp: row.valueCp, rolls };
 }

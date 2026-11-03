@@ -1,6 +1,14 @@
 import { z } from "zod";
+import { MAX_MESSAGE_LENGTH } from "../types";
 import { COIN_TABLE } from "./coinTable";
-import { pickRow, rollDice, rollPercentile, type Die } from "./dice";
+import {
+  COPPER_PER_COIN,
+  DENOMINATIONS,
+  formatCoinList,
+  formatCpAsPo,
+  NO_COINS,
+} from "./coins";
+import { rollDice, rollTable, type Die } from "./dice";
 import { rollGoods } from "./goodsTable";
 import { rollValuables } from "./valuables";
 
@@ -16,17 +24,6 @@ import { rollValuables } from "./valuables";
 
 export const MIN_ENCOUNTER_LEVEL = 1;
 export const MAX_ENCOUNTER_LEVEL = 20;
-
-export const DENOMINATIONS = ["ppt", "po", "pp", "pc"] as const;
-export type Denomination = (typeof DENOMINATIONS)[number];
-
-/** Value of one coin of each denomination, in pc. */
-export const COPPER_PER_COIN: Record<Denomination, number> = {
-  pc: 1,
-  pp: 10,
-  po: 100,
-  ppt: 1000,
-};
 
 const CoinCountSchema = z.number().int().min(0).max(1_000_000_000);
 
@@ -74,8 +71,6 @@ export const TreasureSchema = z.object({
 });
 export type Treasure = z.infer<typeof TreasureSchema>;
 
-const NO_COINS: Coins = { pc: 0, pp: 0, po: 0, ppt: 0 };
-
 /** Gems and art first, then the mundane and magic objects of table 3-5. */
 function rollItems(level: number, die: Die): TreasureItem[] {
   return [...rollValuables(level, die), ...rollGoods(level, die)];
@@ -87,9 +82,8 @@ export function generateTreasure(level: number, die: Die): Treasure {
   if (!rows) throw new RangeError(`NE must be 1-20, got ${level}`);
 
   const label = "Table 3-5, coins";
-  const percentile = rollPercentile(die);
-  const coinRolls: Roll[] = [{ label, dice: "d%", values: [percentile] }];
-  const row = pickRow(rows, percentile);
+  const coinRolls: Roll[] = [];
+  const row = rollTable(label, rows, die, coinRolls);
   if (!row.dice) {
     const items = rollItems(level, die);
     return { level, coins: NO_COINS, coinRolls, items };
@@ -120,25 +114,12 @@ export function totalValueCp(treasure: Treasure): number {
   return treasure.items.reduce((sum, item) => sum + item.valueCp, coins);
 }
 
-/** A count of coins, e.g. "4,000 pc". */
-export function formatCoins(count: number, denomination: Denomination): string {
-  return `${count.toLocaleString("en-US")} ${denomination}`;
-}
-
-/** A value in pc shown in po, e.g. 1250 → "12.5 po". */
-export function formatCpAsGp(cp: number): string {
-  return `${(cp / 100).toLocaleString("en-US", { maximumFractionDigits: 2 })} po`;
-}
-
 /** An item and its value, e.g. "Coraza (Mediana) (200 po)"; no value, no price. */
 export function formatItem(item: TreasureItem): string {
   return item.valueCp > 0
-    ? `${item.name} (${formatCpAsGp(item.valueCp)})`
+    ? `${item.name} (${formatCpAsPo(item.valueCp)})`
     : item.name;
 }
-
-/** Longest body a DM chat message may have. */
-const MESSAGE_LIMIT = 2000;
 
 /**
  * The private message that announces a tesoro individual to its PJ. Returns
@@ -149,15 +130,17 @@ export function formatIndividualAnnouncement(
   characterName: string,
 ): string[] {
   const lines = [
-    ...DENOMINATIONS.filter((d) => treasure.coins[d] > 0).map(
-      (d) => `- ${formatCoins(treasure.coins[d], d)}`,
-    ),
+    ...formatCoinList(treasure.coins).map((coins) => `- ${coins}`),
     ...treasure.items.map((item) => `- ${formatItem(item)}`),
   ];
   if (lines.length === 0) lines.push("- Nothing");
-  lines.push(`Total: ${formatCpAsGp(totalValueCp(treasure))}`);
+  lines.push(`Total: ${formatCpAsPo(totalValueCp(treasure))}`);
 
-  return splitIntoParts(`Treasure for ${characterName}`, lines, MESSAGE_LIMIT);
+  return splitIntoParts(
+    `Treasure for ${characterName}`,
+    lines,
+    MAX_MESSAGE_LENGTH,
+  );
 }
 
 /** Packs whole lines into texts of at most `limit` characters. */

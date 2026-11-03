@@ -280,7 +280,9 @@ export default function PartyActionsMenu({
         <TreasureGeneratorDialog
           partyCode={partyCode}
           dmToken={dmToken}
-          combatants={combatants}
+          // Treasure can go to a PJ held in reserve too, so the dialog gets
+          // the hidden combatants as well as those in the fight.
+          combatants={[...combatants, ...hiddenCombatants]}
           open={treasureOpen}
           onOpenChange={setTreasureOpen}
         />

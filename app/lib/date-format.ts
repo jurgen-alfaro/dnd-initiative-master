@@ -1,3 +1,10 @@
+/** Returns today's date as a `yyyy-mm-dd` string in local time. */
+export function todayInputValue(): string {
+  const now = new Date();
+  const local = new Date(now.getTime() - now.getTimezoneOffset() * 60000);
+  return local.toISOString().slice(0, 10);
+}
+
 /**
  * Formats a date as a Spanish session label, e.g. "Jueves 25 de octubre, 2026".
  * Accepts a Date or an ISO string.

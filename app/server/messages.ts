@@ -1,6 +1,6 @@
 import { db } from "@/app/db/";
 import { combatants, messages, parties } from "@/app/db/schema";
-import { and, eq, gte, inArray, sql } from "drizzle-orm";
+import { and, eq, gte, inArray, lt, sql } from "drizzle-orm";
 import type { ChatMessage, MessageThreadSummary } from "@/app/lib/types";
 
 /**
@@ -22,6 +22,24 @@ const PREVIEW_LENGTH = 80;
 /** Oldest instant still served. Anything before it is treated as gone. */
 export function messageRetentionCutoff(): Date {
   return new Date(Date.now() - MESSAGE_RETENTION_DAYS * 24 * 60 * 60 * 1000);
+}
+
+/**
+ * Opportunistic retention sweep, run after a message is written. Scoped to one
+ * party so it stays an index range scan and can never stall on another
+ * party's traffic. It is best-effort cleanup only: the read path filters by
+ * the same cutoff, so an idle party still never serves messages past the
+ * window.
+ */
+export async function sweepExpiredMessages(partyId: number): Promise<void> {
+  await db
+    .delete(messages)
+    .where(
+      and(
+        eq(messages.partyId, partyId),
+        lt(messages.createdAt, messageRetentionCutoff()),
+      ),
+    );
 }
 
 /**

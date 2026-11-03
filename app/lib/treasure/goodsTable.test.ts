@@ -1,24 +1,8 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { formatIndividualAnnouncement, generateTreasure } from "./treasure";
-import { rollMagicItem, type MagicCategory, type MagicResolvers } from "./magicTable";
-import type { Die } from "./dice";
-
-/**
- * A die that replays `values` in order. It fails when the code asks for a roll
- * the test did not plan, for one the die cannot give, and (through `rest`)
- * when planned rolls were never asked for.
- */
-function fixedDie(...values: number[]): Die & { rest: () => number } {
-  let next = 0;
-  const die: Die = (sides) => {
-    const value = values[next++];
-    assert.ok(value !== undefined, `unexpected roll of d${sides}`);
-    assert.ok(value >= 1 && value <= sides, `${value} is not a d${sides} roll`);
-    return value;
-  };
-  return Object.assign(die, { rest: () => values.length - next });
-}
+import { rollMagicItem, type MagicCategory } from "./magicTable";
+import { fixedDie } from "./testDice";
 
 /** "01-14" → [1, 14]. */
 const range = (text: string): [number, number] => {
@@ -166,10 +150,21 @@ const BOOK_MAGIC: Record<"minor" | "medium" | "major", string[]> = {
   ],
 };
 
+/** The first table each family of table 7-1 rolls on, as its roll is labelled. */
+const FIRST_FAMILY_TABLE: Record<string, RegExp> = {
+  "Armadura y escudos": /^Table 7-2, /,
+  Armas: /^Table 7-9, /,
+  Pociones: /^Table 7-20, /,
+  Anillos: /^Table 7-17, /,
+  Cetros: /^Table 7-19, /,
+  "Rollos de pergamino": /^Table 7-21$/,
+  Bastones: /^Table 7-18, /,
+  Varitas: /^Table 7-26, /,
+  "Objetos maravillosos": /^Table 7-2[789]$/,
+};
+
 describe("generateTreasure magic family (table 7-1)", () => {
   for (const [category, cells] of Object.entries(BOOK_MAGIC)) {
-    const word = { minor: "menor", medium: "intermedio", major: "mayor" }[category];
-
     it(`should give the family printed for every d% in the ${category} column`, () => {
       for (let percentile = 1; percentile <= 100; percentile++) {
         const cell = cells.find((c) => {
@@ -179,13 +174,20 @@ describe("generateTreasure magic family (table 7-1)", () => {
         assert.ok(cell, `d% ${percentile} must have a row in ${category}`);
         const family = cell.slice(cell.indexOf(" ") + 1);
 
-        // No resolvers: this test is about table 7-1 only, so every family stays unresolved.
-        const item = rollMagicItem(category as MagicCategory, fixedDie(percentile), {});
+        // Table 7-1 gets `percentile`; the family's own tables get 1s.
+        let isFirstRoll = true;
+        const die = () => {
+          if (!isFirstRoll) return 1;
+          isFirstRoll = false;
+          return percentile;
+        };
+        const item = rollMagicItem(category as MagicCategory, die);
 
-        assert.deepEqual(
-          [item.category, item.name, item.valueCp],
-          [category, `Objeto mágico ${word}: ${family}`, 0],
-          `${category} d% ${percentile}`,
+        assert.equal(item.category, category);
+        assert.match(
+          item.rolls[1].label,
+          FIRST_FAMILY_TABLE[family],
+          `${category} d% ${percentile} must go to ${family}`,
         );
       }
     });
@@ -201,25 +203,6 @@ describe("generateTreasure magic family (table 7-1)", () => {
         ["d%", [20]],
         ["d%", [33]],
       ],
-    );
-  });
-});
-
-describe("rollMagicItem family resolvers", () => {
-  it("should hand the family over to its resolver when one is registered", () => {
-    const resolvers: MagicResolvers = {
-      potion: (category, die) => ({
-        name: `Poción ${category}`,
-        valueCp: 5000,
-        rolls: [{ label: "Table 7-20", dice: "d%", values: [die(100)] }],
-      }),
-    };
-
-    const item = rollMagicItem("minor", fixedDie(20, 33), resolvers);
-
-    assert.deepEqual(
-      [item.category, item.name, item.valueCp, item.rolls.map((r) => r.values)],
-      ["minor", "Poción minor", 5000, [[20], [33]]],
     );
   });
 });

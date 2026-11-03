@@ -1,5 +1,5 @@
 import type { DiceNotation } from "./dice";
-import type { Denomination } from "./treasure";
+import type { Denomination } from "./coins";
 
 /** One d% range of the coins column. `dice` is null for a "—" (no coins). */
 export type CoinRow = {

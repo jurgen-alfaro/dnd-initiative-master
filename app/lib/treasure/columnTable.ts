@@ -1,10 +1,5 @@
-import {
-  pickRow,
-  rollDice,
-  rollPercentile,
-  type DiceNotation,
-  type Die,
-} from "./dice";
+import { poToCp } from "./coins";
+import { rollDice, rollTable, type DiceNotation, type Die } from "./dice";
 import type { MagicCategory, MagicResolution } from "./magicTable";
 import type { Roll } from "./treasure";
 
@@ -41,7 +36,7 @@ export function entry(
   if (minorRange) ranges.minor = minorRange;
   if (mediumRange) ranges.medium = mediumRange;
   if (majorRange) ranges.major = majorRange;
-  return { name, priceCp: Math.round(po * 100), ranges };
+  return { name, priceCp: poToCp(po), ranges };
 }
 
 const ENERGY_TYPES = ["ácido", "frío", "electricidad", "fuego", "sonido"];
@@ -54,7 +49,7 @@ export type ColumnTable = {
   /** Goes before the name: "Anillo", "Varita"… */
   kind?: string;
   /** Wands and staffs hold 1d50 charges. */
-  charged?: true;
+  isCharged?: true;
 };
 
 const pluralCharges = (n: number) => `${n} ${n === 1 ? "carga" : "cargas"}`;
@@ -65,21 +60,20 @@ const pluralCharges = (n: number) => `${n} ${n === 1 ? "carga" : "cargas"}`;
  * and staffs get their charges.
  */
 export function rollColumnTable(
-  { table, rows, kind, charged }: ColumnTable,
+  { table, rows, kind, isCharged }: ColumnTable,
   category: MagicCategory,
   die: Die,
 ): MagicResolution {
-  const percentile = rollPercentile(die);
-  const rolls: Roll[] = [
-    { label: `Table ${table}, ${category}`, dice: "d%", values: [percentile] },
-  ];
-  const row = pickRow(
+  const rolls: Roll[] = [];
+  const { row } = rollTable(
+    `Table ${table}, ${category}`,
     rows.flatMap((r) => {
       const range = r.ranges[category];
       return range ? [{ upTo: range[1], row: r }] : [];
     }),
-    percentile,
-  ).row;
+    die,
+    rolls,
+  );
 
   let name = row.name;
   const pickFrom = (
@@ -97,7 +91,7 @@ export function rollColumnTable(
   pickFrom("(alineamiento)", "Alignment", "1d4", ALIGNMENTS);
 
   if (kind) name = `${kind}: ${name}`;
-  if (charged) {
+  if (isCharged) {
     const [charges] = rollDice(die, "1d50");
     rolls.push({ label: "Charges", dice: "1d50", values: [charges] });
     name = `${name} (${pluralCharges(charges)})`;

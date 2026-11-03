@@ -1,20 +1,8 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import type { Die } from "./dice";
+import { fixedDie } from "./testDice";
 import { rollMagicItem, type MagicCategory } from "./magicTable";
 import { TreasureItemSchema } from "./treasure";
-
-/** Replays `values` in order and fails on any roll the test did not plan. */
-function fixedDie(...values: number[]): Die & { rest: () => number } {
-  let next = 0;
-  const die: Die = (sides) => {
-    const value = values[next++];
-    assert.ok(value !== undefined, `unexpected roll of d${sides}`);
-    assert.ok(value >= 1 && value <= sides, `${value} is not a d${sides} roll`);
-    return value;
-  };
-  return Object.assign(die, { rest: () => values.length - next });
-}
 
 /** A d% of table 7-1 that gives a scroll in each category. */
 const SCROLL: Record<MagicCategory, number> = { minor: 50, medium: 60, major: 50 };

@@ -1,4 +1,4 @@
-import { pickRow, rollDice, rollPercentile, type DiceNotation, type Die } from "./dice";
+import { rollDice, rollTable, type DiceNotation, type Die } from "./dice";
 import type { MagicCategory, MagicResolution } from "./magicTable";
 import { SCROLL_SPELL_TABLES } from "./scrollSpellTable";
 import type { Roll } from "./treasure";
@@ -58,27 +58,19 @@ const LEVEL_TABLE: Record<MagicCategory, readonly { upTo: number; level: number 
  * then the level and the spell of each one. Its price is the sum of its spells.
  */
 export function rollScroll(category: MagicCategory, die: Die): MagicResolution {
-  const typeRoll = rollPercentile(die);
-  const { type } = pickRow(TYPE_TABLE, typeRoll);
+  const rolls: Roll[] = [];
+  const { type } = rollTable("Table 7-21", TYPE_TABLE, die, rolls);
   const countValues = rollDice(die, SPELL_COUNT[category]);
   const count = countValues.reduce((sum, value) => sum + value, 0);
-  const rolls: Roll[] = [
-    { label: "Table 7-21", dice: "d%", values: [typeRoll] },
-    { label: "Table 7-22", dice: SPELL_COUNT[category], values: countValues },
-  ];
+  rolls.push({ label: "Table 7-22", dice: SPELL_COUNT[category], values: countValues });
 
   const spells = Array.from({ length: count }, () => {
-    const levelRoll = rollPercentile(die);
-    const { level } = pickRow(LEVEL_TABLE[category], levelRoll);
-    const spellRoll = rollPercentile(die);
-    const spell = pickRow(SCROLL_SPELL_TABLES[type][level], spellRoll);
-    rolls.push(
-      { label: `Table 7-23, ${category}`, dice: "d%", values: [levelRoll] },
-      {
-        label: `Table 7-${type === "arcane" ? 24 : 25}, level ${level}`,
-        dice: "d%",
-        values: [spellRoll],
-      },
+    const { level } = rollTable(`Table 7-23, ${category}`, LEVEL_TABLE[category], die, rolls);
+    const spell = rollTable(
+      `Table 7-${type === "arcane" ? 24 : 25}, level ${level}`,
+      SCROLL_SPELL_TABLES[type][level],
+      die,
+      rolls,
     );
     return { ...spell, casterLevel: CASTER_LEVEL[level] };
   });

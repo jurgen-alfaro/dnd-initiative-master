@@ -1,10 +1,4 @@
-import {
-  pickRow,
-  rollDice,
-  rollPercentile,
-  type DiceNotation,
-  type Die,
-} from "./dice";
+import { rollDice, rollTable, type DiceNotation, type Die } from "./dice";
 import { rollMagicItem, type MagicCategory } from "./magicTable";
 import { rollMundaneItem } from "./mundaneTable";
 import type { Roll, TreasureItem } from "./treasure";
@@ -117,9 +111,13 @@ export const GOODS_TABLE: readonly (readonly GoodsRow[])[] = [
  */
 export function rollGoods(level: number, die: Die): TreasureItem[] {
   const label = "Table 3-5, objects";
-  const percentile = rollPercentile(die);
-  const columnRolls: Roll[] = [{ label, dice: "d%", values: [percentile] }];
-  const { category, count } = pickRow(GOODS_TABLE[level - 1], percentile);
+  const columnRolls: Roll[] = [];
+  const { category, count } = rollTable(
+    label,
+    GOODS_TABLE[level - 1],
+    die,
+    columnRolls,
+  );
   if (!category) return [];
 
   let amount = 1;
