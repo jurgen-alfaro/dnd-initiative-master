@@ -1,8 +1,7 @@
+import { MAX_NOTE_LENGTH } from "../types";
+import { DENOMINATIONS, formatCoinList, formatCpAsPo, NO_COINS } from "./coins";
 import type { Die } from "./dice";
 import {
-  DENOMINATIONS,
-  formatCoins,
-  formatCpAsGp,
   formatItem,
   splitIntoParts,
   totalValueCp,
@@ -34,10 +33,7 @@ export function splitCoins(
   }
 
   const shares: Coins[] = Array.from({ length: recipients }, () => ({
-    pc: 0,
-    pp: 0,
-    po: 0,
-    ppt: 0,
+    ...NO_COINS,
   }));
 
   let carried = 0;
@@ -65,9 +61,6 @@ export type PartyShare = {
   itemIndexes: number[];
 };
 
-/** Longest body a session note may have. */
-const NOTE_LIMIT = 5000;
-
 /**
  * The public note that announces a tesoro de party: what each PJ received.
  * Returns one text, or several numbered parts when it would not fit in a note.
@@ -78,14 +71,12 @@ export function formatPartyAnnouncement(
 ): string[] {
   const lines = shares.flatMap((share) => {
     const received = [
-      ...DENOMINATIONS.filter((d) => share.coins[d] > 0).map(
-        (d) => `- ${formatCoins(share.coins[d], d)}`,
-      ),
+      ...formatCoinList(share.coins).map((coins) => `- ${coins}`),
       ...share.itemIndexes.map((i) => `- ${formatItem(treasure.items[i])}`),
     ];
     return [share.name, ...(received.length > 0 ? received : ["- Nothing"])];
   });
-  lines.push(`Total: ${formatCpAsGp(totalValueCp(treasure))}`);
+  lines.push(`Total: ${formatCpAsPo(totalValueCp(treasure))}`);
 
-  return splitIntoParts("Party treasure", lines, NOTE_LIMIT);
+  return splitIntoParts("Party treasure", lines, MAX_NOTE_LENGTH);
 }

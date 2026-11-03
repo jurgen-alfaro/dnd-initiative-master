@@ -108,6 +108,12 @@ export type Note = {
   createdAt: string; // ISO 8601 timestamp
 };
 
+/** Longest content a session note may have. */
+export const MAX_NOTE_LENGTH = 5000;
+
+/** Longest body a chat message may have. */
+export const MAX_MESSAGE_LENGTH = 2000;
+
 export type MessageSender = "dm" | "player";
 
 // One message of the private thread between a PC and the DM.

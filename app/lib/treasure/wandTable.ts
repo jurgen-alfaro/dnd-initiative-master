@@ -100,7 +100,7 @@ export const WAND_ROWS: readonly ColumnRow[] = [
 
 export const rollWand: MagicResolver = (category, die) =>
   rollColumnTable(
-    { table: "7-26", rows: WAND_ROWS, kind: "Varita", charged: true },
+    { table: "7-26", rows: WAND_ROWS, kind: "Varita", isCharged: true },
     category,
     die,
   );

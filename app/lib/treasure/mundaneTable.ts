@@ -1,7 +1,8 @@
+import { poToCp } from "./coins";
 import {
-  pickRow,
   rollDice,
   rollPercentile,
+  rollTable,
   type DiceNotation,
   type Die,
 } from "./dice";
@@ -48,11 +49,9 @@ export type Weapon = {
   isDouble?: true;
 };
 
-const gp = (po: number) => Math.round(po * 100);
-
 const item = (upTo: number, name: string, po: number): Node => ({
   upTo,
-  item: { name, priceCp: gp(po) },
+  item: { name, priceCp: poToCp(po) },
 });
 
 const alchemical = (
@@ -60,11 +59,11 @@ const alchemical = (
   name: string,
   quantity: DiceNotation,
   po: number,
-): Node => ({ upTo, item: { name, priceCp: gp(po), quantity } });
+): Node => ({ upTo, item: { name, priceCp: poToCp(po), quantity } });
 
 const armor = (upTo: number, name: string, po: number): Node => ({
   upTo,
-  item: { name, priceCp: gp(po), sized: true },
+  item: { name, priceCp: poToCp(po), sized: true },
 });
 
 const M: Gender = "masculine";
@@ -297,9 +296,7 @@ export function pickLeaf<Leaf>(
   die: Die,
   rolls: Roll[],
 ): Leaf {
-  const percentile = rollPercentile(die);
-  rolls.push({ label: table, dice: "d%", values: [percentile] });
-  const node = pickRow(rows, percentile);
+  const node = rollTable(table, rows, die, rolls);
   return "rows" in node ? pickLeaf(node.table, node.rows, die, rolls) : node.item;
 }
 

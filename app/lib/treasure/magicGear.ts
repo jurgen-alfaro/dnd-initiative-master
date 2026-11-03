@@ -1,4 +1,5 @@
-import { pickRow, rollPercentile, type Die } from "./dice";
+import { poToCp } from "./coins";
+import { rollTable, type Die } from "./dice";
 import type { MagicCategory } from "./magicTable";
 import type { Roll } from "./treasure";
 
@@ -7,8 +8,6 @@ import type { Roll } from "./treasure";
  * (tables 7-5, 7-6, 7-14 and 7-15) and their price by total bonus (tables 7-2
  * and 7-9).
  */
-
-const gp = (po: number) => Math.round(po * 100);
 
 /** Enhancement plus the bonus of the abilities can't go over +10. */
 export const MAX_TOTAL_BONUS = 10;
@@ -78,9 +77,7 @@ export function rollAbilities(
   const canAcceptMore = () =>
     rows.some(({ ability }) => ability !== "rollTwice" && accepts(ability, chosen));
   while (pending > 0 && canAcceptMore()) {
-    const percentile = rollPercentile(die);
-    rolls.push({ label, dice: "d%", values: [percentile] });
-    const { ability } = pickRow(rows, percentile);
+    const { ability } = rollTable(label, rows, die, rolls);
     if (ability === "rollTwice") {
       pending += 1;
     } else if (accepts(ability, chosen)) {
@@ -115,21 +112,9 @@ export function describeMagicGear(
     name: `${base.name} +${enhancement}${suffix}`,
     valueCp:
       base.priceCp +
-      gp(bonusPrice) +
+      poToCp(bonusPrice) +
       abilities.reduce((sum, a) => sum + a.priceCp, 0),
   };
-}
-
-/** Rolls d% on a table and keeps the roll. */
-export function rollTable<Row extends { upTo: number }>(
-  label: string,
-  rows: readonly Row[],
-  die: Die,
-  rolls: Roll[],
-): Row {
-  const percentile = rollPercentile(die);
-  rolls.push({ label, dice: "d%", values: [percentile] });
-  return pickRow(rows, percentile);
 }
 
 /** Top of an ability's range in the minor, medium and major columns; "—" is null. */
@@ -155,7 +140,7 @@ export const fixed = (
   columns: Columns,
   version?: string,
 ): AbilityEntry => ({
-  ability: { name: gendered(name), bonus: 0, priceCp: gp(po), version },
+  ability: { name: gendered(name), bonus: 0, priceCp: poToCp(po), version },
   columns,
 });
 

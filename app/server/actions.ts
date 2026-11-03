@@ -23,6 +23,7 @@ import type {
   Note,
   NoteVisibility,
 } from "@/app/lib/types";
+import { MAX_MESSAGE_LENGTH, MAX_NOTE_LENGTH } from "@/app/lib/types";
 import {
   calculateDamageResult,
   calculateHealingResult,
@@ -191,7 +192,7 @@ const AddNoteSchema = z.object({
   content: z
     .string()
     .min(1, "Note cannot be empty")
-    .max(5000, "Note is too long"),
+    .max(MAX_NOTE_LENGTH, "Note is too long"),
   visibility: z.enum(["public", "private"]),
   sessionDate: z.coerce.date(),
 });
@@ -248,7 +249,7 @@ const SendMessageSchema = z.object({
     .string()
     .trim()
     .min(1, "Message cannot be empty")
-    .max(2000, "Message is too long"),
+    .max(MAX_MESSAGE_LENGTH, "Message is too long"),
   dmToken: z.string().min(1).nullable(),
   deviceId: DeviceIdSchema.nullable(),
 });

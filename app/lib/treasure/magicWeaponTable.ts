@@ -1,11 +1,11 @@
-import type { Die } from "./dice";
+import { poToCp } from "./coins";
+import { rollPercentile, rollTable, type Die } from "./dice";
 import {
   bonus,
   byCategory,
   describeMagicGear,
   MAX_TOTAL_BONUS,
   rollAbilities,
-  rollTable,
   totalBonus,
   type AbilityRow,
   type SpecialAbility,
@@ -21,8 +21,6 @@ import {
   type Weapon,
 } from "./mundaneTable";
 import type { Roll } from "./treasure";
-
-const gp = (po: number) => Math.round(po * 100);
 
 /** A row of table 7-9. */
 type WeaponRow = { upTo: number } & (
@@ -75,7 +73,7 @@ type Specific = { upTo: number; name: string; priceCp: number };
 const specific = (upTo: number, name: string, po: number): Specific => ({
   upTo,
   name,
-  priceCp: gp(po),
+  priceCp: poToCp(po),
 });
 
 /** Table 7-16 ("Armas específicas"), one column per category, at market price. */
@@ -269,7 +267,7 @@ function rollSecondHead(
   die: Die,
   rolls: Roll[],
 ): { name: string; valueCp: number } {
-  const percentile = die(100);
+  const percentile = rollPercentile(die);
   rolls.push({ label: SECOND_HEAD_LABEL, dice: "d%", values: [percentile] });
   const head = { name: "", priceCp: 0, gender: weapon.gender };
   if (percentile <= SAME_SECOND_HEAD_UP_TO) {

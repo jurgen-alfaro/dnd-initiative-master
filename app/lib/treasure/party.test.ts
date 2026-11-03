@@ -1,12 +1,8 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { formatPartyAnnouncement, splitCoins } from "./party";
-import {
-  COPPER_PER_COIN,
-  DENOMINATIONS,
-  type Coins,
-  type Treasure,
-} from "./treasure";
+import { COPPER_PER_COIN, DENOMINATIONS } from "./coins";
+import type { Coins, Treasure } from "./treasure";
 import type { Die } from "./dice";
 
 const noDie: Die = () => {

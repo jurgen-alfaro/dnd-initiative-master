@@ -30,7 +30,7 @@ export const STAFF_ROWS: readonly ColumnRow[] = [
 
 export const rollStaff: MagicResolver = (category, die) =>
   rollColumnTable(
-    { table: "7-18", rows: STAFF_ROWS, kind: "Bastón", charged: true },
+    { table: "7-18", rows: STAFF_ROWS, kind: "Bastón", isCharged: true },
     category,
     die,
   );

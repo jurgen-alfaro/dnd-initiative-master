@@ -1,4 +1,5 @@
-import type { Die } from "./dice";
+import { poToCp } from "./coins";
+import { rollTable, type Die } from "./dice";
 import {
   bonus,
   byCategory,
@@ -6,7 +7,6 @@ import {
   fixed,
   MAX_TOTAL_BONUS,
   rollAbilities,
-  rollTable,
   totalBonus,
   type AbilityRow,
   type Gender,
@@ -14,8 +14,6 @@ import {
 } from "./magicGear";
 import type { MagicCategory, MagicResolution } from "./magicTable";
 import type { Roll } from "./treasure";
-
-const gp = (po: number) => Math.round(po * 100);
 
 type Kind = "armor" | "shield";
 
@@ -72,7 +70,7 @@ type BaseType = { upTo: number; name: string; priceCp: number };
 const base = (upTo: number, name: string, po: number): BaseType => ({
   upTo,
   name,
-  priceCp: gp(po),
+  priceCp: poToCp(po),
 });
 
 /** An armor or shield that is enchanted, with the gender its abilities agree with. */

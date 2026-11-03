@@ -1,5 +1,6 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
+import { poToCp } from "./coins";
 import { fixedDie } from "./testDice";
 import { rollMagicItem, type MagicCategory } from "./magicTable";
 import { BAG_OF_TRICKS_ANIMALS, WONDROUS_TABLES } from "./wondrousTable";
@@ -43,7 +44,7 @@ describe("rollMagicItem, wondrous objects", () => {
       it(`should give ${name} at ${roll} on the ${category} table`, () => {
         const item = rollMagicItem(category, fixedDie(WONDROUS, roll));
         assert.equal(item.name, name);
-        assert.equal(item.valueCp, po * 100);
+        assert.equal(item.valueCp, poToCp(po));
         assert.equal(item.category, category);
         assert.deepEqual(item.rolls.at(-1)?.values, [roll]);
       });

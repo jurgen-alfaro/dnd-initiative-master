@@ -1,3 +1,5 @@
+import { COPPER_PER_COIN, poToCp } from "./coins";
+
 /**
  * DMG 3.5 tables 7-24 ("Rollos de pergamino (conjuros arcanos)") and 7-25
  * ("Rollos de pergamino (conjuros divinos)"), one list per spell level 0-9.
@@ -13,7 +15,10 @@ export type ScrollSpellRow = { upTo: number; name: string; valueCp: number };
 function parsePrice(text: string): number {
   const match = /^(\d{1,3}(?:\.\d{3})*) po(?: (\d) pp)?$/.exec(text);
   if (!match) throw new Error(`Unreadable scroll price "${text}"`);
-  return Number(match[1].replaceAll(".", "")) * 100 + Number(match[2] ?? 0) * 10;
+  return (
+    poToCp(Number(match[1].replaceAll(".", ""))) +
+    Number(match[2] ?? 0) * COPPER_PER_COIN.pp
+  );
 }
 
 /**

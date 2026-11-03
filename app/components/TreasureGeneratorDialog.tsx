@@ -28,12 +28,10 @@ import {
 } from "@/app/server/actions";
 import { randomDie } from "@/app/lib/treasure/dice";
 import { splitCoins } from "@/app/lib/treasure/party";
+import { formatCoinList, formatCpAsPo } from "@/app/lib/treasure/coins";
 import {
-  DENOMINATIONS,
   MAX_ENCOUNTER_LEVEL,
   MIN_ENCOUNTER_LEVEL,
-  formatCoins,
-  formatCpAsGp,
   formatItem,
   generateTreasure,
   totalValueCp,
@@ -215,7 +213,7 @@ function TreasureGeneratorForm({
     }
   };
 
-  const coinLines = DENOMINATIONS.filter((d) => treasure.coins[d] > 0);
+  const coinLines = formatCoinList(treasure.coins);
 
   return (
     <div className="flex flex-col gap-4">
@@ -302,12 +300,8 @@ function TreasureGeneratorForm({
         {coinLines.length === 0 ? (
           <PreviewLine label="No coins" rolls={treasure.coinRolls} />
         ) : (
-          coinLines.map((d) => (
-            <PreviewLine
-              key={d}
-              label={formatCoins(treasure.coins[d], d)}
-              rolls={treasure.coinRolls}
-            />
+          coinLines.map((line) => (
+            <PreviewLine key={line} label={line} rolls={treasure.coinRolls} />
           ))
         )}
         {destination === "party" && coinLines.length > 0 && (
@@ -315,9 +309,7 @@ function TreasureGeneratorForm({
             {partyRecipients.map((c, i) => (
               <li key={c.id}>
                 <span className="font-heading">{c.name}:</span>{" "}
-                {DENOMINATIONS.filter((d) => coinShares[i][d] > 0)
-                  .map((d) => formatCoins(coinShares[i][d], d))
-                  .join(", ") || "no coins"}
+                {formatCoinList(coinShares[i]).join(", ") || "no coins"}
               </li>
             ))}
           </ul>
@@ -352,7 +344,7 @@ function TreasureGeneratorForm({
           </div>
         ))}
         <p className="border-t border-dnd-gold/20 pt-2 text-sm font-heading text-dnd-gold">
-          Total: {formatCpAsGp(totalValueCp(treasure))}
+          Total: {formatCpAsPo(totalValueCp(treasure))}
         </p>
       </div>
 

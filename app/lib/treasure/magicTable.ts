@@ -1,4 +1,4 @@
-import { pickRow, type Die } from "./dice";
+import { rollTable, type Die } from "./dice";
 import { rollMagicArmor } from "./magicArmorTable";
 import { rollMagicWeapon } from "./magicWeaponTable";
 import { rollPotion } from "./potionTable";
@@ -13,25 +13,20 @@ import type { ItemCategory, Roll, TreasureItem } from "./treasure";
 /** Categories of magic objects: menor, intermedio, mayor. */
 export type MagicCategory = Extract<ItemCategory, "minor" | "medium" | "major">;
 
-/** Families of table 7-1, with the name the DMG prints for each. */
-export const MAGIC_FAMILY_NAMES = {
-  armor: "Armadura y escudos",
-  weapon: "Armas",
-  potion: "Pociones",
-  ring: "Anillos",
-  rod: "Cetros",
-  scroll: "Rollos de pergamino",
-  staff: "Bastones",
-  wand: "Varitas",
-  wondrous: "Objetos maravillosos",
-} as const;
-export type MagicFamily = keyof typeof MAGIC_FAMILY_NAMES;
-
-const CATEGORY_NAMES: Record<MagicCategory, string> = {
-  minor: "menor",
-  medium: "intermedio",
-  major: "mayor",
-};
+/**
+ * Families of table 7-1: Armadura y escudos, Armas, Pociones, Anillos, Cetros,
+ * Rollos de pergamino, Bastones, Varitas and Objetos maravillosos.
+ */
+export type MagicFamily =
+  | "armor"
+  | "weapon"
+  | "potion"
+  | "ring"
+  | "rod"
+  | "scroll"
+  | "staff"
+  | "wand"
+  | "wondrous";
 
 type MagicRow = { upTo: number; family: MagicFamily };
 
@@ -83,14 +78,8 @@ export type MagicResolver = (
   die: Die,
 ) => MagicResolution;
 
-export type MagicResolvers = Partial<Record<MagicFamily, MagicResolver>>;
-
-/**
- * Where the tickets of each family plug in: add `potion: rollPotion` (and so
- * on) to this object once that family's tables exist. Until then a family is
- * shown as "Objeto mágico <categoría>: <familia>", without a price.
- */
-export const MAGIC_RESOLVERS: MagicResolvers = {
+/** The resolver of each family of table 7-1. */
+const MAGIC_RESOLVERS: Record<MagicFamily, MagicResolver> = {
   armor: rollMagicArmor,
   weapon: rollMagicWeapon,
   potion: rollPotion,
@@ -106,28 +95,19 @@ export const MAGIC_RESOLVERS: MagicResolvers = {
 export function rollMagicItem(
   category: MagicCategory,
   die: Die,
-  resolvers: MagicResolvers = MAGIC_RESOLVERS,
 ): TreasureItem {
-  const percentile = die(100);
-  const familyRoll: Roll = {
-    label: `Table 7-1, ${category}`,
-    dice: "d%",
-    values: [percentile],
-  };
-  const { family } = pickRow(MAGIC_TABLE[category], percentile);
-
-  const resolver = resolvers[family];
-  const resolution: MagicResolution = resolver
-    ? resolver(category, die)
-    : {
-        name: `Objeto mágico ${CATEGORY_NAMES[category]}: ${MAGIC_FAMILY_NAMES[family]}`,
-        valueCp: 0,
-        rolls: [],
-      };
+  const familyRolls: Roll[] = [];
+  const { family } = rollTable(
+    `Table 7-1, ${category}`,
+    MAGIC_TABLE[category],
+    die,
+    familyRolls,
+  );
+  const resolution = MAGIC_RESOLVERS[family](category, die);
 
   return {
     category,
     ...resolution,
-    rolls: [familyRoll, ...resolution.rolls],
+    rolls: [...familyRolls, ...resolution.rolls],
   };
 }
