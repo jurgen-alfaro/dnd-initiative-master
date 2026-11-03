@@ -230,12 +230,24 @@ const capitalize = (text: string) => text[0].toUpperCase() + text.slice(1);
  */
 const gemNames = (examples: string) =>
   examples.split("; ").flatMap((example) => {
+    // "negro o azul estrella": "estrella" belongs to both sapphires.
+    if (example === "zafiro negro o azul estrella") {
+      return ["Zafiro negro estrella", "Zafiro azul estrella"];
+    }
     const [noun, ...rest] = example.split(" ");
     const varieties = rest.join(" ").split(/, | o /);
     return varieties.length > 1
       ? varieties.map((variety) => capitalize(`${noun} ${variety}`))
       : [capitalize(example)];
   });
+
+/** "estatua de marfil o hueso labrado": "labrado" belongs to both materials. */
+const artNames = (examples: string) =>
+  examples.split("; ").flatMap((example) =>
+    example === "estatua de marfil o hueso labrado"
+      ? ["Estatua de marfil labrado", "Estatua de hueso labrado"]
+      : [capitalize(example)],
+  );
 
 describe("generateTreasure gems and art", () => {
   it("should give one gem at NE 1 with d% 91", () => {
@@ -333,7 +345,7 @@ describe("generateTreasure gems and art", () => {
 
   for (const [category, label, book, column, toNames] of [
     ["gem", "gem", BOOK_GEMS, 91, gemNames],
-    ["art", "art object", BOOK_ART, 96, (e: string) => e.split("; ").map(capitalize)],
+    ["art", "art object", BOOK_ART, 96, artNames],
   ] as const) {
     for (const [range, value, examples] of book) {
       const [low, high = low] = range.split("-").map(Number);

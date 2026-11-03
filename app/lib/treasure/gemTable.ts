@@ -106,7 +106,7 @@ export const GEM_TABLE: readonly ValuableRow[] = [
       "Zafiro azul",
       "Corindón amarillo intenso",
       "Corindón violado",
-      "Zafiro negro",
+      "Zafiro negro estrella",
       "Zafiro azul estrella",
       "Rubí estrella",
     ],

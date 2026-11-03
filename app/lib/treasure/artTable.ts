@@ -2,7 +2,8 @@ import type { ValuableRow } from "./gemTable";
 
 /**
  * DMG 3.5 table 3-7 ("Objetos de arte"). Each object takes one name picked at
- * random from the examples of its row, transcribed as printed in Spanish.
+ * random from the examples of its row, transcribed as printed in Spanish,
+ * with "marfil o hueso labrado" as one object per material.
  */
 export const ART_TABLE: readonly ValuableRow[] = [
   {
@@ -11,7 +12,8 @@ export const ART_TABLE: readonly ValuableRow[] = [
     times: 10,
     names: [
       "Jarra de plata",
-      "Estatua de marfil o hueso labrado",
+      "Estatua de marfil labrado",
+      "Estatua de hueso labrado",
       "Pequeño brazalete de oro finamente labrado",
     ],
   },
