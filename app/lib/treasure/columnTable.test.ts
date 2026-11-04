@@ -62,6 +62,13 @@ describe("potions and oils (table 7-20)", () => {
     assert.equal(roll("potion", "minor", 79).usage, "drink");
   });
 
+  it("should announce more than one of the same potion with its quantity", () => {
+    const potions = { ...roll("potion", "minor", 1), quantity: 2 };
+
+    assert.equal(formatItemName(potions), "Curar heridas leves (poción) ×2");
+    assert.equal(formatItemName(roll("potion", "minor", 1)), "Curar heridas leves (poción)");
+  });
+
   it("should record the family roll and the table roll", () => {
     const item = roll("potion", "minor", 40);
     assert.deepEqual(

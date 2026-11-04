@@ -149,14 +149,14 @@ export function totalValueCp(treasure: Treasure): number {
 const pluralCharges = (n: number) => `${n} ${n === 1 ? "carga" : "cargas"}`;
 
 /**
- * An item's name as announced: an alchemical (the only stackable mundane
- * item) with its quantity, "Ácido ×7", and a charged item with its cargas,
- * "Varita: Luz (7 cargas)".
+ * An item's name as announced: with its quantity when there is more than one,
+ * or always for an alchemical (the only stackable mundane item), "Ácido ×7",
+ * and a charged item with its cargas, "Varita: Luz (7 cargas)".
  */
 export function formatItemName(item: TreasureItem): string {
   const isAlchemical =
     item.category === "mundane" && item.inventoryCategory === "consumables";
-  const quantity = isAlchemical ? ` ×${item.quantity}` : "";
+  const quantity = isAlchemical || item.quantity > 1 ? ` ×${item.quantity}` : "";
   const charges =
     item.charges === undefined ? "" : ` (${pluralCharges(item.charges)})`;
   return `${item.name}${quantity}${charges}`;
