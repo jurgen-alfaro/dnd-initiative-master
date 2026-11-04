@@ -33,7 +33,11 @@ import {
   recalculateTurnIndexAfterVisibilityChange,
   visibleInInitiativeOrder,
 } from "@/app/lib/combat/turnCalculator";
-import { notifyPartyChanged, notifyPartyMessage } from "@/app/lib/pusher-server";
+import {
+  notifyPartyChanged,
+  notifyPartyInventory,
+  notifyPartyMessage,
+} from "@/app/lib/pusher-server";
 import { toSafeCombatant } from "@/app/server/combatant-view";
 import { formatPartyAnnouncement } from "@/app/lib/treasure/party";
 import {
@@ -42,7 +46,12 @@ import {
   TreasureSchema,
   type Coins,
   type Treasure,
+  type TreasureItem,
 } from "@/app/lib/treasure/treasure";
+import {
+  applyInventoryAction,
+  type Inventory,
+} from "@/app/lib/inventory/inventory";
 import {
   sweepExpiredMessages,
   resolveMessageAccess,
@@ -1833,8 +1842,27 @@ async function findPartyForDm(
 }
 
 /**
- * Delivers a tesoro individual: announces it as one or more DM messages in the
- * recipient's private thread. Only the DM may deliver, and only to a claimed
+ * The inventario of `target` once an entrega puts `coins` and `items` in it.
+ * Not exported, like `findPartyForDm`.
+ */
+function receiveDelivery(
+  target: typeof combatants.$inferSelect,
+  coins: Coins,
+  items: TreasureItem[],
+): Inventory | { error: string } {
+  const change = applyInventoryAction(
+    [{ id: target.id, name: target.name, inventory: target.inventory }],
+    { role: "dm" },
+    { type: "receive", combatantId: target.id, coins, items },
+    () => crypto.randomUUID(),
+  );
+  if ("error" in change) return { error: change.error.message };
+  return change.characters[0].inventory;
+}
+
+/**
+ * Delivers a tesoro individual: puts it in the recipient's inventario and
+ * announces it as one or more DM messages in their private thread. Only the DM may deliver, and only to a claimed
  * PJ of the party, so nobody but that player reads it. The DM is trusted, so
  * the treasure is not re-rolled or checked against the tables.
  */
@@ -1882,17 +1910,32 @@ export async function deliverIndividualTreasure(
       target.name,
     );
 
-    await db.insert(messages).values(
-      parts.map((body) => ({
-        partyId: party.id,
-        combatantId: target.id,
-        sender: "dm" as const,
-        body,
-      })),
+    const inventory = receiveDelivery(
+      target,
+      validated.data.treasure.coins,
+      validated.data.treasure.items,
     );
+    if ("error" in inventory) return inventory;
+
+    // One batch, so the announcement and the inventario never disagree.
+    await db.batch([
+      db.insert(messages).values(
+        parts.map((body) => ({
+          partyId: party.id,
+          combatantId: target.id,
+          sender: "dm" as const,
+          body,
+        })),
+      ),
+      db
+        .update(combatants)
+        .set({ inventory })
+        .where(eq(combatants.id, target.id)),
+    ]);
     await sweepExpiredMessages(party.id);
 
     await notifyPartyMessage(party.code);
+    await notifyPartyInventory(party.code);
     return { success: true };
   } catch (error) {
     console.error("Error delivering treasure:", error);
@@ -1901,8 +1944,9 @@ export async function deliverIndividualTreasure(
 }
 
 /**
- * Delivers a tesoro de party: announces the whole reparto as a public session
- * note dated today (several numbered notes if it is too long). Only the DM may
+ * Delivers a tesoro de party: puts each share in its PJ's inventario and
+ * announces the whole reparto as a public session note dated today (several
+ * numbered notes if it is too long). Only the DM may
  * deliver, and every recipient must be a PJ of the party. The DM is trusted,
  * so the treasure is not re-rolled, but each item must go to exactly one PJ.
  */
@@ -1950,30 +1994,53 @@ export async function deliverPartyTreasure(
       return { error: "Treasure can only go to player characters of the party" };
     }
 
-    const nameById = new Map(recipients.map((c) => [c.id, c.name]));
+    const recipientById = new Map(recipients.map((c) => [c.id, c]));
     const parts = formatPartyAnnouncement(
       data.treasure,
       data.shares.map((share) => ({
         // NOTE: every id was just matched against `recipients`, so the name exists.
-        name: nameById.get(share.combatantId) ?? "",
+        name: recipientById.get(share.combatantId)?.name ?? "",
         coins: share.coins,
         itemIndexes: share.itemIndexes,
       })),
     );
 
+    const inventoryUpdates = [];
+    for (const share of data.shares) {
+      const recipient = recipientById.get(share.combatantId);
+      if (!recipient) return { error: "Invalid data" };
+      const inventory = receiveDelivery(
+        recipient,
+        share.coins,
+        share.itemIndexes.map((index) => data.treasure.items[index]),
+      );
+      if ("error" in inventory) return inventory;
+      inventoryUpdates.push(
+        db
+          .update(combatants)
+          .set({ inventory })
+          .where(eq(combatants.id, recipient.id)),
+      );
+    }
+
     // Notes are read newest first, ties broken by the highest id, so the
     // parts go in last to first: part 1 gets the highest id and reads first.
-    await db.insert(notes).values(
-      parts.toReversed().map((content) => ({
-        partyId: party.id,
-        content,
-        visibility: "public" as const,
-        sessionDate: data.sessionDate,
-      })),
-    );
+    // One batch, so the announcement and the inventarios never disagree.
+    await db.batch([
+      db.insert(notes).values(
+        parts.toReversed().map((content) => ({
+          partyId: party.id,
+          content,
+          visibility: "public" as const,
+          sessionDate: data.sessionDate,
+        })),
+      ),
+      ...inventoryUpdates,
+    ]);
 
     revalidatePath(`/party/${party.code}`);
     await notifyPartyChanged(party.code);
+    await notifyPartyInventory(party.code);
     return { success: true };
   } catch (error) {
     console.error("Error delivering party treasure:", error);

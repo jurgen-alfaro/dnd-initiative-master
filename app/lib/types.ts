@@ -142,3 +142,11 @@ export type MessageThreadSummary = {
 // Who the server decided the caller is for messaging purposes. "unclaimed" is a
 // player device that has not picked a character yet — a valid state, not an error.
 export type MessageRole = "dm" | "player" | "unclaimed";
+
+// An expected failure of a pure module, returned as a value (CLAUDE.md, "Error
+// Handling"). `code` is machine-readable, e.g. "CHARACTER_NOT_FOUND".
+export type AppError = {
+  code: string;
+  message: string;
+  context?: unknown;
+};
