@@ -552,7 +552,12 @@ function GiveItemForm({
         variant="outline"
         disabled={isPending || to === null}
         onClick={async () => {
-          if (to !== null && (await onGive(to, quantity))) setTo(null);
+          // Back to 1: with one unit left the field hides, and a stale count
+          // would be sent.
+          if (to !== null && (await onGive(to, quantity))) {
+            setTo(null);
+            setQuantity(1);
+          }
         }}
         className="cursor-pointer border-dnd-gold/30"
       >
@@ -672,6 +677,8 @@ function ItemEditor({
           }))}
         >
           <Input
+            // Remounts on a refresh, so the field never shows a stale quantity.
+            key={item.quantity}
             name="quantity"
             type="number"
             min={1}
