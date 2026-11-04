@@ -75,11 +75,15 @@ export const MAGIC_TABLE: Record<MagicCategory, readonly MagicRow[]> = {
   ],
 };
 
-/** What a family resolver gives back: the object it picked and its rolls. */
+/**
+ * What a family resolver gives back: the object it picked and its rolls, and
+ * its use when it isn't the family's.
+ */
 export type MagicResolution = Pick<
   TreasureItem,
   "name" | "valueCp" | "rolls" | "description" | "charges"
->;
+> &
+  Partial<Pick<TreasureItem, "usage">>;
 
 /** Rolls the tables of one family until a concrete magic object is picked. */
 export type MagicResolver = (

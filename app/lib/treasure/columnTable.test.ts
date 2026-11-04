@@ -54,6 +54,14 @@ describe("potions and oils (table 7-20)", () => {
     assert.equal(top.valueCp, 300_000);
   });
 
+  it("should drink a potion but use an oil, which goes on an object", () => {
+    assert.equal(roll("potion", "minor", 1).usage, "drink");
+    assert.equal(roll("potion", "minor", 39).usage, "use");
+    assert.equal(roll("potion", "major", 100).usage, "use");
+    // Invisibilidad (poción o aceite): it can still be drunk.
+    assert.equal(roll("potion", "minor", 79).usage, "drink");
+  });
+
   it("should record the family roll and the table roll", () => {
     const item = roll("potion", "minor", 40);
     assert.deepEqual(
