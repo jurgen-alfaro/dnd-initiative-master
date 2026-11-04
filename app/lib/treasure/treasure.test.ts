@@ -137,6 +137,9 @@ describe("formatIndividualAnnouncement", () => {
   it("should split an announcement over 2,000 characters into numbered parts", () => {
     const items = Array.from({ length: 120 }, (_, i) => ({
       category: "gem" as const,
+      inventoryCategory: "valuables" as const,
+      quantity: 1,
+      usage: "none" as const,
       name: `Gema de prueba ${i + 1}`,
       valueCp: 1250,
       rolls: [],
@@ -369,5 +372,111 @@ describe("generateTreasure gems and art", () => {
         });
       }
     }
+  }
+});
+
+describe("generateTreasure value (ADR-0003)", () => {
+  // NE 1, no coins, no gems, one mundane object: a Coraza (Mediana), 200 po.
+  const coraza = (valueRoll: number) => {
+    const die = fixedDie(1, 1, 72, 18, 19, 11, valueRoll);
+    const treasure = generateTreasure(1, die);
+    assert.equal(die.rest(), 0, "every planned roll must be used");
+    return treasure;
+  };
+
+  it("should give 75 % of the table price on the lowest value roll", () => {
+    assert.equal(coraza(1).items[0].valueCp, 15_000);
+  });
+
+  it("should give 150 % of the table price on the highest value roll", () => {
+    assert.equal(coraza(100).items[0].valueCp, 30_000);
+  });
+
+  it("should skew a middle roll just under the table price", () => {
+    // U = 57/99, factor 0.75 + 0.75·U² = 0.99862…, rounded to whole pc.
+    assert.equal(coraza(58).items[0].valueCp, 19_972);
+  });
+
+  it("should apply the factor to the whole of an item with a quantity", () => {
+    // Ácido ×7 (7 × 10 po) at 75 %.
+    const treasure = generateTreasure(1, fixedDie(1, 1, 72, 1, 13, 3, 4, 1));
+    const [item] = treasure.items;
+
+    assert.deepEqual([item.name, item.quantity, item.valueCp], ["Ácido", 7, 5_250]);
+    const [announcement] = formatIndividualAnnouncement(treasure, "Aria");
+    assert.equal(announcement.split("\n")[1], "- Ácido ×7 (52.5 po)");
+  });
+
+  it("should keep the value roll last among the item's rolls", () => {
+    const [item] = coraza(37).items;
+
+    assert.deepEqual(item.rolls.at(-1), {
+      label: "Value, 75-150 % of table price",
+      dice: "d%",
+      values: [37],
+    });
+  });
+
+  it("should use the rolled value in the total and the announcement", () => {
+    const treasure = coraza(100);
+
+    assert.equal(totalValueCp(treasure), 30_000);
+    assert.deepEqual(formatIndividualAnnouncement(treasure, "Aria"), [
+      "Treasure for Aria\n- Coraza (Mediana) (300 po)\n  Armadura intermedia: CA 14 + Destreza (máx. 2).\nTotal: 300 po",
+    ]);
+  });
+});
+
+describe("generateTreasure inventory data", () => {
+  // Every case: no coins (d% 1). NE 1 objects 72 → mundane, 96 → minor;
+  // NE 6 objects 100 → medium. The rolls after the column resolve the item;
+  // every object but a gem or art object ends with its value roll (ADR-0003).
+  const cases: [string, number, number[], [string, number, number | undefined, string]][] = [
+    ["a potion", 1, [1, 96, 10, 1, 1], ["consumables", 1, undefined, "drink"]],
+    ["a scroll", 1, [1, 96, 50, 1, 1, 1, 1, 1], ["consumables", 1, undefined, "use"]],
+    ["a wand", 1, [1, 96, 82, 1, 20, 1], ["magicItems", 1, 20, "none"]],
+    ["a staff", 6, [1, 100, 68, 96, 1, 1], ["magicItems", 1, 1, "none"]],
+    ["a ring", 1, [1, 96, 45, 1, 1], ["magicItems", 1, undefined, "none"]],
+    ["a rod", 6, [1, 100, 50, 1, 1], ["magicItems", 1, undefined, "none"]],
+    ["a wondrous item", 1, [1, 96, 100, 1, 1], ["wondrous", 1, undefined, "none"]],
+    ["a magic weapon", 6, [1, 100, 15, 63, 70, 1], ["weapons", 1, undefined, "none"]],
+    ["a magic shield", 1, [1, 96, 1, 1, 1, 1], ["armor", 1, undefined, "none"]],
+    ["an alchemical item", 1, [1, 72, 1, 13, 3, 4, 1], ["consumables", 7, undefined, "use"]],
+    ["an everburning torch", 1, [1, 72, 1, 74, 1], ["mundane", 1, undefined, "none"]],
+    ["a masterwork weapon", 1, [1, 72, 51, 1, 1, 1], ["weapons", 1, undefined, "none"]],
+    ["ammunition", 1, [1, 72, 51, 71, 10, 1, 1], ["weapons", 1, undefined, "none"]],
+    ["an armor", 1, [1, 72, 18, 19, 11, 1], ["armor", 1, undefined, "none"]],
+    ["a shield", 1, [1, 72, 50, 91, 1, 1], ["armor", 1, undefined, "none"]],
+    ["a tool", 1, [1, 72, 84, 1, 1], ["mundane", 1, undefined, "none"]],
+    ["a gem", 1, [91, 1, 1, 2, 3, 4, 1, 1], ["valuables", 1, undefined, "none"]],
+    ["an art object", 1, [96, 100, 2, 6, 2, 1], ["valuables", 1, undefined, "none"]],
+  ];
+
+  for (const [label, level, rolls, expected] of cases) {
+    it(`should file ${label} in its inventory category with its quantity, charges and use`, () => {
+      const die = fixedDie(1, ...rolls);
+      const { items } = generateTreasure(level, die);
+
+      assert.equal(die.rest(), 0, "every planned roll must be used");
+      assert.deepEqual(
+        items.map((i) => [i.inventoryCategory, i.quantity, i.charges, i.usage]),
+        [expected],
+      );
+    });
+  }
+
+  for (const [label, rolls, name, announced] of [
+    // The last roll is the value: d% 100, 150 % of the table price.
+    ["an alchemical item", [72, 1, 13, 3, 4, 100], "Ácido", "- Ácido ×7 (105 po)"],
+    ["a single alchemical item", [72, 1, 1, 1, 100], "Fuego de alquimista", "- Fuego de alquimista ×1 (30 po)"],
+    ["a wand", [96, 82, 1, 20, 100], "Varita: Detectar magia", "- Varita: Detectar magia (20 cargas) (562.5 po)"],
+  ] as const) {
+    it(`should keep the quantity and charges of ${label} out of its name but in its announcement`, () => {
+      const treasure = generateTreasure(1, fixedDie(1, 1, ...rolls));
+
+      assert.deepEqual(treasure.items.map((i) => i.name), [name]);
+      const [announcement] = formatIndividualAnnouncement(treasure, "Aria");
+      assert.equal(announcement.split("\n")[1], announced);
+    });
   }
 });

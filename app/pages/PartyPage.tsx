@@ -9,6 +9,7 @@ import { useMemo, useEffect, useState } from "react";
 import { useRecentParty } from "@/app/lib/hooks/useRecentParty";
 import { readDmToken } from "@/app/lib/dm-token";
 import { usePartyMessages } from "@/app/lib/hooks/usePartyMessages";
+import { useActivityUnread } from "@/app/lib/hooks/useActivityUnread";
 import { isPartyDm } from "@/app/server/actions";
 import PartyInfoCard from "../components/PartyInfoCard";
 import { useBackNavigationGuard } from "@/app/lib/hooks/useBackNavigationGuard";
@@ -16,6 +17,7 @@ import BackNavigationDialog from "@/app/components/BackNavigationDialog";
 import DeleteCombatantDialog from "@/app/components/DeleteCombatantDialog";
 import HideCombatantDialog from "@/app/components/HideCombatantDialog";
 import PartyActionsMenu from "@/app/components/PartyActionsMenu";
+import InventoryDrawer from "@/app/components/InventoryDrawer";
 import { visibleInInitiativeOrder } from "@/app/lib/combat/turnCalculator";
 
 type Party = {
@@ -128,6 +130,8 @@ export default function PartyPage({ party }: PartyPageProps) {
   // Private DM ↔ player messaging. It holds off until the role is known so the
   // DM is never briefly mistaken for a player without a character.
   const messaging = usePartyMessages(party.code, isRoleResolved, dmToken);
+  // DM only (dmToken is null for players): unread avisos of every PJ.
+  const activityUnread = useActivityUnread(party.code, dmToken);
 
   // Create updated party object with optimistic name
   const displayParty = {
@@ -152,6 +156,14 @@ export default function PartyPage({ party }: PartyPageProps) {
 
   // Save party to localStorage for quick resume
   const { saveRecentParty } = useRecentParty();
+
+  // The open backpack, or null when closed. `combatantId` is the PJ the DM
+  // chose (from the menu or a card); null opens the player's claimed PJ.
+  const [backpack, setBackpack] = useState<{ combatantId: number | null } | null>(
+    null,
+  );
+  const handleOpenBackpack = (combatantId: number | null) =>
+    setBackpack({ combatantId });
 
   // Delete combatant confirmation dialog state
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -265,6 +277,8 @@ export default function PartyPage({ party }: PartyPageProps) {
         onUpdateNameType={optimisticUpdateNameType}
         onDelete={handleDeleteRequest}
         onHide={handleHideRequest}
+        onOpenBackpack={handleOpenBackpack}
+        activityUnread={activityUnread.byCombatant}
         onUpdateConditions={optimisticUpdateConditions}
         onRemoveBuff={optimisticRemoveBuff}
         onAddAmmo={optimisticAddAmmo}
@@ -292,7 +306,23 @@ export default function PartyPage({ party }: PartyPageProps) {
         isDm={isDm}
         dmToken={dmToken}
         messaging={messaging}
+        activityUnread={activityUnread}
+        onOpenBackpack={handleOpenBackpack}
         onReturnToMain={() => setShowConfirmation(true)}
+      />
+
+      <InventoryDrawer
+        // A fresh drawer per PJ, so one PJ's backpack never flashes in another's.
+        key={backpack?.combatantId ?? "own"}
+        partyCode={party.code}
+        dmToken={dmToken}
+        combatantId={backpack?.combatantId ?? null}
+        // Hidden PJs only ever reach the DM, so a player can't give to them.
+        characters={liveCombatants.filter((c) => c.type === "player")}
+        open={backpack !== null}
+        onOpenChange={(open) => {
+          if (!open) setBackpack(null);
+        }}
       />
 
       <BackNavigationDialog
@@ -309,6 +339,8 @@ export default function PartyPage({ party }: PartyPageProps) {
           onConfirm={handleConfirmDelete}
           onCancel={handleCancelDelete}
           combatant={combatantToDelete}
+          partyCode={party.code}
+          dmToken={dmToken}
         />
       )}
 

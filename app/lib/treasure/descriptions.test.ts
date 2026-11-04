@@ -220,7 +220,7 @@ describe("descriptions", () => {
     // Table 7-1 medium 67 → Bastones → 7-18 medium 16-30 Fuego → 1d50 = 12.
     const item = rollMagicItem("medium", fixedDie(67, 20, 12));
 
-    assert.equal(item.name, "Bastón: Fuego (12 cargas)");
+    assert.deepEqual([item.name, item.charges], ["Bastón: Fuego", 12]);
     assert.equal(item.description, STAFF_DESCRIPTIONS["Fuego"]);
   });
 
@@ -264,18 +264,26 @@ describe("descriptions", () => {
 
   it("should list an item's description indented below it in announcements", () => {
     // NE 1: no coins (d% 1), no gems (1), objects 72 → 1 mundane → table 3-8
-    // 18 armor → 19 Coraza → size 11 Mediana.
-    const [item] = generateTreasure(1, fixedDie(1, 1, 72, 18, 19, 11)).items;
+    // 18 armor → 19 Coraza → size 11 Mediana → valor d% 100 (150 %).
+    const [item] = generateTreasure(1, fixedDie(1, 1, 72, 18, 19, 11, 100)).items;
 
     assert.equal(
       formatItemEntry(item),
-      `- Coraza (Mediana) (200 po)\n  ${MUNDANE_DESCRIPTIONS["Coraza"]}`,
+      `- Coraza (Mediana) (300 po)\n  ${MUNDANE_DESCRIPTIONS["Coraza"]}`,
     );
   });
 
   it("should list an item without a description as a single line", () => {
     assert.equal(
-      formatItemEntry({ category: "minor", name: "Varita", valueCp: 100, rolls: [] }),
+      formatItemEntry({
+        category: "minor",
+        inventoryCategory: "magicItems",
+        name: "Varita",
+        quantity: 1,
+        usage: "none",
+        valueCp: 100,
+        rolls: [],
+      }),
       "- Varita (1 po)",
     );
   });

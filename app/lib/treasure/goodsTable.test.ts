@@ -1,7 +1,12 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { formatIndividualAnnouncement, generateTreasure } from "./treasure";
+import {
+  formatIndividualAnnouncement,
+  formatItemName,
+  generateTreasure,
+} from "./treasure";
 import { rollMagicItem, type MagicCategory } from "./magicTable";
+import { rollMundaneItem } from "./mundaneTable";
 import { fixedDie } from "./testDice";
 
 /** "01-14" → [1, 14]. */
@@ -47,12 +52,13 @@ const BOOK_GOODS: Record<number, string[]> = {
 /**
  * The rolls that resolve one item of each category: tools #1, or family #1
  * (armor) with row #1 of table 7-2 (an enchanted shield) and of table 7-4.
+ * The last roll of each is its valor (ADR-0003).
  */
 const ITEM_ROLLS = {
-  mundane: [84, 1],
-  minor: [1, 1, 1],
-  medium: [1, 1, 1],
-  major: [1, 1, 1],
+  mundane: [84, 1, 1],
+  minor: [1, 1, 1, 1],
+  medium: [1, 1, 1, 1],
+  major: [1, 1, 1, 1],
 };
 
 describe("generateTreasure objects column (table 3-5)", () => {
@@ -100,7 +106,7 @@ describe("generateTreasure objects column (table 3-5)", () => {
   }
 
   it("should keep the objects roll and the count die on each item", () => {
-    const treasure = generateTreasure(3, fixedDie(1, 1, 60, 2, 84, 1, 84, 2));
+    const treasure = generateTreasure(3, fixedDie(1, 1, 60, 2, 84, 1, 1, 84, 2, 1));
 
     assert.equal(treasure.items.length, 2);
     for (const item of treasure.items) {
@@ -194,7 +200,7 @@ describe("generateTreasure magic family (table 7-1)", () => {
   }
 
   it("should keep the family roll on the item", () => {
-    const treasure = generateTreasure(1, fixedDie(1, 1, 96, 20, 33));
+    const treasure = generateTreasure(1, fixedDie(1, 1, 96, 20, 33, 50));
 
     assert.deepEqual(
       treasure.items[0].rolls.map((r) => [r.dice, r.values]),
@@ -202,21 +208,23 @@ describe("generateTreasure magic family (table 7-1)", () => {
         ["d%", [96]],
         ["d%", [20]],
         ["d%", [33]],
+        ["d%", [50]],
       ],
     );
   });
 });
 
 describe("formatIndividualAnnouncement objects", () => {
-  it("should show the price of a mundane object and of a resolved magic one", () => {
-    const mundaneTreasure = generateTreasure(1, fixedDie(1, 1, 72, 18, 19, 11));
-    const magicTreasure = generateTreasure(1, fixedDie(1, 1, 96, 10, 1));
+  it("should show the value of a mundane object and of a resolved magic one", () => {
+    // Both at the top valor roll: 150 % of 200 po and of 50 po.
+    const mundaneTreasure = generateTreasure(1, fixedDie(1, 1, 72, 18, 19, 11, 100));
+    const magicTreasure = generateTreasure(1, fixedDie(1, 1, 96, 10, 1, 100));
 
     assert.deepEqual(formatIndividualAnnouncement(mundaneTreasure, "Aria"), [
-      "Treasure for Aria\n- Coraza (Mediana) (200 po)\n  Armadura intermedia: CA 14 + Destreza (máx. 2).\nTotal: 200 po",
+      "Treasure for Aria\n- Coraza (Mediana) (300 po)\n  Armadura intermedia: CA 14 + Destreza (máx. 2).\nTotal: 300 po",
     ]);
     assert.deepEqual(formatIndividualAnnouncement(magicTreasure, "Aria"), [
-      "Treasure for Aria\n- Curar heridas leves (poción) (50 po)\n  Quien la bebe, o el objeto o arma que recibe el aceite, obtiene el efecto del conjuro, sin necesidad de concentración:\n  Una criatura recupera 1d8 + 1 PG.\nTotal: 50 po",
+      "Treasure for Aria\n- Curar heridas leves (poción) (75 po)\n  Quien la bebe, o el objeto o arma que recibe el aceite, obtiene el efecto del conjuro, sin necesidad de concentración:\n  Una criatura recupera 1d8 + 1 PG.\nTotal: 75 po",
     ]);
   });
 });
@@ -356,15 +364,14 @@ const BOOK_TOOLS = [
 /** The d% faces to try for a row: its first and last. */
 const edges = (cell: string) => [...new Set(range(cell.split("|")[0]))];
 /**
- * The one mundane object NE 1 gives (no coins, d% 72 on the objects column)
- * when the rolls of table 3-8 are `rolls`.
+ * The mundane object table 3-8 gives when its rolls are `rolls`, at its precio
+ * de tabla (a treasure then rolls its valor, ADR-0003).
  */
 function mundane(...rolls: number[]) {
-  const die = fixedDie(1, 1, 72, ...rolls);
-  const treasure = generateTreasure(1, die);
+  const die = fixedDie(...rolls);
+  const item = rollMundaneItem(die);
   assert.equal(die.rest(), 0, "every planned roll must be used");
-  assert.equal(treasure.items.length, 1);
-  return treasure.items[0];
+  return item;
 }
 const cp = (po: string) => Math.round(Number(po) * 100);
 
@@ -378,7 +385,8 @@ describe("generateTreasure mundane objects (table 3-8)", () => {
         const quantity = count * sides;
 
         assert.equal(item.category, "mundane");
-        assert.equal(item.name, dice ? `${name} ×${quantity}` : name);
+        assert.equal(item.name, name);
+        assert.equal(formatItemName(item), dice ? `${name} ×${quantity}` : name);
         assert.equal(item.valueCp, dice ? cp(price) * quantity : cp(price));
       });
     }
@@ -387,7 +395,7 @@ describe("generateTreasure mundane objects (table 3-8)", () => {
   it("should sum the dice of a quantity", () => {
     const item = mundane(1, 13, 3, 4);
 
-    assert.deepEqual([item.name, item.valueCp], ["Ácido ×7", 7000]);
+    assert.deepEqual([item.name, item.quantity, item.valueCp], ["Ácido", 7, 7000]);
   });
 
   for (const cell of BOOK_ARMOR) {
@@ -469,7 +477,7 @@ describe("generateTreasure mundane objects (table 3-8)", () => {
   }
 
   it("should send each d% of table 3-8 to its branch", () => {
-    const branch = (top: number, rolls: number[]) => mundane(top, ...rolls).name;
+    const branch = (top: number, rolls: number[]) => formatItemName(mundane(top, ...rolls));
 
     assert.equal(branch(17, [1, 1]), "Fuego de alquimista ×1");
     assert.equal(branch(18, [1, 11]), "Camisote de mallas (Mediana)");

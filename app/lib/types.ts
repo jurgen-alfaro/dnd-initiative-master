@@ -126,6 +126,14 @@ export type ChatMessage = {
   readAt: string | null; // ISO 8601 timestamp
 };
 
+// One aviso of a PJ's actividad, as the DM's backpack shows it.
+export type ActivityNotice = {
+  id: number;
+  text: string;
+  createdAt: string; // ISO 8601 timestamp
+  readAt: string | null; // ISO 8601 timestamp
+};
+
 // One row of the DM's inbox. Bodies are truncated to a preview server-side so
 // the full text only ever travels when the thread is actually opened.
 export type MessageThreadSummary = {
@@ -142,3 +150,11 @@ export type MessageThreadSummary = {
 // Who the server decided the caller is for messaging purposes. "unclaimed" is a
 // player device that has not picked a character yet — a valid state, not an error.
 export type MessageRole = "dm" | "player" | "unclaimed";
+
+// An expected failure of a pure module, returned as a value (CLAUDE.md, "Error
+// Handling"). `code` is machine-readable, e.g. "CHARACTER_NOT_FOUND".
+export type AppError = {
+  code: string;
+  message: string;
+  context?: unknown;
+};

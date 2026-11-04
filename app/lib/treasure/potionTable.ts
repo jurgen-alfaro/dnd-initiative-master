@@ -102,9 +102,15 @@ const POTION_DESCRIPTIONS = Object.fromEntries(
   POTION_ROWS.map((row) => [row.name, describePotion(row.name)]),
 );
 
-export const rollPotion: MagicResolver = (category, die) =>
-  rollColumnTable(
+/** A potion is drunk; an oil, which goes on an object or weapon, is used. */
+export const rollPotion: MagicResolver = (category, die) => {
+  const resolution = rollColumnTable(
     { table: "7-20", rows: POTION_ROWS, descriptions: POTION_DESCRIPTIONS },
     category,
     die,
   );
+  return {
+    ...resolution,
+    usage: resolution.name.endsWith("(aceite)") ? "use" : "drink",
+  };
+};

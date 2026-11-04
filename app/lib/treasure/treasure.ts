@@ -54,12 +54,40 @@ export const ItemCategorySchema = z.enum([
 export type ItemCategory = z.infer<typeof ItemCategorySchema>;
 
 /**
+ * Categoría of the inventario an item goes to: Armas, Armaduras y escudos,
+ * Consumibles, Objetos mágicos, Objetos maravillosos, Gemas y arte, Objetos
+ * mundanos. Unlike `ItemCategory`, a weapon or armor goes to its own
+ * categoría whether it is magic or not.
+ */
+export const InventoryCategorySchema = z.enum([
+  "weapons",
+  "armor",
+  "consumables",
+  "magicItems",
+  "wondrous",
+  "valuables",
+  "mundane",
+]);
+export type InventoryCategory = z.infer<typeof InventoryCategorySchema>;
+
+/** How an item is used up: beber (potions), usar (scrolls, alchemicals) or not at all. */
+export const ItemUsageSchema = z.enum(["drink", "use", "none"]);
+export type ItemUsage = z.infer<typeof ItemUsageSchema>;
+
+/**
  * An indivisible object of a treasure, with the rolls that produced it and its
- * descripción (ADR-0002), when its name has one: one line per part.
+ * descripción (ADR-0002), when its name has one: one line per part. The name
+ * carries neither the quantity nor the cargas; `formatItemName` adds them.
  */
 export const TreasureItemSchema = z.object({
   category: ItemCategorySchema,
+  inventoryCategory: InventoryCategorySchema,
   name: z.string().min(1).max(500),
+  /** Units found (the roll of an alchemical); `valueCp` is for all of them. */
+  quantity: z.number().int().min(1).max(1000),
+  /** Cargas of a wand or staff. */
+  charges: z.number().int().min(0).max(1000).optional(),
+  usage: ItemUsageSchema,
   valueCp: z.number().int().min(0),
   rolls: z.array(RollSchema).max(50),
   description: z.string().min(1).max(3000).optional(),
@@ -118,11 +146,26 @@ export function totalValueCp(treasure: Treasure): number {
   return treasure.items.reduce((sum, item) => sum + item.valueCp, coins);
 }
 
+const pluralCharges = (n: number) => `${n} ${n === 1 ? "carga" : "cargas"}`;
+
+/**
+ * An item's name as announced: with its quantity when there is more than one,
+ * or always for an alchemical (the only stackable mundane item), "Ácido ×7",
+ * and a charged item with its cargas, "Varita: Luz (7 cargas)".
+ */
+export function formatItemName(item: TreasureItem): string {
+  const isAlchemical =
+    item.category === "mundane" && item.inventoryCategory === "consumables";
+  const quantity = isAlchemical || item.quantity > 1 ? ` ×${item.quantity}` : "";
+  const charges =
+    item.charges === undefined ? "" : ` (${pluralCharges(item.charges)})`;
+  return `${item.name}${quantity}${charges}`;
+}
+
 /** An item and its value, e.g. "Coraza (Mediana) (200 po)"; no value, no price. */
 export function formatItem(item: TreasureItem): string {
-  return item.valueCp > 0
-    ? `${item.name} (${formatCpAsPo(item.valueCp)})`
-    : item.name;
+  const name = formatItemName(item);
+  return item.valueCp > 0 ? `${name} (${formatCpAsPo(item.valueCp)})` : name;
 }
 
 /**

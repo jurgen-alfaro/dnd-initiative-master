@@ -14,6 +14,7 @@ import {
   LogOut,
   EyeOff,
   Coins,
+  Backpack,
   X,
 } from "lucide-react";
 import { Button } from "@/app/components/ui/button";
@@ -24,11 +25,14 @@ import SelectPartyDialog from "@/app/components/SelectPartyDialog";
 import SessionNotesDrawer from "@/app/components/SessionNotesDrawer";
 import ReserveDrawer from "@/app/components/ReserveDrawer";
 import MessagesDrawer from "@/app/components/MessagesDrawer";
+import BackpackPickerDialog from "@/app/components/BackpackPickerDialog";
+import type { ActivityUnread } from "@/app/lib/hooks/useActivityUnread";
 import TreasureGeneratorDialog from "@/app/components/TreasureGeneratorDialog";
 import { getPartiesForDevice } from "@/app/server/actions";
 import { getOrCreateDeviceId } from "@/app/lib/device-id";
 import type { PartyMessagingState } from "@/app/lib/hooks/usePartyMessages";
 import type { BuffKind, Combatant, DmParty } from "@/app/lib/types";
+import { formatUnreadCount } from "@/app/lib/unread-count";
 
 interface PartyActionsMenuProps {
   partyCode: string;
@@ -46,6 +50,10 @@ interface PartyActionsMenuProps {
   dmToken: string | null;
   /** Passed as one object so the prop list doesn't grow by a dozen callbacks. */
   messaging: PartyMessagingState;
+  /** DM only: unread avisos of the PJs' actividad (zero for players). */
+  activityUnread: ActivityUnread;
+  /** Opens a backpack: the PJ the DM picked, or null for the player's own. */
+  onOpenBackpack: (combatantId: number | null) => void;
   onReturnToMain: () => void;
 }
 
@@ -67,6 +75,8 @@ export default function PartyActionsMenu({
   isDm,
   dmToken,
   messaging,
+  activityUnread,
+  onOpenBackpack,
   onReturnToMain,
 }: PartyActionsMenuProps) {
   const [menuOpen, setMenuOpen] = useState(false);
@@ -78,6 +88,7 @@ export default function PartyActionsMenu({
   const [notesOpen, setNotesOpen] = useState(false);
   const [reserveOpen, setReserveOpen] = useState(false);
   const [treasureOpen, setTreasureOpen] = useState(false);
+  const [backpackPickerOpen, setBackpackPickerOpen] = useState(false);
   const [parties, setParties] = useState<DmParty[]>([]);
 
   // DM-only: load this device's parties to power the "Switch party" action.
@@ -112,6 +123,9 @@ export default function PartyActionsMenu({
 
   const otherParties = isDm ? parties.filter((p) => p.code !== partyCode) : [];
   const canSwitchParty = otherParties.length > 0;
+  // A player only has a backpack once they have claimed a PJ.
+  const hasClaimedCharacter = combatants.some((c) => c.claimedByMe);
+  const menuUnreadTotal = messaging.unreadTotal + activityUnread.total;
 
   // Close the menu first, then open the chosen sub-dialog, so the two overlays
   // never stack on top of each other.
@@ -128,11 +142,11 @@ export default function PartyActionsMenu({
         className="fixed bottom-20 right-6 rounded-full w-14 h-14 shadow-lg cursor-pointer z-50"
       >
         <PlusIcon className="w-7 h-7" />
-        {/* Unread messages have to be visible with the menu closed, which is how
-            the app sits most of the time during a session. */}
-        {messaging.unreadTotal > 0 && (
+        {/* Unread messages and avisos have to be visible with the menu closed,
+            which is how the app sits most of the time during a session. */}
+        {menuUnreadTotal > 0 && (
           <span className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-dnd-blood px-1 text-xs font-bold text-white">
-            {messaging.unreadTotal > 99 ? "99+" : messaging.unreadTotal}
+            {formatUnreadCount(menuUnreadTotal)}
           </span>
         )}
       </Button>
@@ -225,6 +239,22 @@ export default function PartyActionsMenu({
                     badge={messaging.unreadTotal}
                     onClick={() => openAction(setMessagesOpen)}
                   />
+                  {(isDm || hasClaimedCharacter) && (
+                    <ActionButton
+                      icon={<Backpack className="size-6 text-dnd-gold" />}
+                      label="Backpack"
+                      badge={activityUnread.total}
+                      onClick={() => {
+                        // The DM picks a PJ first; a player's claim decides it.
+                        if (isDm) {
+                          openAction(setBackpackPickerOpen);
+                        } else {
+                          setMenuOpen(false);
+                          onOpenBackpack(null);
+                        }
+                      }}
+                    />
+                  )}
                   {/* Placeholder — language switching is not wired up yet */}
                   <ActionButton
                     icon={<Languages className="size-6 text-sky-400" />}
@@ -300,6 +330,21 @@ export default function PartyActionsMenu({
         open={messagesOpen}
         onOpenChange={setMessagesOpen}
       />
+      {isDm && (
+        <BackpackPickerDialog
+          // A PJ held in reserve still has a backpack.
+          characters={[...combatants, ...hiddenCombatants].filter(
+            (c) => c.type === "player",
+          )}
+          unread={activityUnread.byCombatant}
+          open={backpackPickerOpen}
+          onOpenChange={setBackpackPickerOpen}
+          onPick={(combatantId) => {
+            setBackpackPickerOpen(false);
+            onOpenBackpack(combatantId);
+          }}
+        />
+      )}
     </>
   );
 }
@@ -326,7 +371,7 @@ function ActionButton({
       <span className="text-sm font-medium">{label}</span>
       {badge !== undefined && badge > 0 && (
         <span className="absolute right-2 top-2 flex h-5 min-w-5 items-center justify-center rounded-full bg-dnd-blood px-1 text-xs font-bold text-white">
-          {badge > 99 ? "99+" : badge}
+          {formatUnreadCount(badge)}
         </span>
       )}
     </Button>

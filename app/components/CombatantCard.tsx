@@ -14,6 +14,7 @@ import {
   Biohazard,
   Eye,
   Plus,
+  Backpack,
 } from "lucide-react";
 import type { Combatant, Condition } from "@/app/lib/types";
 import StatEditDialog from "@/app/components/StatEditDialog";
@@ -27,6 +28,7 @@ import AddAmmoDialog from "@/app/components/AddAmmoDialog";
 import AmmoEditDialog from "@/app/components/AmmoEditDialog";
 import { CONDITION_ICONS, CONDITION_COLORS } from "@/app/lib/condition-icons";
 import { AMMO_GLYPH, formatAmmoCount } from "@/app/lib/ammo";
+import { formatUnreadCount } from "@/app/lib/unread-count";
 
 interface CombatantCardProps {
   combatant: Combatant;
@@ -51,6 +53,9 @@ interface CombatantCardProps {
   ) => void;
   onDelete: (id: number) => void;
   onHide: (id: number) => void;
+  onOpenBackpack: (id: number) => void;
+  /** DM only: unread avisos in this PJ's actividad. */
+  activityUnread?: number;
   onConditionsChange: (id: number, conditions: Condition[]) => Promise<void>;
   onRemoveBuff: (combatantId: number, buffId: string) => Promise<void>;
   onAddAmmo: (
@@ -82,6 +87,8 @@ const CombatantCard = forwardRef<HTMLDivElement, CombatantCardProps>(
       onDamageHeal,
       onDelete,
       onHide,
+      onOpenBackpack,
+      activityUnread = 0,
       onConditionsChange,
       onRemoveBuff,
       onAddAmmo,
@@ -256,6 +263,24 @@ const CombatantCard = forwardRef<HTMLDivElement, CombatantCardProps>(
                     {combatant.type === "enemy" ? "Enemy" : "Hero"}
                   </span>
                 </Badge>
+              )}
+
+              {/* Backpack (DM only): a player opens their own from the menu */}
+              {isDm && combatant.type === "player" && (
+                <button
+                  type="button"
+                  onClick={() => onOpenBackpack(combatant.id)}
+                  title="Open backpack"
+                  className="relative rounded-md p-1.5 text-dnd-gold-dim transition-all duration-200 hover:bg-dnd-gold/10 hover:text-dnd-gold-bright active:scale-95"
+                >
+                  <Backpack size={16} />
+                  <span className="sr-only">Open {combatant.name}&apos;s backpack</span>
+                  {activityUnread > 0 && (
+                    <span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-dnd-blood px-0.5 text-[10px] font-bold text-white">
+                      {formatUnreadCount(activityUnread)}
+                    </span>
+                  )}
+                </button>
               )}
 
               {/* Send to reserve (DM only): keeps the combatant prepared but out

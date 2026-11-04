@@ -26,6 +26,8 @@ export function toSafeCombatant(
     conditions,
     buffs,
     ammo,
+    // Private like the claim: read only through the inventory endpoint.
+    inventory: _inventory,
     ...rest
   } = row;
 

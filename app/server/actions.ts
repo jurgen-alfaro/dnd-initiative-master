@@ -8,9 +8,10 @@ import {
   dungeonMasters,
   dmDevices,
   messages,
+  activityNotices,
 } from "@/app/db/schema";
 import { generatePartyCode, generateRecoveryCode } from "@/app/lib/code-gen";
-import { and, desc, eq, inArray, isNull, sql } from "drizzle-orm";
+import { and, desc, eq, inArray, isNull, or, sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
@@ -33,7 +34,11 @@ import {
   recalculateTurnIndexAfterVisibilityChange,
   visibleInInitiativeOrder,
 } from "@/app/lib/combat/turnCalculator";
-import { notifyPartyChanged, notifyPartyMessage } from "@/app/lib/pusher-server";
+import {
+  notifyPartyChanged,
+  notifyPartyInventory,
+  notifyPartyMessage,
+} from "@/app/lib/pusher-server";
 import { toSafeCombatant } from "@/app/server/combatant-view";
 import { formatPartyAnnouncement } from "@/app/lib/treasure/party";
 import {
@@ -42,11 +47,19 @@ import {
   TreasureSchema,
   type Coins,
   type Treasure,
+  type TreasureItem,
 } from "@/app/lib/treasure/treasure";
+import {
+  applyInventoryAction,
+  BackpackActionSchema,
+  type BackpackAction,
+  type Inventory,
+} from "@/app/lib/inventory/inventory";
 import {
   sweepExpiredMessages,
   resolveMessageAccess,
 } from "@/app/server/messages";
+import { sweepExpiredActivity } from "@/app/server/inventory";
 
 // Zod validation schemas
 const CreatePartySchema = z.object({
@@ -283,6 +296,19 @@ const MarkThreadReadSchema = z.object({
   combatantId: z.number().int().positive(),
   dmToken: z.string().min(1).nullable(),
   deviceId: DeviceIdSchema.nullable(),
+});
+
+const RunBackpackActionSchema = z.object({
+  partyCode: PartyCodeSchema,
+  dmToken: z.string().min(1).nullable(),
+  deviceId: DeviceIdSchema.nullable(),
+  action: BackpackActionSchema,
+});
+
+const MarkActivityReadSchema = z.object({
+  partyCode: PartyCodeSchema,
+  dmToken: z.string().min(1),
+  combatantId: z.number().int().positive(),
 });
 
 /** True if the error is a Postgres unique violation (code 23505). */
@@ -1833,8 +1859,27 @@ async function findPartyForDm(
 }
 
 /**
- * Delivers a tesoro individual: announces it as one or more DM messages in the
- * recipient's private thread. Only the DM may deliver, and only to a claimed
+ * The inventario of `target` once an entrega puts `coins` and `items` in it.
+ * Not exported, like `findPartyForDm`.
+ */
+function receiveDelivery(
+  target: typeof combatants.$inferSelect,
+  coins: Coins,
+  items: TreasureItem[],
+): Inventory | { error: string } {
+  const change = applyInventoryAction(
+    [{ id: target.id, name: target.name, inventory: target.inventory }],
+    { role: "dm" },
+    { type: "receive", combatantId: target.id, coins, items },
+    () => crypto.randomUUID(),
+  );
+  if ("error" in change) return { error: change.error.message };
+  return change.characters[0].inventory;
+}
+
+/**
+ * Delivers a tesoro individual: puts it in the recipient's inventario and
+ * announces it as one or more DM messages in their private thread. Only the DM may deliver, and only to a claimed
  * PJ of the party, so nobody but that player reads it. The DM is trusted, so
  * the treasure is not re-rolled or checked against the tables.
  */
@@ -1882,17 +1927,32 @@ export async function deliverIndividualTreasure(
       target.name,
     );
 
-    await db.insert(messages).values(
-      parts.map((body) => ({
-        partyId: party.id,
-        combatantId: target.id,
-        sender: "dm" as const,
-        body,
-      })),
+    const inventory = receiveDelivery(
+      target,
+      validated.data.treasure.coins,
+      validated.data.treasure.items,
     );
+    if ("error" in inventory) return inventory;
+
+    // One batch, so the announcement and the inventario never disagree.
+    await db.batch([
+      db.insert(messages).values(
+        parts.map((body) => ({
+          partyId: party.id,
+          combatantId: target.id,
+          sender: "dm" as const,
+          body,
+        })),
+      ),
+      db
+        .update(combatants)
+        .set({ inventory })
+        .where(eq(combatants.id, target.id)),
+    ]);
     await sweepExpiredMessages(party.id);
 
     await notifyPartyMessage(party.code);
+    await notifyPartyInventory(party.code);
     return { success: true };
   } catch (error) {
     console.error("Error delivering treasure:", error);
@@ -1901,8 +1961,9 @@ export async function deliverIndividualTreasure(
 }
 
 /**
- * Delivers a tesoro de party: announces the whole reparto as a public session
- * note dated today (several numbered notes if it is too long). Only the DM may
+ * Delivers a tesoro de party: puts each share in its PJ's inventario and
+ * announces the whole reparto as a public session note dated today (several
+ * numbered notes if it is too long). Only the DM may
  * deliver, and every recipient must be a PJ of the party. The DM is trusted,
  * so the treasure is not re-rolled, but each item must go to exactly one PJ.
  */
@@ -1950,33 +2011,198 @@ export async function deliverPartyTreasure(
       return { error: "Treasure can only go to player characters of the party" };
     }
 
-    const nameById = new Map(recipients.map((c) => [c.id, c.name]));
+    const recipientById = new Map(recipients.map((c) => [c.id, c]));
     const parts = formatPartyAnnouncement(
       data.treasure,
       data.shares.map((share) => ({
         // NOTE: every id was just matched against `recipients`, so the name exists.
-        name: nameById.get(share.combatantId) ?? "",
+        name: recipientById.get(share.combatantId)?.name ?? "",
         coins: share.coins,
         itemIndexes: share.itemIndexes,
       })),
     );
 
+    const inventoryUpdates = [];
+    for (const share of data.shares) {
+      const recipient = recipientById.get(share.combatantId);
+      if (!recipient) return { error: "Invalid data" };
+      const inventory = receiveDelivery(
+        recipient,
+        share.coins,
+        share.itemIndexes.map((index) => data.treasure.items[index]),
+      );
+      if ("error" in inventory) return inventory;
+      inventoryUpdates.push(
+        db
+          .update(combatants)
+          .set({ inventory })
+          .where(eq(combatants.id, recipient.id)),
+      );
+    }
+
     // Notes are read newest first, ties broken by the highest id, so the
     // parts go in last to first: part 1 gets the highest id and reads first.
-    await db.insert(notes).values(
-      parts.toReversed().map((content) => ({
-        partyId: party.id,
-        content,
-        visibility: "public" as const,
-        sessionDate: data.sessionDate,
-      })),
-    );
+    // One batch, so the announcement and the inventarios never disagree.
+    await db.batch([
+      db.insert(notes).values(
+        parts.toReversed().map((content) => ({
+          partyId: party.id,
+          content,
+          visibility: "public" as const,
+          sessionDate: data.sessionDate,
+        })),
+      ),
+      ...inventoryUpdates,
+    ]);
 
     revalidatePath(`/party/${party.code}`);
     await notifyPartyChanged(party.code);
+    await notifyPartyInventory(party.code);
     return { success: true };
   } catch (error) {
     console.error("Error delivering party treasure:", error);
     return { error: "Error delivering treasure" };
+  }
+}
+
+// --- Inventory Actions ---
+
+/**
+ * The one write path of the backpack. The caller proves who they are like in
+ * the private messages (DM token, or the device that claimed a PJ); the pure
+ * module decides the rest, including that a player only touches their own PJ.
+ * Every changed inventario and every aviso land in one batch.
+ */
+export async function runBackpackAction(
+  partyCode: string,
+  dmToken: string | null,
+  deviceId: string | null,
+  action: BackpackAction,
+): Promise<ActionResult> {
+  const validated = RunBackpackActionSchema.safeParse({
+    partyCode,
+    dmToken,
+    deviceId,
+    action,
+  });
+  if (!validated.success) {
+    return { error: "Invalid data" };
+  }
+
+  try {
+    const access = await resolveMessageAccess(
+      validated.data.partyCode,
+      validated.data.dmToken,
+      validated.data.deviceId,
+    );
+    if (access.role === "not-found") return { error: "Party not found" };
+    if (access.role === "unclaimed") return { error: "Claim a character first" };
+
+    // Every PJ the caller may see, so an action that involves a second PJ
+    // (giving) needs nothing more here. Hidden PJs never reach a player.
+    const rows = await db.query.combatants.findMany({
+      columns: { id: true, name: true, inventory: true },
+      where: and(
+        eq(combatants.partyId, access.partyId),
+        eq(combatants.type, "player"),
+        access.role === "player"
+          ? or(
+              eq(combatants.isHidden, false),
+              eq(combatants.id, access.combatantId),
+            )
+          : undefined,
+      ),
+    });
+
+    const change = applyInventoryAction(
+      rows,
+      access.role === "dm"
+        ? { role: "dm" }
+        : { role: "player", combatantId: access.combatantId },
+      validated.data.action,
+      () => crypto.randomUUID(),
+    );
+    if ("error" in change) return { error: change.error.message };
+
+    // `characters` keeps the order of `rows`, and an untouched inventario
+    // keeps its identity, so only the changed ones are written.
+    const writes = [
+      ...change.characters
+        .filter((c, i) => c.inventory !== rows[i].inventory)
+        .map((c) =>
+          db
+            .update(combatants)
+            .set({ inventory: c.inventory })
+            .where(eq(combatants.id, c.id)),
+        ),
+      ...(change.notices.length > 0
+        ? [
+            db.insert(activityNotices).values(
+              change.notices.map((notice) => ({
+                partyId: access.partyId,
+                combatantId: notice.combatantId,
+                text: notice.text,
+              })),
+            ),
+          ]
+        : []),
+    ];
+    const [first, ...rest] = writes;
+    if (!first) return { success: true };
+
+    await db.batch([first, ...rest]);
+    if (change.notices.length > 0) await sweepExpiredActivity(access.partyId);
+
+    await notifyPartyInventory(access.partyCode);
+    return { success: true };
+  } catch (error) {
+    console.error("Error updating inventory:", error);
+    return { error: "Error updating the backpack" };
+  }
+}
+
+/**
+ * Marks the avisos of a PJ's actividad as read, when the DM opens it. Callers
+ * only invoke it with something unread, since the signal it emits makes every
+ * open backpack and badge re-fetch.
+ */
+export async function markActivityRead(
+  partyCode: string,
+  dmToken: string,
+  combatantId: number,
+): Promise<ActionResult> {
+  const validated = MarkActivityReadSchema.safeParse({
+    partyCode,
+    dmToken,
+    combatantId,
+  });
+  if (!validated.success) {
+    return { error: "Invalid data" };
+  }
+
+  try {
+    const found = await findPartyForDm(
+      validated.data.partyCode,
+      validated.data.dmToken,
+    );
+    if ("error" in found) return found;
+    const { party } = found;
+
+    await db
+      .update(activityNotices)
+      .set({ readAt: new Date() })
+      .where(
+        and(
+          eq(activityNotices.partyId, party.id),
+          eq(activityNotices.combatantId, validated.data.combatantId),
+          isNull(activityNotices.readAt),
+        ),
+      );
+
+    await notifyPartyInventory(party.code);
+    return { success: true };
+  } catch (error) {
+    console.error("Error marking activity as read:", error);
+    return { error: "Error updating the activity" };
   }
 }
