@@ -4,14 +4,16 @@ import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { Backpack, ChevronRight, Loader2, X } from "lucide-react";
 import { Button } from "./ui/button";
+import { Input } from "./ui/input";
 import { useCharacterInventory } from "@/app/lib/hooks/useCharacterInventory";
 import { applyInventory, markActivityRead } from "@/app/server/actions";
 import { getOrCreateDeviceId } from "@/app/lib/device-id";
 import { formatMessageTime } from "@/app/lib/date-format";
 import type { ActivityNotice } from "@/app/lib/types";
-import { formatCpAsPo } from "@/app/lib/treasure/coins";
+import { formatCpAsPo, NO_COINS } from "@/app/lib/treasure/coins";
 import {
   InventoryCategorySchema,
+  type Coins,
   type InventoryCategory,
 } from "@/app/lib/treasure/treasure";
 import {
@@ -25,9 +27,18 @@ interface InventoryDrawerProps {
   dmToken: string | null;
   /** The PJ to open; null for a player, whose claim decides it. */
   combatantId: number | null;
+  /** The PJs of the party the caller sees, so something can be given to them. */
+  characters: Recipient[];
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
+
+type Recipient = { id: number; name: string };
+
+/** A dar, minus the PJ who gives: the backpack's own. */
+type Gift =
+  | { type: "giveItem"; toCombatantId: number; itemId: string; quantity: number }
+  | { type: "giveCoins"; toCombatantId: number; coins: Coins };
 
 const CATEGORY_LABELS: Record<InventoryCategory, string> = {
   weapons: "Weapons",
@@ -52,6 +63,7 @@ export default function InventoryDrawer({
   partyCode,
   dmToken,
   combatantId,
+  characters,
   open,
   onOpenChange,
 }: InventoryDrawerProps) {
@@ -78,6 +90,30 @@ export default function InventoryDrawer({
       await refresh();
     } finally {
       setPendingItemId(null);
+    }
+  };
+
+  const [isGiving, setIsGiving] = useState(false);
+  const recipients = characters.filter(
+    (c) => c.id !== character?.combatantId,
+  );
+
+  /** Gives at once; true when it went through, so the form can reset. */
+  const handleGive = async (gift: Gift): Promise<boolean> => {
+    if (!character) return false;
+    setIsGiving(true);
+    try {
+      const result = await applyInventory(
+        partyCode,
+        dmToken,
+        getOrCreateDeviceId(),
+        { ...gift, combatantId: character.combatantId },
+      );
+      setActionError("error" in result ? result.error : null);
+      await refresh();
+      return !("error" in result);
+    } finally {
+      setIsGiving(false);
     }
   };
 
@@ -150,10 +186,25 @@ export default function InventoryDrawer({
             {actionError && (
               <p className="text-sm text-dnd-blood-bright">{actionError}</p>
             )}
+            {recipients.length > 0 && (
+              <GiveCoinsForm
+                coins={character.inventory.coins}
+                recipients={recipients}
+                isPending={isGiving}
+                onGive={(toCombatantId, coins) =>
+                  handleGive({ type: "giveCoins", toCombatantId, coins })
+                }
+              />
+            )}
             <ItemList
               items={character.inventory.items}
               pendingItemId={pendingItemId}
               onUse={handleUse}
+              recipients={recipients}
+              isGiving={isGiving}
+              onGive={(itemId, toCombatantId, quantity) =>
+                handleGive({ type: "giveItem", toCombatantId, itemId, quantity })
+              }
             />
             {character.activity && (
               <ActivitySection
@@ -188,10 +239,20 @@ function ItemList({
   items,
   pendingItemId,
   onUse,
+  recipients,
+  isGiving,
+  onGive,
 }: {
   items: InventoryItem[];
   pendingItemId: string | null;
   onUse: (itemId: string) => void;
+  recipients: Recipient[];
+  isGiving: boolean;
+  onGive: (
+    itemId: string,
+    toCombatantId: number,
+    quantity: number,
+  ) => Promise<boolean>;
 }) {
   const categories = InventoryCategorySchema.options
     .map((category) => ({
@@ -228,8 +289,12 @@ function ItemList({
               <ItemRow
                 key={item.id}
                 item={item}
-                isPending={pendingItemId !== null}
+                isPending={pendingItemId !== null || isGiving}
                 onUse={() => onUse(item.id)}
+                recipients={recipients}
+                onGive={(toCombatantId, quantity) =>
+                  onGive(item.id, toCombatantId, quantity)
+                }
               />
             ))}
           </ul>
@@ -245,10 +310,14 @@ function ItemRow({
   item,
   isPending,
   onUse,
+  recipients,
+  onGive,
 }: {
   item: InventoryItem;
   isPending: boolean;
   onUse: () => void;
+  recipients: Recipient[];
+  onGive: (toCombatantId: number, quantity: number) => Promise<boolean>;
 }) {
   const use = itemUse(item);
   const amount =
@@ -290,9 +359,162 @@ function ItemRow({
               {USE_LABELS[use]}
             </Button>
           )}
+          {recipients.length > 0 && (
+            <GiveItemForm
+              item={item}
+              recipients={recipients}
+              isPending={isPending}
+              onGive={onGive}
+            />
+          )}
         </div>
       </details>
     </li>
+  );
+}
+
+/** Who to give to: the other PJs of the party. */
+function RecipientSelect({
+  recipients,
+  value,
+  onChange,
+}: {
+  recipients: Recipient[];
+  value: number | null;
+  onChange: (id: number) => void;
+}) {
+  return (
+    <select
+      aria-label="Give to"
+      value={value ?? ""}
+      onChange={(e) => onChange(Number(e.target.value))}
+      className="h-8 rounded-md border border-input bg-transparent px-2 text-sm"
+    >
+      <option value="" disabled className="bg-card">
+        Give to…
+      </option>
+      {recipients.map((r) => (
+        <option key={r.id} value={r.id} className="bg-card">
+          {r.name}
+        </option>
+      ))}
+    </select>
+  );
+}
+
+/** Gives an item, or part of a stack, to another PJ. */
+function GiveItemForm({
+  item,
+  recipients,
+  isPending,
+  onGive,
+}: {
+  item: InventoryItem;
+  recipients: Recipient[];
+  isPending: boolean;
+  onGive: (toCombatantId: number, quantity: number) => Promise<boolean>;
+}) {
+  const [to, setTo] = useState<number | null>(null);
+  const [quantity, setQuantity] = useState(1);
+
+  return (
+    <div className="flex flex-wrap items-center gap-2 pt-1">
+      {item.quantity > 1 && (
+        <Input
+          type="number"
+          aria-label="How many"
+          min={1}
+          max={item.quantity}
+          value={quantity}
+          onChange={(e) => setQuantity(Number(e.target.value))}
+          className="h-8 w-16"
+        />
+      )}
+      <RecipientSelect recipients={recipients} value={to} onChange={setTo} />
+      <Button
+        size="sm"
+        variant="outline"
+        disabled={isPending || to === null}
+        onClick={async () => {
+          if (to !== null && (await onGive(to, quantity))) setTo(null);
+        }}
+        className="cursor-pointer border-dnd-gold/30"
+      >
+        Give
+      </Button>
+    </div>
+  );
+}
+
+/** Gives coins to another PJ. */
+function GiveCoinsForm({
+  coins,
+  recipients,
+  isPending,
+  onGive,
+}: {
+  coins: Coins;
+  recipients: Recipient[];
+  isPending: boolean;
+  onGive: (toCombatantId: number, coins: Coins) => Promise<boolean>;
+}) {
+  const [to, setTo] = useState<number | null>(null);
+  const [gift, setGift] = useState<Coins>(NO_COINS);
+
+  return (
+    <details className="group rounded-lg border border-dnd-gold/20">
+      <summary className="flex cursor-pointer list-none items-center gap-2 px-3 py-2 font-heading text-dnd-gold">
+        <ChevronRight
+          size={16}
+          className="transition-transform group-open:rotate-90"
+        />
+        <span className="flex-1">Give coins</span>
+      </summary>
+      <div className="space-y-2 px-3 pb-3">
+        <div className="grid grid-cols-4 gap-2">
+          {COIN_ORDER.map((coin) => (
+            <label
+              key={coin}
+              className="text-xs uppercase text-muted-foreground"
+            >
+              {coin}
+              <Input
+                type="number"
+                min={0}
+                max={coins[coin]}
+                placeholder="0"
+                value={gift[coin] || ""}
+                onChange={(e) =>
+                  setGift({ ...gift, [coin]: Number(e.target.value) })
+                }
+                className="h-8"
+              />
+            </label>
+          ))}
+        </div>
+        <div className="flex items-center gap-2">
+          <RecipientSelect
+            recipients={recipients}
+            value={to}
+            onChange={setTo}
+          />
+          <Button
+            size="sm"
+            variant="outline"
+            disabled={isPending || to === null}
+            onClick={async () => {
+              if (to !== null && (await onGive(to, gift))) {
+                setGift(NO_COINS);
+                setTo(null);
+              }
+            }}
+            className="cursor-pointer border-dnd-gold/30"
+          >
+            Give
+          </Button>
+        </div>
+      </div>
+    </details>
   );
 }
 

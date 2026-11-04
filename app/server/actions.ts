@@ -305,6 +305,19 @@ const BackpackActionSchema = z.discriminatedUnion("type", [
     combatantId: z.number().int().positive(),
     itemId: z.string().min(1).max(100),
   }),
+  z.object({
+    type: z.literal("giveItem"),
+    combatantId: z.number().int().positive(),
+    toCombatantId: z.number().int().positive(),
+    itemId: z.string().min(1).max(100),
+    quantity: z.number().int().min(1).max(1000),
+  }),
+  z.object({
+    type: z.literal("giveCoins"),
+    combatantId: z.number().int().positive(),
+    toCombatantId: z.number().int().positive(),
+    coins: CoinsSchema,
+  }),
 ]);
 export type BackpackAction = z.infer<typeof BackpackActionSchema>;
 
