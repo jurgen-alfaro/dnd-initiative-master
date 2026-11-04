@@ -8,6 +8,7 @@ import { ROD_ROWS } from "./rodTable";
 import { STAFF_ROWS } from "./staffTable";
 import { WAND_ROWS } from "./wandTable";
 import type { ColumnRow } from "./columnTable";
+import { formatItemName } from "./treasure";
 
 /** A d% of table 7-1 that lands on each family, per category. */
 const FAMILY_ROLL = {
@@ -121,12 +122,13 @@ describe("rods (table 7-19)", () => {
 });
 
 describe("staffs (table 7-18)", () => {
-  it("should show between 1 and 50 charges next to the name", () => {
+  it("should give between 1 and 50 charges, announced next to the name", () => {
     const one = roll("staff", "medium", 96, 1);
-    assert.equal(one.name, "Bastón: Defensa (1 carga)");
+    assert.deepEqual([one.name, one.charges], ["Bastón: Defensa", 1]);
+    assert.equal(formatItemName(one), "Bastón: Defensa (1 carga)");
     assert.equal(one.valueCp, 5_825_000);
     const fifty = roll("staff", "major", 100, 50);
-    assert.equal(fifty.name, "Bastón: Poder (50 cargas)");
+    assert.equal(formatItemName(fifty), "Bastón: Poder (50 cargas)");
     assert.deepEqual(fifty.rolls.at(-1), { label: "Charges", dice: "1d50", values: [50] });
   });
 });
@@ -134,12 +136,12 @@ describe("staffs (table 7-18)", () => {
 describe("wands (table 7-26)", () => {
   it("should give the object, price and charges in every category", () => {
     const first = roll("wand", "minor", 1, 20);
-    assert.equal(first.name, "Varita: Detectar magia (20 cargas)");
+    assert.deepEqual([first.name, first.charges], ["Varita: Detectar magia", 20]);
     assert.equal(first.valueCp, 37_500);
-    assert.equal(roll("wand", "minor", 37, 7).name, "Varita: Proyectil mágico (5.°) (7 cargas)");
-    assert.equal(roll("wand", "medium", 1, 7).name, "Varita: Proyectil mágico (5.°) (7 cargas)");
+    assert.equal(formatItemName(roll("wand", "minor", 37, 7)), "Varita: Proyectil mágico (5.°) (7 cargas)");
+    assert.equal(formatItemName(roll("wand", "medium", 1, 7)), "Varita: Proyectil mágico (5.°) (7 cargas)");
     const top = roll("wand", "major", 100, 50);
-    assert.equal(top.name, "Varita: Piel pétrea (50 cargas)");
+    assert.equal(formatItemName(top), "Varita: Piel pétrea (50 cargas)");
     assert.equal(top.valueCp, 3_350_000);
   });
 });

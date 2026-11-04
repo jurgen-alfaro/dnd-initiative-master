@@ -8,7 +8,13 @@ import { rollScroll } from "./scrollTable";
 import { rollStaff } from "./staffTable";
 import { rollWand } from "./wandTable";
 import { rollWondrous } from "./wondrousTable";
-import type { ItemCategory, Roll, TreasureItem } from "./treasure";
+import type {
+  InventoryCategory,
+  ItemCategory,
+  ItemUsage,
+  Roll,
+  TreasureItem,
+} from "./treasure";
 
 /** Categories of magic objects: menor, intermedio, mayor. */
 export type MagicCategory = Extract<ItemCategory, "minor" | "medium" | "major">;
@@ -72,7 +78,7 @@ export const MAGIC_TABLE: Record<MagicCategory, readonly MagicRow[]> = {
 /** What a family resolver gives back: the object it picked and its rolls. */
 export type MagicResolution = Pick<
   TreasureItem,
-  "name" | "valueCp" | "rolls" | "description"
+  "name" | "valueCp" | "rolls" | "description" | "charges"
 >;
 
 /** Rolls the tables of one family until a concrete magic object is picked. */
@@ -94,6 +100,22 @@ const MAGIC_RESOLVERS: Record<MagicFamily, MagicResolver> = {
   wondrous: rollWondrous,
 };
 
+/** Where each family goes in the inventario and how it is used up. */
+const FAMILY_INVENTORY: Record<
+  MagicFamily,
+  { inventoryCategory: InventoryCategory; usage: ItemUsage }
+> = {
+  armor: { inventoryCategory: "armor", usage: "none" },
+  weapon: { inventoryCategory: "weapons", usage: "none" },
+  potion: { inventoryCategory: "consumables", usage: "drink" },
+  ring: { inventoryCategory: "magicItems", usage: "none" },
+  rod: { inventoryCategory: "magicItems", usage: "none" },
+  scroll: { inventoryCategory: "consumables", usage: "use" },
+  staff: { inventoryCategory: "magicItems", usage: "none" },
+  wand: { inventoryCategory: "magicItems", usage: "none" },
+  wondrous: { inventoryCategory: "wondrous", usage: "none" },
+};
+
 /** Rolls a magic object of `category`: table 7-1, then the family's resolver. */
 export function rollMagicItem(
   category: MagicCategory,
@@ -110,6 +132,8 @@ export function rollMagicItem(
 
   return {
     category,
+    ...FAMILY_INVENTORY[family],
+    quantity: 1,
     ...resolution,
     rolls: [...familyRolls, ...resolution.rolls],
   };

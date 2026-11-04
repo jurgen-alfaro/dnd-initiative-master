@@ -8,12 +8,13 @@ import {
   type Die,
 } from "./dice";
 import type { Gender } from "./magicGear";
-import type { Roll, TreasureItem } from "./treasure";
+import type { InventoryCategory, Roll, TreasureItem } from "./treasure";
 
 /** What a leaf of the tables gives. */
 type Priced = {
   name: string;
   priceCp: number;
+  inventoryCategory: InventoryCategory;
   /** Dice for how many are found; the price is per unit. */
   quantity?: DiceNotation;
   /** An armor, which is rolled as Pequeña or Mediana. */
@@ -52,21 +53,29 @@ export type Weapon = {
   isDouble?: true;
 };
 
-const item = (upTo: number, name: string, po: number): Node => ({
-  upTo,
-  item: { name, priceCp: poToCp(po) },
-});
+const item = (
+  upTo: number,
+  name: string,
+  po: number,
+  inventoryCategory: InventoryCategory = "mundane",
+): Node => ({ upTo, item: { name, priceCp: poToCp(po), inventoryCategory } });
+
+const shield = (upTo: number, name: string, po: number): Node =>
+  item(upTo, name, po, "armor");
 
 const alchemical = (
   upTo: number,
   name: string,
   quantity: DiceNotation,
   po: number,
-): Node => ({ upTo, item: { name, priceCp: poToCp(po), quantity } });
+): Node => ({
+  upTo,
+  item: { name, priceCp: poToCp(po), inventoryCategory: "consumables", quantity },
+});
 
 const armor = (upTo: number, name: string, po: number): Node => ({
   upTo,
-  item: { name, priceCp: poToCp(po), sized: true },
+  item: { name, priceCp: poToCp(po), inventoryCategory: "armor", sized: true },
 });
 
 const M: Gender = "masculine";
@@ -107,7 +116,11 @@ function masterwork(rows: readonly Node<Weapon>[]): Node[] {
       ? { ...row, rows: masterwork(row.rows) }
       : {
           upTo: row.upTo,
-          item: { name: `${row.item.name} de gran calidad`, priceCp: row.item.priceCp },
+          item: {
+            name: `${row.item.name} de gran calidad`,
+            priceCp: row.item.priceCp,
+            inventoryCategory: "weapons",
+          },
         },
   );
 }
@@ -243,19 +256,19 @@ export const MUNDANE_TABLE: readonly Node[] = [
         upTo: 90,
         table: "Table 3-8, darkwood shield",
         rows: [
-          item(50, "Broquel de maderaoscura", 205),
-          item(100, "Escudo de maderaoscura", 257),
+          shield(50, "Broquel de maderaoscura", 205),
+          shield(100, "Escudo de maderaoscura", 257),
         ],
       },
       {
         upTo: 100,
         table: "Table 3-8, masterwork shield",
         rows: [
-          item(17, "Broquel de gran calidad", 165),
-          item(40, "Escudo ligero de madera de gran calidad", 153),
-          item(60, "Escudo ligero de acero de gran calidad", 159),
-          item(83, "Escudo pesado de madera de gran calidad", 157),
-          item(100, "Escudo pesado de acero de gran calidad", 170),
+          shield(17, "Broquel de gran calidad", 165),
+          shield(40, "Escudo ligero de madera de gran calidad", 153),
+          shield(60, "Escudo ligero de acero de gran calidad", 159),
+          shield(83, "Escudo pesado de madera de gran calidad", 157),
+          shield(100, "Escudo pesado de acero de gran calidad", 170),
         ],
       },
     ],
@@ -313,6 +326,7 @@ export function rollMundaneItem(die: Die): TreasureItem {
   const rolls: Roll[] = [];
   const leaf = pickLeaf("Table 3-8", MUNDANE_TABLE, die, rolls);
   const description = describeMundane(leaf.name);
+  const { inventoryCategory } = leaf;
 
   if (leaf.quantity) {
     const values = rollDice(die, leaf.quantity);
@@ -320,7 +334,10 @@ export function rollMundaneItem(die: Die): TreasureItem {
     const amount = values.reduce((a, b) => a + b, 0);
     return {
       category: "mundane",
-      name: `${leaf.name} ×${amount}`,
+      inventoryCategory,
+      name: leaf.name,
+      quantity: amount,
+      usage: "use",
       valueCp: leaf.priceCp * amount,
       rolls,
       description,
@@ -333,7 +350,10 @@ export function rollMundaneItem(die: Die): TreasureItem {
     const size = percentile <= SMALL_ARMOR_UP_TO ? "Pequeña" : "Mediana";
     return {
       category: "mundane",
+      inventoryCategory,
       name: `${leaf.name} (${size})`,
+      quantity: 1,
+      usage: "none",
       valueCp: leaf.priceCp,
       rolls,
       description,
@@ -342,7 +362,10 @@ export function rollMundaneItem(die: Die): TreasureItem {
 
   return {
     category: "mundane",
+    inventoryCategory,
     name: leaf.name,
+    quantity: 1,
+    usage: "none",
     valueCp: leaf.priceCp,
     rolls,
     description,

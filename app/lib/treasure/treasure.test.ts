@@ -137,6 +137,9 @@ describe("formatIndividualAnnouncement", () => {
   it("should split an announcement over 2,000 characters into numbered parts", () => {
     const items = Array.from({ length: 120 }, (_, i) => ({
       category: "gem" as const,
+      inventoryCategory: "valuables" as const,
+      quantity: 1,
+      usage: "none" as const,
       name: `Gema de prueba ${i + 1}`,
       valueCp: 1250,
       rolls: [],
@@ -369,5 +372,57 @@ describe("generateTreasure gems and art", () => {
         });
       }
     }
+  }
+});
+
+describe("generateTreasure inventory data", () => {
+  // Every case: no coins (d% 1). NE 1 objects 72 → mundane, 96 → minor;
+  // NE 6 objects 100 → medium. The rolls after the column resolve the item.
+  const cases: [string, number, number[], [string, number, number | undefined, string]][] = [
+    ["a potion", 1, [1, 96, 10, 1], ["consumables", 1, undefined, "drink"]],
+    ["a scroll", 1, [1, 96, 50, 1, 1, 1, 1], ["consumables", 1, undefined, "use"]],
+    ["a wand", 1, [1, 96, 82, 1, 20], ["magicItems", 1, 20, "none"]],
+    ["a staff", 6, [1, 100, 68, 96, 1], ["magicItems", 1, 1, "none"]],
+    ["a ring", 1, [1, 96, 45, 1], ["magicItems", 1, undefined, "none"]],
+    ["a rod", 6, [1, 100, 50, 1], ["magicItems", 1, undefined, "none"]],
+    ["a wondrous item", 1, [1, 96, 100, 1], ["wondrous", 1, undefined, "none"]],
+    ["a magic weapon", 6, [1, 100, 15, 63, 70], ["weapons", 1, undefined, "none"]],
+    ["a magic shield", 1, [1, 96, 1, 1, 1], ["armor", 1, undefined, "none"]],
+    ["an alchemical item", 1, [1, 72, 1, 13, 3, 4], ["consumables", 7, undefined, "use"]],
+    ["an everburning torch", 1, [1, 72, 1, 74], ["mundane", 1, undefined, "none"]],
+    ["a masterwork weapon", 1, [1, 72, 51, 1, 1], ["weapons", 1, undefined, "none"]],
+    ["ammunition", 1, [1, 72, 51, 71, 10, 1], ["weapons", 1, undefined, "none"]],
+    ["an armor", 1, [1, 72, 18, 19, 11], ["armor", 1, undefined, "none"]],
+    ["a shield", 1, [1, 72, 50, 91, 1], ["armor", 1, undefined, "none"]],
+    ["a tool", 1, [1, 72, 84, 1], ["mundane", 1, undefined, "none"]],
+    ["a gem", 1, [91, 1, 1, 2, 3, 4, 1, 1], ["valuables", 1, undefined, "none"]],
+    ["an art object", 1, [96, 100, 2, 6, 2, 1], ["valuables", 1, undefined, "none"]],
+  ];
+
+  for (const [label, level, rolls, expected] of cases) {
+    it(`should file ${label} in its inventory category with its quantity, charges and use`, () => {
+      const die = fixedDie(1, ...rolls);
+      const { items } = generateTreasure(level, die);
+
+      assert.equal(die.rest(), 0, "every planned roll must be used");
+      assert.deepEqual(
+        items.map((i) => [i.inventoryCategory, i.quantity, i.charges, i.usage]),
+        [expected],
+      );
+    });
+  }
+
+  for (const [label, rolls, name, announced] of [
+    ["an alchemical item", [72, 1, 13, 3, 4], "Ácido", "- Ácido ×7 (70 po)"],
+    ["a single alchemical item", [72, 1, 1, 1], "Fuego de alquimista", "- Fuego de alquimista ×1 (20 po)"],
+    ["a wand", [96, 82, 1, 20], "Varita: Detectar magia", "- Varita: Detectar magia (20 cargas) (375 po)"],
+  ] as const) {
+    it(`should keep the quantity and charges of ${label} out of its name but in its announcement`, () => {
+      const treasure = generateTreasure(1, fixedDie(1, 1, ...rolls));
+
+      assert.deepEqual(treasure.items.map((i) => i.name), [name]);
+      const [announcement] = formatIndividualAnnouncement(treasure, "Aria");
+      assert.equal(announcement.split("\n")[1], announced);
+    });
   }
 });

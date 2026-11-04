@@ -96,6 +96,9 @@ describe("formatPartyAnnouncement", () => {
   };
   const gem = (name: string, valueCp: number) => ({
     category: "gem" as const,
+    inventoryCategory: "valuables" as const,
+    quantity: 1,
+    usage: "none" as const,
     name,
     valueCp,
     rolls: [],
@@ -169,6 +172,9 @@ describe("party reparto", () => {
   const noCoins = { pc: 0, pp: 0, po: 0, ppt: 0 };
   const gem = (name: string) => ({
     category: "gem" as const,
+    inventoryCategory: "valuables" as const,
+    quantity: 1,
+    usage: "none" as const,
     name,
     valueCp: 100,
     rolls: [],

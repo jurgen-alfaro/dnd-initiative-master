@@ -1,6 +1,10 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { formatIndividualAnnouncement, generateTreasure } from "./treasure";
+import {
+  formatIndividualAnnouncement,
+  formatItemName,
+  generateTreasure,
+} from "./treasure";
 import { rollMagicItem, type MagicCategory } from "./magicTable";
 import { fixedDie } from "./testDice";
 
@@ -378,7 +382,8 @@ describe("generateTreasure mundane objects (table 3-8)", () => {
         const quantity = count * sides;
 
         assert.equal(item.category, "mundane");
-        assert.equal(item.name, dice ? `${name} ×${quantity}` : name);
+        assert.equal(item.name, name);
+        assert.equal(formatItemName(item), dice ? `${name} ×${quantity}` : name);
         assert.equal(item.valueCp, dice ? cp(price) * quantity : cp(price));
       });
     }
@@ -387,7 +392,7 @@ describe("generateTreasure mundane objects (table 3-8)", () => {
   it("should sum the dice of a quantity", () => {
     const item = mundane(1, 13, 3, 4);
 
-    assert.deepEqual([item.name, item.valueCp], ["Ácido ×7", 7000]);
+    assert.deepEqual([item.name, item.quantity, item.valueCp], ["Ácido", 7, 7000]);
   });
 
   for (const cell of BOOK_ARMOR) {
@@ -469,7 +474,7 @@ describe("generateTreasure mundane objects (table 3-8)", () => {
   }
 
   it("should send each d% of table 3-8 to its branch", () => {
-    const branch = (top: number, rolls: number[]) => mundane(top, ...rolls).name;
+    const branch = (top: number, rolls: number[]) => formatItemName(mundane(top, ...rolls));
 
     assert.equal(branch(17, [1, 1]), "Fuego de alquimista ×1");
     assert.equal(branch(18, [1, 11]), "Camisote de mallas (Mediana)");
