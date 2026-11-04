@@ -39,11 +39,11 @@ Texto breve en español que acompaña a cada objeto de un tesoro y dice qué es 
 _Avoid_: Detalle, ficha
 
 **Valor**:
-Lo que vale un objeto concreto de un tesoro, fijado al generarlo. En gemas y arte es la tirada de su tabla; en el resto se tira al azar alrededor del precio de tabla (entre el 75 % y el 150 %, con media en el precio de tabla y más a menudo por debajo).
+Lo que vale un objeto concreto de un tesoro, fijado al generarlo. En gemas y arte es la tirada de su tabla; en el resto se tira al azar alrededor del precio de tabla (entre el 75 % y el 150 %, con media en torno al precio de tabla y más a menudo por debajo).
 _Avoid_: Precio (a secas), coste
 
 **Precio de tabla**:
-Precio fijo que la DMG 3.5 da a un objeto que no es gema ni arte. Es la media del valor, no el valor.
+Precio fijo que la DMG 3.5 da a un objeto que no es gema ni arte. Es, aproximadamente, la media del valor (alrededor del 100,1 %), no el valor.
 
 **Reparto**:
 Asignación de cada moneda y objeto de un tesoro a sus PJs destinatarios. Las monedas se dividen a partes iguales; cada objeto indivisible lo asigna el DM a un PJ.
