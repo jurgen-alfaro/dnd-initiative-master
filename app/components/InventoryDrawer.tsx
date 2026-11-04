@@ -703,6 +703,7 @@ function ItemEditor({
           }))}
         >
           <Input
+            key={item.charges ?? -1}
             name="charges"
             type="number"
             min={0}
