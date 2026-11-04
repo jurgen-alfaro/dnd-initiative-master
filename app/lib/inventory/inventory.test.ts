@@ -159,6 +159,82 @@ describe("applyInventoryAction: receive a delivery", () => {
     ]);
   });
 
+  it("should not stack a consumable onto one with the same name but another use", () => {
+    const usedPotion = { id: "potion", ...potion, usage: "use" as const };
+    const { category: _c, rolls: _r, ...owned } = usedPotion;
+
+    const change = expectChange(
+      applyInventoryAction(
+        [aria({ coins: EMPTY_INVENTORY.coins, items: [owned] })],
+        DM,
+        { type: "receive", combatantId: 7, coins: EMPTY_INVENTORY.coins, items: [potion] },
+        sequentialIds(),
+      ),
+    );
+
+    assert.deepEqual(
+      change.characters[0].inventory.items.map((i) => [i.id, i.quantity, i.usage]),
+      [
+        ["potion", 1, "use"],
+        ["id-1", 1, "drink"],
+      ],
+    );
+  });
+
+  it("should start a new pile when stacking would go past 1000 units", () => {
+    const acid: TreasureItem = {
+      category: "mundane",
+      inventoryCategory: "consumables",
+      name: "Ácido",
+      quantity: 5,
+      usage: "use",
+      valueCp: 5000,
+      rolls: [],
+    };
+    const owned: InventoryItem = {
+      id: "acid",
+      inventoryCategory: "consumables",
+      name: "Ácido",
+      quantity: 998,
+      usage: "use",
+      valueCp: 998000,
+    };
+
+    const change = expectChange(
+      applyInventoryAction(
+        [aria({ coins: EMPTY_INVENTORY.coins, items: [owned] })],
+        DM,
+        { type: "receive", combatantId: 7, coins: EMPTY_INVENTORY.coins, items: [acid] },
+        sequentialIds(),
+      ),
+    );
+
+    assert.deepEqual(
+      change.characters[0].inventory.items.map((i) => [i.id, i.quantity]),
+      [
+        ["acid", 998],
+        ["id-1", 5],
+      ],
+    );
+  });
+
+  it("should refuse a delivery that would go past the most coins a denomination holds", () => {
+    const result = applyInventoryAction(
+      [aria({ coins: { pc: 0, pp: 0, po: 999_999_999, ppt: 0 }, items: [] })],
+      DM,
+      {
+        type: "receive",
+        combatantId: 7,
+        coins: { pc: 0, pp: 0, po: 2, ppt: 0 },
+        items: [],
+      },
+      sequentialIds(),
+    );
+
+    assert.ok("error" in result);
+    assert.equal(result.error.code, "TOO_MANY_COINS");
+  });
+
   it("should add the coins to those already in the inventory", () => {
     const change = expectChange(
       applyInventoryAction(
@@ -529,6 +605,17 @@ describe("applyInventoryAction: edit by hand", () => {
     assert.equal(result.error.code, "NOT_ENOUGH_COINS");
   });
 
+  it("should refuse an adjustment past the most coins a denomination holds", () => {
+    const result = edit({
+      type: "adjustCoins",
+      combatantId: 7,
+      coins: { pc: 0, pp: 0, po: 1_000_000_000, ppt: 0 },
+    });
+
+    assert.ok("error" in result);
+    assert.equal(result.error.code, "TOO_MANY_COINS");
+  });
+
   it("should refuse an adjustment that changes no coin", () => {
     const result = edit({ type: "adjustCoins", combatantId: 7, coins: EMPTY_INVENTORY.coins });
 
@@ -627,6 +714,18 @@ describe("applyInventoryAction: edit by hand", () => {
 
     assert.ok("error" in result);
     assert.equal(result.error.code, "INVALID_QUANTITY");
+  });
+
+  it("should refuse a quantity equal to the current one, which would leave a false aviso", () => {
+    const result = edit({
+      type: "setQuantity",
+      combatantId: 7,
+      itemId: "potions",
+      quantity: 3,
+    });
+
+    assert.ok("error" in result);
+    assert.equal(result.error.code, "NO_CHANGE");
   });
 
   it("should refuse to change the quantity of an item that is not a consumable", () => {
@@ -872,6 +971,22 @@ describe("applyInventoryAction: give to another PJ", () => {
   const errorCode = (result: ReturnType<typeof applyInventoryAction>) =>
     "error" in result ? result.error.code : "no error";
 
+  it("should refuse to give part of a stack with charges, which would copy them", () => {
+    const wands = { ...sword, id: "wands", name: "Varita: Luz", quantity: 2, charges: 3 };
+
+    const result = giveItem([aria(holding([wands])), borin()], "wands", 1);
+
+    assert.equal(errorCode(result), "CANNOT_SPLIT");
+  });
+
+  it("should give a whole stack with charges, charges and all", () => {
+    const wands = { ...sword, id: "wands", name: "Varita: Luz", quantity: 2, charges: 3 };
+
+    const change = expectChange(giveItem([aria(holding([wands])), borin()], "wands", 2));
+
+    assert.deepEqual(change.characters[1].inventory.items, [{ ...wands, id: "id-1" }]);
+  });
+
   it("should refuse to give more units than there are", () => {
     const result = giveItem([aria(holding([potions])), borin()], "potions", 6);
 
@@ -972,6 +1087,14 @@ describe("applyInventoryAction: give to another PJ", () => {
     const result = giveCoins([aria(holding([], 50)), borin()], { po: 51 });
 
     assert.equal(errorCode(result), "NOT_ENOUGH");
+  });
+
+  it("should refuse coins the recipient can't hold, past the most a denomination holds", () => {
+    const result = giveCoins([aria(holding([], 50)), borin(holding([], 999_999_990))], {
+      po: 20,
+    });
+
+    assert.equal(errorCode(result), "TOO_MANY_COINS");
   });
 
   it("should refuse to give no coins", () => {

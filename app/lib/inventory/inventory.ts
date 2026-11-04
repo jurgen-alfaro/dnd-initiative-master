@@ -93,7 +93,10 @@ export const BackpackActionSchema = z.discriminatedUnion("type", [
     itemId: ItemIdSchema,
     quantity: UnitsSchema,
   }),
-  /** DM only: corrects an item's cargas, or gives cargas to any item. */
+  /**
+   * DM only: corrects an item's cargas, or gives cargas to any item. They are
+   * the whole row's, whatever its quantity, so such a row is only given whole.
+   */
   z.object({
     type: z.literal("setCharges"),
     combatantId: CombatantIdSchema,
@@ -152,7 +155,9 @@ type InventoryErrorCode =
   | "INVALID_QUANTITY"
   | "INVALID_CHARGES"
   | "SAME_CHARACTER"
-  | "NOT_ENOUGH";
+  | "NOT_ENOUGH"
+  | "TOO_MANY_COINS"
+  | "CANNOT_SPLIT";
 
 /** An aviso for the actividad of a PJ. */
 export type InventoryNotice = { combatantId: number; text: string };
@@ -212,6 +217,7 @@ export function applyInventoryAction(
           coins: target.inventory.coins,
         });
       }
+      if (!fitsCoinLimit(coins)) return tooManyCoins(target);
       return {
         characters: withInventory(characters, target.id, {
           ...target.inventory,
@@ -244,6 +250,9 @@ export function applyInventoryAction(
       }
       if (!isValidQuantity(action.quantity)) {
         return fail("INVALID_QUANTITY", "The quantity must be a whole number of at least 1");
+      }
+      if (action.quantity === item.quantity) {
+        return fail("NO_CHANGE", `${item.name} already has ${item.quantity}`);
       }
       // A player only corrects down: raising it would create items.
       if (actor.role === "player" && action.quantity > item.quantity) {
@@ -303,6 +312,10 @@ export function applyInventoryAction(
       if (action.quantity > item.quantity) {
         return fail("NOT_ENOUGH", `There are only ${item.quantity} of ${item.name}`);
       }
+      // Cargas belong to the whole row: splitting it would copy them onto both.
+      if (item.charges !== undefined && action.quantity < item.quantity) {
+        return fail("CANNOT_SPLIT", `${item.name} has charges, so it is given whole`);
+      }
 
       const { kept, given } = splitItem(item, action.quantity);
       const afterGiver = kept
@@ -337,6 +350,9 @@ export function applyInventoryAction(
         return fail("NOT_ENOUGH", `${target.name} doesn't have those coins`);
       }
 
+      const recipientCoins = addCoins(recipient.inventory.coins, action.coins);
+      if (!fitsCoinLimit(recipientCoins)) return tooManyCoins(recipient);
+
       const afterGiver = withInventory(characters, target.id, {
         ...target.inventory,
         coins: addCoins(target.inventory.coins, action.coins, -1),
@@ -344,7 +360,7 @@ export function applyInventoryAction(
       return {
         characters: withInventory(afterGiver, recipient.id, {
           ...recipient.inventory,
-          coins: addCoins(recipient.inventory.coins, action.coins),
+          coins: recipientCoins,
         }),
         notices: noticeFor(
           actor,
@@ -358,12 +374,10 @@ export function applyInventoryAction(
       if (actor.role !== "dm") {
         return fail("FORBIDDEN", "Only the DM can deliver treasure");
       }
+      const inventory = receive(target.inventory, action, newId);
+      if (!fitsCoinLimit(inventory.coins)) return tooManyCoins(target);
       return {
-        characters: withInventory(
-          characters,
-          target.id,
-          receive(target.inventory, action, newId),
-        ),
+        characters: withInventory(characters, target.id, inventory),
         notices: [],
       };
     }
@@ -442,6 +456,17 @@ function addCoins(coins: Coins, other: Coins, sign: 1 | -1 = 1): Coins {
   const sum = { ...coins };
   for (const d of DENOMINATIONS) sum[d] += sign * other[d];
   return sum;
+}
+
+/** No denomination past the most `CoinsSchema` holds, so the inventario still loads. */
+function fitsCoinLimit(coins: Coins): boolean {
+  return CoinsSchema.safeParse(coins).success;
+}
+
+function tooManyCoins(character: Character): { error: AppError } {
+  return fail("TOO_MANY_COINS", `${character.name} can't hold that many coins`, {
+    coins: character.inventory.coins,
+  });
 }
 
 /** Each denomination that changed, highest first: "+10 po, -5 pc". */
@@ -540,14 +565,23 @@ export function isConsumable(item: {
   return item.usage !== "none" && item.charges === undefined;
 }
 
-/** Adds an item as a new row, or onto the pile of the same consumable. */
+/**
+ * Adds an item as a new row, or onto the pile of the same consumable (same
+ * name and use) while the pile stays within the most units a row holds.
+ */
 function addItem(
   items: InventoryItem[],
   item: Omit<InventoryItem, "id">,
   newId: () => string,
 ): InventoryItem[] {
   const pile = isConsumable(item)
-    ? items.find((i) => isConsumable(i) && i.name === item.name)
+    ? items.find(
+        (i) =>
+          isConsumable(i) &&
+          i.name === item.name &&
+          i.usage === item.usage &&
+          InventoryItemSchema.shape.quantity.safeParse(i.quantity + item.quantity).success,
+      )
     : undefined;
   if (!pile) return [...items, { id: newId(), ...item }];
 
