@@ -8,6 +8,14 @@ import {
   subscribePartyEvent,
 } from "@/app/lib/pusher-client";
 import { getOrCreateDeviceId } from "@/app/lib/device-id";
+import type { ActivityNotice } from "@/app/lib/types";
+
+const ActivityNoticeSchema = z.object({
+  id: z.number(),
+  text: z.string(),
+  createdAt: z.string(),
+  readAt: z.string().nullable(),
+});
 
 const ResponseSchema = z.union([
   z.object({ role: z.literal("unclaimed") }),
@@ -16,6 +24,7 @@ const ResponseSchema = z.union([
     combatantId: z.number(),
     combatantName: z.string(),
     inventory: InventorySchema,
+    activity: z.array(ActivityNoticeSchema).optional(),
   }),
 ]);
 
@@ -23,12 +32,16 @@ export type CharacterInventory = {
   combatantId: number;
   combatantName: string;
   inventory: Inventory;
+  /** The PJ's actividad, oldest first. Only the DM gets it. */
+  activity?: ActivityNotice[];
 };
 
 export type CharacterInventoryState = {
   /** Null until loaded, or when there is an `error`. */
   character: CharacterInventory | null;
   error: string | null;
+  /** Re-reads now, e.g. after a change made from this backpack. */
+  refresh: () => Promise<void>;
 };
 
 /**
@@ -101,5 +114,5 @@ export function useCharacterInventory(
     };
   }, [isOpen, partyCode, fetchInventory]);
 
-  return { character, error };
+  return { character, error, refresh: fetchInventory };
 }

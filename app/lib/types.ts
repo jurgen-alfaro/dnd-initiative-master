@@ -126,6 +126,14 @@ export type ChatMessage = {
   readAt: string | null; // ISO 8601 timestamp
 };
 
+// One aviso of a PJ's actividad, as the DM's backpack shows it.
+export type ActivityNotice = {
+  id: number;
+  text: string;
+  createdAt: string; // ISO 8601 timestamp
+  readAt: string | null; // ISO 8601 timestamp
+};
+
 // One row of the DM's inbox. Bodies are truncated to a preview server-side so
 // the full text only ever travels when the thread is actually opened.
 export type MessageThreadSummary = {

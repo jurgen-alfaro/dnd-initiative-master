@@ -31,6 +31,8 @@ interface InitiativeListProps {
   onDelete?: (id: number) => void;
   onHide?: (id: number) => void;
   onOpenBackpack?: (id: number) => void;
+  /** DM only: unread avisos per PJ id. */
+  activityUnread?: Record<number, number>;
   onUpdateConditions?: (id: number, conditions: Condition[]) => Promise<void>;
   onRemoveBuff?: (combatantId: number, buffId: string) => Promise<void>;
   onAddAmmo?: (
@@ -62,6 +64,7 @@ export default function InitiativeList({
   onDelete,
   onHide,
   onOpenBackpack,
+  activityUnread,
   onUpdateConditions,
   onRemoveBuff,
   onAddAmmo,
@@ -240,6 +243,7 @@ export default function InitiativeList({
           onDelete={onDelete || (() => {})}
           onHide={onHide || (() => {})}
           onOpenBackpack={onOpenBackpack || (() => {})}
+          activityUnread={activityUnread?.[char.id]}
           onConditionsChange={handleConditionsChange}
           onRemoveBuff={handleRemoveBuff}
           onAddAmmo={handleAddAmmo}

@@ -1,16 +1,24 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { Backpack, ChevronRight, Loader2, X } from "lucide-react";
 import { Button } from "./ui/button";
 import { useCharacterInventory } from "@/app/lib/hooks/useCharacterInventory";
+import { applyInventory, markActivityRead } from "@/app/server/actions";
+import { getOrCreateDeviceId } from "@/app/lib/device-id";
+import { formatMessageTime } from "@/app/lib/date-format";
+import type { ActivityNotice } from "@/app/lib/types";
 import { formatCpAsPo } from "@/app/lib/treasure/coins";
 import {
   InventoryCategorySchema,
   type InventoryCategory,
 } from "@/app/lib/treasure/treasure";
-import type { Inventory, InventoryItem } from "@/app/lib/inventory/inventory";
+import {
+  itemUse,
+  type Inventory,
+  type InventoryItem,
+} from "@/app/lib/inventory/inventory";
 
 interface InventoryDrawerProps {
   partyCode: string;
@@ -37,7 +45,8 @@ const COIN_ORDER = ["pc", "pp", "po", "ppt"] as const;
 /**
  * The backpack: the inventario of one PJ, with its coins top right and its
  * items in collapsible categories. Only the categories that hold something
- * are listed; an item opens to show its description and value.
+ * are listed; an item opens to show its description, its value and its
+ * buttons. The DM also sees the PJ's actividad at the bottom.
  */
 export default function InventoryDrawer({
   partyCode,
@@ -46,12 +55,42 @@ export default function InventoryDrawer({
   open,
   onOpenChange,
 }: InventoryDrawerProps) {
-  const { character, error } = useCharacterInventory(
+  const { character, error, refresh } = useCharacterInventory(
     partyCode,
     open,
     dmToken,
     combatantId,
   );
+  const [actionError, setActionError] = useState<string | null>(null);
+  const [pendingItemId, setPendingItemId] = useState<string | null>(null);
+
+  const handleUse = async (itemId: string) => {
+    if (!character) return;
+    setPendingItemId(itemId);
+    try {
+      const result = await applyInventory(
+        partyCode,
+        dmToken,
+        getOrCreateDeviceId(),
+        { type: "use", combatantId: character.combatantId, itemId },
+      );
+      setActionError("error" in result ? result.error : null);
+      await refresh();
+    } finally {
+      setPendingItemId(null);
+    }
+  };
+
+  const handleActivityRead = async () => {
+    if (!character || !dmToken) return;
+    const result = await markActivityRead(
+      partyCode,
+      dmToken,
+      character.combatantId,
+    );
+    if ("error" in result) setActionError(result.error);
+    await refresh();
+  };
 
   // Close on Escape and lock body scroll while open
   useEffect(() => {
@@ -107,7 +146,22 @@ export default function InventoryDrawer({
             <Loader2 className="animate-spin" size={24} />
           </div>
         ) : (
-          <ItemList items={character.inventory.items} />
+          <div className="flex-1 space-y-2 overflow-y-auto px-5 py-4">
+            {actionError && (
+              <p className="text-sm text-dnd-blood-bright">{actionError}</p>
+            )}
+            <ItemList
+              items={character.inventory.items}
+              pendingItemId={pendingItemId}
+              onUse={handleUse}
+            />
+            {character.activity && (
+              <ActivitySection
+                notices={character.activity}
+                onRead={handleActivityRead}
+              />
+            )}
+          </div>
         )}
       </aside>
     </div>,
@@ -130,7 +184,15 @@ function CoinPurse({ coins }: { coins: Inventory["coins"] }) {
   );
 }
 
-function ItemList({ items }: { items: InventoryItem[] }) {
+function ItemList({
+  items,
+  pendingItemId,
+  onUse,
+}: {
+  items: InventoryItem[];
+  pendingItemId: string | null;
+  onUse: (itemId: string) => void;
+}) {
   const categories = InventoryCategorySchema.options
     .map((category) => ({
       category,
@@ -140,14 +202,12 @@ function ItemList({ items }: { items: InventoryItem[] }) {
 
   if (categories.length === 0) {
     return (
-      <p className="px-5 py-4 text-sm text-muted-foreground">
-        The backpack is empty.
-      </p>
+      <p className="text-sm text-muted-foreground">The backpack is empty.</p>
     );
   }
 
   return (
-    <div className="flex-1 space-y-2 overflow-y-auto px-5 py-4">
+    <>
       {categories.map(({ category, items: inCategory }) => (
         <details
           key={category}
@@ -165,16 +225,32 @@ function ItemList({ items }: { items: InventoryItem[] }) {
           </summary>
           <ul className="space-y-1 px-3 pb-3">
             {inCategory.map((item) => (
-              <ItemRow key={item.id} item={item} />
+              <ItemRow
+                key={item.id}
+                item={item}
+                isPending={pendingItemId !== null}
+                onUse={() => onUse(item.id)}
+              />
             ))}
           </ul>
         </details>
       ))}
-    </div>
+    </>
   );
 }
 
-function ItemRow({ item }: { item: InventoryItem }) {
+const USE_LABELS = { drink: "Drink", use: "Use" } as const;
+
+function ItemRow({
+  item,
+  isPending,
+  onUse,
+}: {
+  item: InventoryItem;
+  isPending: boolean;
+  onUse: () => void;
+}) {
+  const use = itemUse(item);
   const amount =
     item.charges === undefined
       ? `×${item.quantity}`
@@ -203,8 +279,79 @@ function ItemRow({ item }: { item: InventoryItem }) {
             <span className="text-muted-foreground">Value: </span>
             {formatCpAsPo(item.valueCp)}
           </p>
+          {use && (
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={isPending}
+              onClick={onUse}
+              className="cursor-pointer border-dnd-gold/30"
+            >
+              {USE_LABELS[use]}
+            </Button>
+          )}
         </div>
       </details>
     </li>
+  );
+}
+
+/**
+ * DM-only: the PJ's avisos, oldest first. Opening it marks them as read, and
+ * so does any aviso that arrives while it is open.
+ */
+function ActivitySection({
+  notices,
+  onRead,
+}: {
+  notices: ActivityNotice[];
+  onRead: () => void;
+}) {
+  const [isOpen, setIsOpen] = useState(false);
+  const unreadCount = notices.filter((n) => n.readAt === null).length;
+
+  useEffect(() => {
+    if (isOpen && unreadCount > 0) onRead();
+    // Only opening the section or a new aviso should mark them read.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen, unreadCount]);
+
+  return (
+    <details
+      className="group rounded-lg border border-dnd-gold/20"
+      onToggle={(e) => setIsOpen(e.currentTarget.open)}
+    >
+      <summary className="flex cursor-pointer list-none items-center gap-2 px-3 py-2 font-heading text-dnd-gold">
+        <ChevronRight
+          size={16}
+          className="transition-transform group-open:rotate-90"
+        />
+        <span className="flex-1">Activity</span>
+        {unreadCount > 0 && (
+          <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-dnd-blood px-1 font-sans text-xs font-bold text-white">
+            {unreadCount > 99 ? "99+" : unreadCount}
+          </span>
+        )}
+      </summary>
+      {notices.length === 0 ? (
+        <p className="px-3 pb-3 text-sm text-muted-foreground">
+          Nothing yet.
+        </p>
+      ) : (
+        <ul className="space-y-1 px-3 pb-3 text-sm">
+          {notices.map((notice) => (
+            <li key={notice.id} className="flex gap-2">
+              <span className="flex-1">{notice.text}</span>
+              <time
+                dateTime={notice.createdAt}
+                className="shrink-0 tabular-nums text-muted-foreground"
+              >
+                {formatMessageTime(notice.createdAt)}
+              </time>
+            </li>
+          ))}
+        </ul>
+      )}
+    </details>
   );
 }

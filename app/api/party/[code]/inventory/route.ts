@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { resolveMessageAccess } from "@/app/server/messages";
-import { getCharacterInventory } from "@/app/server/inventory";
+import { getActivity, getCharacterInventory } from "@/app/server/inventory";
 
 interface Params {
   params: Promise<{ code: string }>;
@@ -15,6 +15,7 @@ const QuerySchema = z.object({
  * Reads the inventario of one PJ. Same identity as the private messages, in
  * the same headers: a player reads only the PJ they claimed (the claim picks
  * it, the query can only match it), the DM reads any PJ of the party by id.
+ * Only the DM also gets the PJ's actividad.
  */
 export async function GET(req: NextRequest, { params }: Params) {
   const { code } = await params;
@@ -57,8 +58,13 @@ export async function GET(req: NextRequest, { params }: Params) {
     return NextResponse.json({ error: "Character not found" }, { status: 404 });
   }
 
+  if (access.role === "player") {
+    return NextResponse.json({ role: access.role, combatantId, ...found }, noStore);
+  }
+
+  const activity = await getActivity(access.partyId, combatantId);
   return NextResponse.json(
-    { role: access.role, combatantId, ...found },
+    { role: access.role, combatantId, ...found, activity },
     noStore,
   );
 }
