@@ -6,15 +6,11 @@ import { Backpack, ChevronRight, Loader2, X } from "lucide-react";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { useCharacterInventory } from "@/app/lib/hooks/useCharacterInventory";
-import {
-  applyInventory,
-  markActivityRead,
-  type BackpackAction,
-} from "@/app/server/actions";
+import { markActivityRead, runBackpackAction } from "@/app/server/actions";
 import { getOrCreateDeviceId } from "@/app/lib/device-id";
 import { formatMessageTime } from "@/app/lib/date-format";
 import type { ActivityNotice } from "@/app/lib/types";
-import { formatCpAsPo, NO_COINS } from "@/app/lib/treasure/coins";
+import { DENOMINATIONS, formatCpAsPo, NO_COINS } from "@/app/lib/treasure/coins";
 import {
   InventoryCategorySchema,
   type Coins,
@@ -23,11 +19,13 @@ import {
 import {
   isConsumable,
   itemUse,
+  type BackpackAction,
   type Inventory,
   type InventoryItem,
 } from "@/app/lib/inventory/inventory";
+import { formatUnreadCount } from "@/app/lib/unread-count";
 
-interface InventoryDrawerProps {
+type InventoryDrawerProps = {
   partyCode: string;
   dmToken: string | null;
   /** The PJ to open; null for a player, whose claim decides it. */
@@ -36,14 +34,18 @@ interface InventoryDrawerProps {
   characters: Recipient[];
   open: boolean;
   onOpenChange: (open: boolean) => void;
-}
+};
 
 type Recipient = { id: number; name: string };
 
+/** `Omit` that keeps a union a union. */
+type Without<T, K extends PropertyKey> = T extends unknown ? Omit<T, K> : never;
+
 /** A dar, minus the PJ who gives: the backpack's own. */
-type Gift =
-  | { type: "giveItem"; toCombatantId: number; itemId: string; quantity: number }
-  | { type: "giveCoins"; toCombatantId: number; coins: Coins };
+type Gift = Without<
+  Extract<BackpackAction, { type: "giveItem" | "giveCoins" }>,
+  "combatantId"
+>;
 
 const CATEGORY_LABELS: Record<InventoryCategory, string> = {
   weapons: "Weapons",
@@ -56,14 +58,16 @@ const CATEGORY_LABELS: Record<InventoryCategory, string> = {
 };
 
 /** A correction to one item: a backpack action, short of whose and which. */
-type ItemEdit =
-  | { type: "remove" }
-  | { type: "setQuantity"; quantity: number }
-  | { type: "setCharges"; charges: number }
-  | { type: "markConsumable"; quantity: number; usage: "drink" | "use" };
+type ItemEdit = Without<
+  Extract<
+    BackpackAction,
+    { type: "remove" | "setQuantity" | "setCharges" | "markConsumable" }
+  >,
+  "combatantId" | "itemId"
+>;
 
-/** The coins in the order the backpack shows them. */
-const COIN_ORDER = ["pc", "pp", "po", "ppt"] as const;
+/** The coins in the order the backpack shows them: lowest first. */
+const COIN_ORDER = [...DENOMINATIONS].reverse();
 
 /**
  * The backpack: the inventario of one PJ, with its coins top right and its
@@ -96,7 +100,7 @@ export default function InventoryDrawer({
   ): Promise<boolean> => {
     setPendingItemId(pendingKey);
     try {
-      const result = await applyInventory(
+      const result = await runBackpackAction(
         partyCode,
         dmToken,
         getOrCreateDeviceId(),
@@ -105,6 +109,11 @@ export default function InventoryDrawer({
       setActionError("error" in result ? result.error : null);
       await refresh();
       return !("error" in result);
+    } catch (actionFailure) {
+      // The action never answered (network down, server crashed).
+      console.error("Error running backpack action", actionFailure);
+      setActionError("Couldn't update the backpack. Try again.");
+      return false;
     } finally {
       setPendingItemId(null);
     }
@@ -144,12 +153,17 @@ export default function InventoryDrawer({
 
   const handleActivityRead = async () => {
     if (!character || !dmToken) return;
-    const result = await markActivityRead(
-      partyCode,
-      dmToken,
-      character.combatantId,
-    );
-    if ("error" in result) setActionError(result.error);
+    try {
+      const result = await markActivityRead(
+        partyCode,
+        dmToken,
+        character.combatantId,
+      );
+      if ("error" in result) setActionError(result.error);
+    } catch (readFailure) {
+      console.error("Error marking activity as read", readFailure);
+      setActionError("Couldn't mark the activity as read");
+    }
     await refresh();
   };
 
@@ -621,8 +635,9 @@ function GiveCoinsForm({
 }
 
 /**
- * The corrections each role may make to an item: anyone removes it or fixes
- * a consumable's quantity; only the DM sets cargas or marks it a consumable.
+ * The corrections each role may make to an item: anyone removes it or lowers
+ * a consumable's quantity; only the DM raises it, sets cargas or marks it a
+ * consumable.
  */
 function ItemEditor({
   item,
@@ -660,7 +675,7 @@ function ItemEditor({
             name="quantity"
             type="number"
             min={1}
-            max={1000}
+            max={isDm ? 1000 : item.quantity}
             step={1}
             required
             defaultValue={item.quantity}
@@ -798,7 +813,7 @@ function ActivitySection({
         <span className="flex-1">Activity</span>
         {unreadCount > 0 && (
           <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-dnd-blood px-1 font-sans text-xs font-bold text-white">
-            {unreadCount > 99 ? "99+" : unreadCount}
+            {formatUnreadCount(unreadCount)}
           </span>
         )}
       </summary>

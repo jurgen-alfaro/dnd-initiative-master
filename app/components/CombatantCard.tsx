@@ -28,6 +28,7 @@ import AddAmmoDialog from "@/app/components/AddAmmoDialog";
 import AmmoEditDialog from "@/app/components/AmmoEditDialog";
 import { CONDITION_ICONS, CONDITION_COLORS } from "@/app/lib/condition-icons";
 import { AMMO_GLYPH, formatAmmoCount } from "@/app/lib/ammo";
+import { formatUnreadCount } from "@/app/lib/unread-count";
 
 interface CombatantCardProps {
   combatant: Combatant;
@@ -276,7 +277,7 @@ const CombatantCard = forwardRef<HTMLDivElement, CombatantCardProps>(
                   <span className="sr-only">Open {combatant.name}&apos;s backpack</span>
                   {activityUnread > 0 && (
                     <span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-dnd-blood px-0.5 text-[10px] font-bold text-white">
-                      {activityUnread > 99 ? "99+" : activityUnread}
+                      {formatUnreadCount(activityUnread)}
                     </span>
                   )}
                 </button>

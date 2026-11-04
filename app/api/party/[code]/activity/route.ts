@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { resolveMessageAccess } from "@/app/server/messages";
-import { getActivityUnread } from "@/app/server/inventory";
+import { fetchActivityUnread } from "@/app/server/inventory";
 
-interface Params {
+type Params = {
   params: Promise<{ code: string }>;
-}
+};
 
 /**
  * The DM's unread avisos per PJ, for the backpack badges. DM only, by the
@@ -27,7 +27,7 @@ export async function GET(req: NextRequest, { params }: Params) {
   }
 
   return NextResponse.json(
-    { unread: await getActivityUnread(access.partyId) },
+    { unread: await fetchActivityUnread(access.partyId) },
     { headers: { "Cache-Control": "no-store" } },
   );
 }

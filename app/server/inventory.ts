@@ -2,8 +2,11 @@ import { db } from "@/app/db/";
 import { activityNotices, combatants } from "@/app/db/schema";
 import { and, eq, gte, isNull, lt, sql } from "drizzle-orm";
 import type { Inventory } from "@/app/lib/inventory/inventory";
-import type { ActivityNotice } from "@/app/lib/types";
-import { messageRetentionCutoff } from "@/app/server/messages";
+import type { ActivityNotice, AppError } from "@/app/lib/types";
+import {
+  messageRetentionCutoff,
+  resolveMessageAccess,
+} from "@/app/server/messages";
 
 /**
  * Read-side of the inventarios. Like `messages.ts`, deliberately NOT a
@@ -13,8 +16,68 @@ import { messageRetentionCutoff } from "@/app/server/messages";
 /** Newest avisos returned for one PJ's actividad. */
 const MAX_ACTIVITY_NOTICES = 200;
 
+/** Why a backpack can't be read. */
+export type BackpackReadErrorCode =
+  | "PARTY_NOT_FOUND"
+  | "FORBIDDEN"
+  | "MISSING_COMBATANT"
+  | "CHARACTER_NOT_FOUND";
+
+export type BackpackRead =
+  | { role: "unclaimed" }
+  | {
+      role: "dm" | "player";
+      combatantId: number;
+      combatantName: string;
+      inventory: Inventory;
+      /** Only the DM gets the PJ's actividad. */
+      activity?: ActivityNotice[];
+    };
+
+/**
+ * Reads the inventario of one PJ. Same identity as the private messages: a
+ * player reads only the PJ they claimed (the claim picks it, `combatantId` can
+ * only match it), the DM reads any PJ of the party by id, with its actividad.
+ */
+export async function fetchBackpack(
+  partyCode: string,
+  dmToken: string | null,
+  deviceId: string | null,
+  combatantId: number | undefined,
+): Promise<BackpackRead | { error: AppError & { code: BackpackReadErrorCode } }> {
+  const access = await resolveMessageAccess(partyCode, dmToken, deviceId);
+  if (access.role === "not-found") {
+    return { error: { code: "PARTY_NOT_FOUND", message: "Party not found" } };
+  }
+  if (access.role === "unclaimed") return { role: "unclaimed" };
+
+  if (
+    access.role === "player" &&
+    combatantId !== undefined &&
+    combatantId !== access.combatantId
+  ) {
+    return { error: { code: "FORBIDDEN", message: "Not authorized" } };
+  }
+
+  const id = access.role === "player" ? access.combatantId : combatantId;
+  if (id === undefined) {
+    return { error: { code: "MISSING_COMBATANT", message: "Missing combatantId" } };
+  }
+
+  const found = await fetchCharacterInventory(access.partyId, id);
+  if (!found) {
+    return { error: { code: "CHARACTER_NOT_FOUND", message: "Character not found" } };
+  }
+
+  if (access.role === "player") {
+    return { role: access.role, combatantId: id, ...found };
+  }
+  const activity = await fetchActivity(access.partyId, id);
+  return { role: access.role, combatantId: id, ...found, activity };
+}
+
 /** The inventario of a PJ of the party, or null if there is no such PJ. */
-export async function getCharacterInventory(
+async function fetchCharacterInventory(
   partyId: number,
   combatantId: number,
 ): Promise<{ combatantName: string; inventory: Inventory } | null> {
@@ -48,7 +111,7 @@ export async function sweepExpiredActivity(partyId: number): Promise<void> {
 }
 
 /** The newest avisos of a PJ's actividad, oldest first. */
-export async function getActivity(
+async function fetchActivity(
   partyId: number,
   combatantId: number,
 ): Promise<ActivityNotice[]> {
@@ -71,7 +134,7 @@ export async function getActivity(
 }
 
 /** Unread avisos per PJ of the party; PJs with none are left out. */
-export async function getActivityUnread(
+export async function fetchActivityUnread(
   partyId: number,
 ): Promise<{ combatantId: number; count: number }[]> {
   return db

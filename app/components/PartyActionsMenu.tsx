@@ -32,6 +32,7 @@ import { getPartiesForDevice } from "@/app/server/actions";
 import { getOrCreateDeviceId } from "@/app/lib/device-id";
 import type { PartyMessagingState } from "@/app/lib/hooks/usePartyMessages";
 import type { BuffKind, Combatant, DmParty } from "@/app/lib/types";
+import { formatUnreadCount } from "@/app/lib/unread-count";
 
 interface PartyActionsMenuProps {
   partyCode: string;
@@ -124,7 +125,7 @@ export default function PartyActionsMenu({
   const canSwitchParty = otherParties.length > 0;
   // A player only has a backpack once they have claimed a PJ.
   const hasClaimedCharacter = combatants.some((c) => c.claimedByMe);
-  const closedBadge = messaging.unreadTotal + activityUnread.total;
+  const menuUnreadTotal = messaging.unreadTotal + activityUnread.total;
 
   // Close the menu first, then open the chosen sub-dialog, so the two overlays
   // never stack on top of each other.
@@ -143,9 +144,9 @@ export default function PartyActionsMenu({
         <PlusIcon className="w-7 h-7" />
         {/* Unread messages and avisos have to be visible with the menu closed,
             which is how the app sits most of the time during a session. */}
-        {closedBadge > 0 && (
+        {menuUnreadTotal > 0 && (
           <span className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-dnd-blood px-1 text-xs font-bold text-white">
-            {closedBadge > 99 ? "99+" : closedBadge}
+            {formatUnreadCount(menuUnreadTotal)}
           </span>
         )}
       </Button>
@@ -370,7 +371,7 @@ function ActionButton({
       <span className="text-sm font-medium">{label}</span>
       {badge !== undefined && badge > 0 && (
         <span className="absolute right-2 top-2 flex h-5 min-w-5 items-center justify-center rounded-full bg-dnd-blood px-1 text-xs font-bold text-white">
-          {badge > 99 ? "99+" : badge}
+          {formatUnreadCount(badge)}
         </span>
       )}
     </Button>
