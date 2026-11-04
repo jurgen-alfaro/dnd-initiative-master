@@ -10,7 +10,7 @@ import {
   type InventoryChange,
   type InventoryItem,
 } from "./inventory";
-import type { TreasureItem } from "../treasure/treasure";
+import type { Coins, TreasureItem } from "../treasure/treasure";
 
 const DM = { role: "dm" } as const;
 
@@ -473,5 +473,217 @@ describe("itemUse", () => {
 
   it("should be null for any other item", () => {
     assert.equal(itemUse(item), null);
+  });
+});
+
+describe("applyInventoryAction: give to another PJ", () => {
+  const potions: InventoryItem = {
+    id: "potions",
+    inventoryCategory: "consumables",
+    name: "Poción de curar heridas leves",
+    quantity: 5,
+    usage: "drink",
+    valueCp: 25000,
+  };
+  const sword: InventoryItem = {
+    id: "sword",
+    inventoryCategory: "weapons",
+    name: "Espada larga de gran calidad",
+    quantity: 1,
+    usage: "none",
+    valueCp: 31500,
+  };
+  const ARIA_PLAYER: Actor = { role: "player", combatantId: 7 };
+
+  const holding = (items: InventoryItem[], po = 0) => ({
+    coins: { ...EMPTY_INVENTORY.coins, po },
+    items,
+  });
+  const borin = (inventory = EMPTY_INVENTORY): Character => ({
+    id: 9,
+    name: "Borin",
+    inventory,
+  });
+
+  const giveItem = (
+    characters: Character[],
+    itemId: string,
+    quantity: number,
+    { actor = ARIA_PLAYER, from = 7, to = 9 }: { actor?: Actor; from?: number; to?: number } = {},
+  ) =>
+    applyInventoryAction(
+      characters,
+      actor,
+      { type: "giveItem", combatantId: from, toCombatantId: to, itemId, quantity },
+      sequentialIds(),
+    );
+
+  it("should move a whole item from one inventory to the other", () => {
+    const change = expectChange(
+      giveItem([aria(holding([sword, potions])), borin()], "sword", 1),
+    );
+
+    assert.deepEqual(change.characters[0].inventory.items, [potions]);
+    assert.deepEqual(change.characters[1].inventory.items, [
+      { ...sword, id: "id-1" },
+    ]);
+  });
+
+  it("should give part of a stack with its share of the value", () => {
+    const change = expectChange(
+      giveItem([aria(holding([potions])), borin()], "potions", 2),
+    );
+
+    assert.deepEqual(change.characters[0].inventory.items, [
+      { ...potions, quantity: 3, valueCp: 15000 },
+    ]);
+    assert.deepEqual(change.characters[1].inventory.items, [
+      { ...potions, id: "id-1", quantity: 2, valueCp: 10000 },
+    ]);
+  });
+
+  it("should neither lose nor create copper when the value does not split evenly", () => {
+    const odd = { ...potions, quantity: 3, valueCp: 100 };
+    const change = expectChange(
+      giveItem([aria(holding([odd])), borin()], "potions", 1),
+    );
+
+    const [kept] = change.characters[0].inventory.items;
+    const [given] = change.characters[1].inventory.items;
+    assert.equal(kept.quantity, 2);
+    assert.equal(given.quantity, 1);
+    assert.equal(kept.valueCp + given.valueCp, 100);
+  });
+
+  it("should stack a consumable onto the same one the recipient has", () => {
+    const theirs = { ...potions, id: "theirs", quantity: 1, valueCp: 5000 };
+    const change = expectChange(
+      giveItem([aria(holding([potions])), borin(holding([sword, theirs]))], "potions", 2),
+    );
+
+    assert.deepEqual(change.characters[1].inventory.items, [
+      sword,
+      { ...theirs, quantity: 3, valueCp: 15000 },
+    ]);
+  });
+
+  const errorCode = (result: ReturnType<typeof applyInventoryAction>) =>
+    "error" in result ? result.error.code : "no error";
+
+  it("should refuse to give more units than there are", () => {
+    const result = giveItem([aria(holding([potions])), borin()], "potions", 6);
+
+    assert.equal(errorCode(result), "NOT_ENOUGH");
+  });
+
+  it("should refuse to give no units, or part of one", () => {
+    const characters = [aria(holding([potions])), borin()];
+
+    assert.equal(errorCode(giveItem(characters, "potions", 0)), "INVALID_QUANTITY");
+    assert.equal(errorCode(giveItem(characters, "potions", 1.5)), "INVALID_QUANTITY");
+  });
+
+  it("should refuse an item that is not in the inventory", () => {
+    const result = giveItem([aria(holding([potions])), borin()], "missing", 1);
+
+    assert.equal(errorCode(result), "ITEM_NOT_FOUND");
+  });
+
+  it("should refuse to give to oneself", () => {
+    const result = giveItem([aria(holding([sword])), borin()], "sword", 1, { to: 7 });
+
+    assert.equal(errorCode(result), "SAME_CHARACTER");
+  });
+
+  it("should refuse a recipient that is not among those passed in, such as a hidden PJ", () => {
+    const result = giveItem([aria(holding([sword])), borin()], "sword", 1, { to: 12 });
+
+    assert.equal(errorCode(result), "CHARACTER_NOT_FOUND");
+  });
+
+  it("should refuse a player giving from another PJ", () => {
+    const result = giveItem(
+      [aria(), borin(holding([sword]))],
+      "sword",
+      1,
+      { from: 9, to: 7 },
+    );
+
+    assert.equal(errorCode(result), "FORBIDDEN");
+  });
+
+  it("should leave one aviso for the giver when a player gives an item", () => {
+    const whole = expectChange(giveItem([aria(holding([sword])), borin()], "sword", 1));
+    const part = expectChange(giveItem([aria(holding([potions])), borin()], "potions", 2));
+
+    assert.deepEqual(whole.notices, [
+      { combatantId: 7, text: "Aria dio Espada larga de gran calidad a Borin" },
+    ]);
+    assert.deepEqual(part.notices, [
+      { combatantId: 7, text: "Aria dio Poción de curar heridas leves ×2 a Borin" },
+    ]);
+  });
+
+  it("should let the DM give between any two PJs, with no aviso", () => {
+    const change = expectChange(
+      giveItem([aria(), borin(holding([sword]))], "sword", 1, { actor: DM, from: 9, to: 7 }),
+    );
+
+    assert.deepEqual(change.characters[0].inventory.items, [{ ...sword, id: "id-1" }]);
+    assert.deepEqual(change.characters[1].inventory.items, []);
+    assert.deepEqual(change.notices, []);
+  });
+
+  const giveCoins = (
+    characters: Character[],
+    coins: Partial<Coins>,
+    actor: Actor = ARIA_PLAYER,
+  ) =>
+    applyInventoryAction(
+      characters,
+      actor,
+      {
+        type: "giveCoins",
+        combatantId: 7,
+        toCombatantId: 9,
+        coins: { ...EMPTY_INVENTORY.coins, ...coins },
+      },
+      sequentialIds(),
+    );
+
+  it("should move coins from one inventory to the other", () => {
+    const change = expectChange(
+      giveCoins(
+        [
+          aria({ coins: { pc: 5, pp: 0, po: 50, ppt: 1 }, items: [] }),
+          borin(holding([], 10)),
+        ],
+        { po: 30, pc: 5 },
+      ),
+    );
+
+    assert.deepEqual(change.characters[0].inventory.coins, { pc: 0, pp: 0, po: 20, ppt: 1 });
+    assert.deepEqual(change.characters[1].inventory.coins, { pc: 5, pp: 0, po: 40, ppt: 0 });
+  });
+
+  it("should refuse to give more coins than there are", () => {
+    const result = giveCoins([aria(holding([], 50)), borin()], { po: 51 });
+
+    assert.equal(errorCode(result), "NOT_ENOUGH");
+  });
+
+  it("should refuse to give no coins", () => {
+    const result = giveCoins([aria(holding([], 50)), borin()], {});
+
+    assert.equal(errorCode(result), "INVALID_QUANTITY");
+  });
+
+  it("should leave one aviso for the giver when a player gives coins, and none for the DM", () => {
+    const characters = [aria({ coins: { pc: 0, pp: 0, po: 50, ppt: 2 }, items: [] }), borin()];
+
+    assert.deepEqual(expectChange(giveCoins(characters, { po: 30, ppt: 1 })).notices, [
+      { combatantId: 7, text: "Aria dio 1 ppt, 30 po a Borin" },
+    ]);
+    assert.deepEqual(expectChange(giveCoins(characters, { po: 30 }, DM)).notices, []);
   });
 });

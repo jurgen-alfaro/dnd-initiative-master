@@ -1,6 +1,6 @@
 import { z } from "zod";
 import type { AppError } from "../types";
-import { DENOMINATIONS, NO_COINS } from "../treasure/coins";
+import { DENOMINATIONS, formatCoinList, NO_COINS } from "../treasure/coins";
 import {
   CoinsSchema,
   TreasureItemSchema,
@@ -71,6 +71,21 @@ export type InventoryAction =
       type: "use";
       combatantId: number;
       itemId: string;
+    }
+  | {
+      /** Dar: `quantity` units of an item go to another PJ, who need not accept. */
+      type: "giveItem";
+      combatantId: number;
+      toCombatantId: number;
+      itemId: string;
+      quantity: number;
+    }
+  | {
+      /** Dar monedas: they go to another PJ, who need not accept. */
+      type: "giveCoins";
+      combatantId: number;
+      toCombatantId: number;
+      coins: Coins;
     };
 
 /** An aviso for the actividad of a PJ. */
@@ -123,6 +138,77 @@ export function applyInventoryAction(
           items: spendOne(target.inventory.items, item),
         }),
         notices: noticeFor(actor, target, usageNotice(target.name, item, use)),
+      };
+    }
+    case "giveItem": {
+      const recipient = recipientOf(characters, target, action.toCombatantId);
+      if ("error" in recipient) return recipient;
+      const item = target.inventory.items.find((i) => i.id === action.itemId);
+      if (!item) {
+        return fail("ITEM_NOT_FOUND", "That item is not in the inventory", {
+          itemId: action.itemId,
+        });
+      }
+      if (!Number.isInteger(action.quantity) || action.quantity < 1) {
+        return fail("INVALID_QUANTITY", "Give at least one whole unit");
+      }
+      if (action.quantity > item.quantity) {
+        return fail("NOT_ENOUGH", `There are only ${item.quantity} of ${item.name}`);
+      }
+
+      const { kept, given } = splitItem(item, action.quantity);
+      const afterGiver = withInventory(characters, target.id, {
+        ...target.inventory,
+        items: kept
+          ? target.inventory.items.map((i) => (i === item ? kept : i))
+          : target.inventory.items.filter((i) => i !== item),
+      });
+      return {
+        characters: withInventory(afterGiver, recipient.id, {
+          ...recipient.inventory,
+          items: addItem(recipient.inventory.items, given, newId),
+        }),
+        notices: noticeFor(
+          actor,
+          target,
+          `${target.name} dio ${item.name}${action.quantity > 1 ? ` ×${action.quantity}` : ""} a ${recipient.name}`,
+        ),
+      };
+    }
+    case "giveCoins": {
+      const recipient = recipientOf(characters, target, action.toCombatantId);
+      if ("error" in recipient) return recipient;
+      const given = formatCoinList(action.coins);
+      if (
+        given.length === 0 ||
+        DENOMINATIONS.some((d) => !Number.isInteger(action.coins[d]) || action.coins[d] < 0)
+      ) {
+        return fail("INVALID_QUANTITY", "Give some whole coins");
+      }
+      if (DENOMINATIONS.some((d) => action.coins[d] > target.inventory.coins[d])) {
+        return fail("NOT_ENOUGH", `${target.name} doesn't have those coins`);
+      }
+
+      const giverCoins = { ...target.inventory.coins };
+      const recipientCoins = { ...recipient.inventory.coins };
+      for (const d of DENOMINATIONS) {
+        giverCoins[d] -= action.coins[d];
+        recipientCoins[d] += action.coins[d];
+      }
+      const afterGiver = withInventory(characters, target.id, {
+        ...target.inventory,
+        coins: giverCoins,
+      });
+      return {
+        characters: withInventory(afterGiver, recipient.id, {
+          ...recipient.inventory,
+          coins: recipientCoins,
+        }),
+        notices: noticeFor(
+          actor,
+          target,
+          `${target.name} dio ${given.join(", ")} a ${recipient.name}`,
+        ),
       };
     }
     case "receive": {
@@ -190,6 +276,43 @@ function spendOne(items: InventoryItem[], item: InventoryItem): InventoryItem[] 
   );
 }
 
+/** The PJ who receives a dar: another one among those passed in. */
+function recipientOf(
+  characters: Character[],
+  giver: Character,
+  id: number,
+): Character | { error: AppError } {
+  if (id === giver.id) return fail("SAME_CHARACTER", "Give it to another character");
+  return (
+    characters.find((c) => c.id === id) ??
+    fail("CHARACTER_NOT_FOUND", "That character is not part of this action", {
+      combatantId: id,
+    })
+  );
+}
+
+/**
+ * Takes `quantity` units off an item, with their share of the value: what is
+ * given, and what stays (null when nothing does). No copper is lost or made.
+ */
+function splitItem(
+  { id, ...item }: InventoryItem,
+  quantity: number,
+): { kept: InventoryItem | null; given: Omit<InventoryItem, "id"> } {
+  if (quantity === item.quantity) return { kept: null, given: item };
+
+  const givenCp = Math.round((item.valueCp * quantity) / item.quantity);
+  return {
+    kept: {
+      id,
+      ...item,
+      quantity: item.quantity - quantity,
+      valueCp: item.valueCp - givenCp,
+    },
+    given: { ...item, quantity, valueCp: givenCp },
+  };
+}
+
 function fail(
   code: string,
   message: string,
@@ -217,7 +340,8 @@ function receive(
   return {
     coins: nextCoins,
     items: delivery.items.reduce(
-      (next, item) => addItem(next, item, newId),
+      (next, { category: _category, rolls: _rolls, ...item }) =>
+        addItem(next, item, newId),
       items,
     ),
   };
@@ -231,13 +355,13 @@ function isConsumable(item: { usage: string; charges?: number }): boolean {
 /** Adds an item as a new row, or onto the pile of the same consumable. */
 function addItem(
   items: InventoryItem[],
-  item: TreasureItem,
+  item: Omit<InventoryItem, "id">,
   newId: () => string,
 ): InventoryItem[] {
   const pile = isConsumable(item)
     ? items.find((i) => isConsumable(i) && i.name === item.name)
     : undefined;
-  if (!pile) return [...items, toInventoryItem(item, newId())];
+  if (!pile) return [...items, { id: newId(), ...item }];
 
   return items.map((i) =>
     i === pile
@@ -248,11 +372,4 @@ function addItem(
         }
       : i,
   );
-}
-
-function toInventoryItem(
-  { category: _category, rolls: _rolls, ...item }: TreasureItem,
-  id: string,
-): InventoryItem {
-  return { id, ...item };
 }
