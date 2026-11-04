@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { z } from "zod";
 import {
   subscribeConnected,
@@ -32,18 +32,24 @@ export function useActivityUnread(
     total: 0,
   });
 
+  // Reads can overlap (a signal, the poll, a reconnect): only the latest writes.
+  const latestRequest = useRef(0);
+
   const fetchUnread = useCallback(async () => {
     if (!dmToken) return;
+    const request = ++latestRequest.current;
     try {
       const res = await fetch(`/api/party/${partyCode}/activity`, {
         cache: "no-store",
         headers: { "x-dm-token": dmToken },
       });
+      if (request !== latestRequest.current) return;
       if (!res.ok) {
         console.error("Error fetching activity for party", partyCode, res.status);
         return;
       }
       const data = ResponseSchema.parse(await res.json());
+      if (request !== latestRequest.current) return;
       setUnread({
         byCombatant: Object.fromEntries(
           data.unread.map((u) => [u.combatantId, u.count]),
