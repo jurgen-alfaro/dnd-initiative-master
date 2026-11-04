@@ -7,6 +7,7 @@ import {
   itemUse,
   type Actor,
   type Character,
+  type InventoryAction,
   type InventoryChange,
   type InventoryItem,
 } from "./inventory";
@@ -473,5 +474,284 @@ describe("itemUse", () => {
 
   it("should be null for any other item", () => {
     assert.equal(itemUse(item), null);
+  });
+});
+
+describe("applyInventoryAction: edit by hand", () => {
+  const potions: InventoryItem = {
+    id: "potions",
+    inventoryCategory: "consumables",
+    name: "Poción de curar heridas leves",
+    quantity: 3,
+    usage: "drink",
+    valueCp: 15000,
+  };
+  const ARIA_PLAYER: Actor = { role: "player", combatantId: 7 };
+  const purse = { pc: 5, pp: 0, po: 20, ppt: 1 };
+
+  const edit = (
+    action: InventoryAction,
+    actor: Actor = ARIA_PLAYER,
+    items: InventoryItem[] = [potions],
+  ) =>
+    applyInventoryAction(
+      [aria({ coins: purse, items })],
+      actor,
+      action,
+      sequentialIds(),
+    );
+
+  it("should add and take away coins", () => {
+    const change = expectChange(
+      edit({
+        type: "adjustCoins",
+        combatantId: 7,
+        coins: { pc: -5, pp: 0, po: 10, ppt: 0 },
+      }),
+    );
+
+    assert.deepEqual(change.characters[0].inventory.coins, {
+      pc: 0,
+      pp: 0,
+      po: 30,
+      ppt: 1,
+    });
+  });
+
+  it("should refuse to leave a denomination below zero, even with value to spare elsewhere", () => {
+    const result = edit({
+      type: "adjustCoins",
+      combatantId: 7,
+      coins: { pc: 0, pp: -1, po: 0, ppt: 0 },
+    });
+
+    assert.ok("error" in result);
+    assert.equal(result.error.code, "NOT_ENOUGH_COINS");
+  });
+
+  it("should refuse an adjustment that changes no coin", () => {
+    const result = edit({ type: "adjustCoins", combatantId: 7, coins: EMPTY_INVENTORY.coins });
+
+    assert.ok("error" in result);
+    assert.equal(result.error.code, "NO_CHANGE");
+  });
+
+  it("should leave one aviso when the player adjusts their coins", () => {
+    const change = expectChange(
+      edit({
+        type: "adjustCoins",
+        combatantId: 7,
+        coins: { pc: -5, pp: 0, po: 10, ppt: 0 },
+      }),
+    );
+
+    assert.deepEqual(change.notices, [
+      { combatantId: 7, text: "Aria ajustó sus monedas: +10 po, -5 pc" },
+    ]);
+  });
+
+  it("should leave no aviso when the DM adjusts the coins", () => {
+    const change = expectChange(
+      edit(
+        { type: "adjustCoins", combatantId: 7, coins: { pc: 0, pp: 0, po: 1, ppt: 0 } },
+        DM,
+      ),
+    );
+
+    assert.deepEqual(change.notices, []);
+  });
+
+  it("should remove an item, whole stack included", () => {
+    const change = expectChange(
+      edit({ type: "remove", combatantId: 7, itemId: "potions" }),
+    );
+
+    assert.deepEqual(change.characters[0].inventory.items, []);
+    assert.deepEqual(change.notices, [
+      { combatantId: 7, text: "Aria quitó Poción de curar heridas leves ×3" },
+    ]);
+  });
+
+  it("should refuse to remove an item that is not in the inventory", () => {
+    const result = edit({ type: "remove", combatantId: 7, itemId: "nope" });
+
+    assert.ok("error" in result);
+    assert.equal(result.error.code, "ITEM_NOT_FOUND");
+  });
+
+  it("should change the quantity of a consumable, and its value with it", () => {
+    const change = expectChange(
+      edit({ type: "setQuantity", combatantId: 7, itemId: "potions", quantity: 5 }),
+    );
+
+    assert.deepEqual(change.characters[0].inventory.items, [
+      { ...potions, quantity: 5, valueCp: 25000 },
+    ]);
+    assert.deepEqual(change.notices, [
+      {
+        combatantId: 7,
+        text: "Aria cambió la cantidad de Poción de curar heridas leves a 5",
+      },
+    ]);
+  });
+
+  it("should refuse a quantity below 1", () => {
+    const result = edit({
+      type: "setQuantity",
+      combatantId: 7,
+      itemId: "potions",
+      quantity: 0,
+    });
+
+    assert.ok("error" in result);
+    assert.equal(result.error.code, "INVALID_QUANTITY");
+  });
+
+  it("should refuse to change the quantity of an item that is not a consumable", () => {
+    const sword: InventoryItem = {
+      id: "sword",
+      inventoryCategory: "weapons",
+      name: "Espada larga",
+      quantity: 1,
+      usage: "none",
+      valueCp: 1500,
+    };
+
+    const result = edit(
+      { type: "setQuantity", combatantId: 7, itemId: "sword", quantity: 2 },
+      DM,
+      [sword],
+    );
+
+    assert.ok("error" in result);
+    assert.equal(result.error.code, "NOT_CONSUMABLE");
+  });
+
+  it("should leave no aviso when the DM removes an item or changes a quantity", () => {
+    const removed = expectChange(edit({ type: "remove", combatantId: 7, itemId: "potions" }, DM));
+    const changed = expectChange(
+      edit({ type: "setQuantity", combatantId: 7, itemId: "potions", quantity: 1 }, DM),
+    );
+
+    assert.deepEqual([...removed.notices, ...changed.notices], []);
+  });
+
+  describe("charges and marks, the DM's alone", () => {
+    const wand: InventoryItem = {
+      id: "wand",
+      inventoryCategory: "magicItems",
+      name: "Varita: Luz",
+      quantity: 1,
+      charges: 0,
+      usage: "none",
+      valueCp: 37500,
+    };
+    const ram: InventoryItem = {
+      id: "ram",
+      inventoryCategory: "wondrous",
+      name: "Ariete portátil",
+      quantity: 1,
+      usage: "none",
+      valueCp: 22500,
+    };
+    const itemAfter = (change: InventoryChange, id: string) =>
+      change.characters[0].inventory.items.find((i) => i.id === id);
+
+    it("should let the DM correct the charges of an item, silently", () => {
+      const change = expectChange(
+        edit({ type: "setCharges", combatantId: 7, itemId: "wand", charges: 7 }, DM, [wand]),
+      );
+
+      assert.deepEqual(itemAfter(change, "wand"), { ...wand, charges: 7 });
+      assert.deepEqual(change.notices, []);
+    });
+
+    it("should give a Use button to any item the DM puts charges on", () => {
+      const change = expectChange(
+        edit({ type: "setCharges", combatantId: 7, itemId: "ram", charges: 3 }, DM, [ram]),
+      );
+
+      const item = itemAfter(change, "ram");
+      assert.ok(item);
+      assert.equal(item.charges, 3);
+      assert.equal(itemUse(item), "use");
+    });
+
+    it("should refuse negative charges", () => {
+      const result = edit(
+        { type: "setCharges", combatantId: 7, itemId: "wand", charges: -1 },
+        DM,
+        [wand],
+      );
+
+      assert.ok("error" in result);
+      assert.equal(result.error.code, "INVALID_CHARGES");
+    });
+
+    it("should refuse a player correcting the charges of their own item", () => {
+      const result = edit(
+        { type: "setCharges", combatantId: 7, itemId: "wand", charges: 50 },
+        ARIA_PLAYER,
+        [wand],
+      );
+
+      assert.ok("error" in result);
+      assert.equal(result.error.code, "FORBIDDEN");
+    });
+
+    it("should let the DM mark any item as a consumable, which gets a Use button", () => {
+      const dust: InventoryItem = { ...ram, id: "dust", name: "Polvo de desaparición" };
+
+      const change = expectChange(
+        edit(
+          { type: "markConsumable", combatantId: 7, itemId: "dust", quantity: 2, usage: "use" },
+          DM,
+          [dust],
+        ),
+      );
+
+      const item = itemAfter(change, "dust");
+      assert.deepEqual(item, { ...dust, quantity: 2, usage: "use", valueCp: 45000 });
+      assert.ok(item);
+      assert.equal(itemUse(item), "use");
+      assert.deepEqual(change.notices, []);
+    });
+
+    it("should drop the charges of an item marked as a consumable", () => {
+      const change = expectChange(
+        edit(
+          { type: "markConsumable", combatantId: 7, itemId: "wand", quantity: 1, usage: "drink" },
+          DM,
+          [wand],
+        ),
+      );
+
+      const item = itemAfter(change, "wand");
+      assert.ok(item);
+      assert.equal(item.charges, undefined);
+      assert.equal(itemUse(item), "drink");
+    });
+
+    it("should refuse to mark a consumable with a quantity below 1", () => {
+      const result = edit(
+        { type: "markConsumable", combatantId: 7, itemId: "ram", quantity: 0, usage: "use" },
+        DM,
+        [ram],
+      );
+
+      assert.ok("error" in result);
+      assert.equal(result.error.code, "INVALID_QUANTITY");
+    });
+
+    it("should refuse a player marking their own item as a consumable", () => {
+      const result = edit(
+        { type: "markConsumable", combatantId: 7, itemId: "ram", quantity: 1, usage: "use" },
+        ARIA_PLAYER,
+        [ram],
+      );
+
+      assert.ok("error" in result);
+      assert.equal(result.error.code, "FORBIDDEN");
+    });
   });
 });

@@ -296,6 +296,8 @@ const MarkThreadReadSchema = z.object({
   deviceId: DeviceIdSchema.nullable(),
 });
 
+const CoinDeltaSchema = z.number().int().min(-1_000_000_000).max(1_000_000_000);
+
 // What a player or the DM can do in a backpack: one `z.object` per action,
 // matching a case of `applyInventoryAction`. Adding an action is adding a
 // variant here. "receive" is not one: only a delivery brings items in.
@@ -304,6 +306,41 @@ const BackpackActionSchema = z.discriminatedUnion("type", [
     type: z.literal("use"),
     combatantId: z.number().int().positive(),
     itemId: z.string().min(1).max(100),
+  }),
+  z.object({
+    type: z.literal("adjustCoins"),
+    combatantId: z.number().int().positive(),
+    // Signed: what to add (or take away, if negative) of each denomination.
+    coins: z.object({
+      pc: CoinDeltaSchema,
+      pp: CoinDeltaSchema,
+      po: CoinDeltaSchema,
+      ppt: CoinDeltaSchema,
+    }),
+  }),
+  z.object({
+    type: z.literal("remove"),
+    combatantId: z.number().int().positive(),
+    itemId: z.string().min(1).max(100),
+  }),
+  z.object({
+    type: z.literal("setQuantity"),
+    combatantId: z.number().int().positive(),
+    itemId: z.string().min(1).max(100),
+    quantity: z.number().int().min(1).max(1000),
+  }),
+  z.object({
+    type: z.literal("setCharges"),
+    combatantId: z.number().int().positive(),
+    itemId: z.string().min(1).max(100),
+    charges: z.number().int().min(0).max(1000),
+  }),
+  z.object({
+    type: z.literal("markConsumable"),
+    combatantId: z.number().int().positive(),
+    itemId: z.string().min(1).max(100),
+    quantity: z.number().int().min(1).max(1000),
+    usage: z.enum(["drink", "use"]),
   }),
 ]);
 export type BackpackAction = z.infer<typeof BackpackActionSchema>;

@@ -1,20 +1,27 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { createPortal } from "react-dom";
 import { Backpack, ChevronRight, Loader2, X } from "lucide-react";
 import { Button } from "./ui/button";
+import { Input } from "./ui/input";
 import { useCharacterInventory } from "@/app/lib/hooks/useCharacterInventory";
-import { applyInventory, markActivityRead } from "@/app/server/actions";
+import {
+  applyInventory,
+  markActivityRead,
+  type BackpackAction,
+} from "@/app/server/actions";
 import { getOrCreateDeviceId } from "@/app/lib/device-id";
 import { formatMessageTime } from "@/app/lib/date-format";
 import type { ActivityNotice } from "@/app/lib/types";
-import { formatCpAsPo } from "@/app/lib/treasure/coins";
+import { formatCpAsPo, NO_COINS } from "@/app/lib/treasure/coins";
 import {
   InventoryCategorySchema,
+  type Coins,
   type InventoryCategory,
 } from "@/app/lib/treasure/treasure";
 import {
+  isConsumable,
   itemUse,
   type Inventory,
   type InventoryItem,
@@ -38,6 +45,13 @@ const CATEGORY_LABELS: Record<InventoryCategory, string> = {
   valuables: "Gems & art",
   mundane: "Mundane items",
 };
+
+/** A correction to one item: a backpack action, short of whose and which. */
+type ItemEdit =
+  | { type: "remove" }
+  | { type: "setQuantity"; quantity: number }
+  | { type: "setCharges"; charges: number }
+  | { type: "markConsumable"; quantity: number; usage: "drink" | "use" };
 
 /** The coins in the order the backpack shows them. */
 const COIN_ORDER = ["pc", "pp", "po", "ppt"] as const;
@@ -79,6 +93,37 @@ export default function InventoryDrawer({
     } finally {
       setPendingItemId(null);
     }
+  };
+
+  // Edits by hand: a refusal shows up like a failed use.
+  const runEdit = async (pendingKey: string, action: BackpackAction) => {
+    setPendingItemId(pendingKey);
+    try {
+      const result = await applyInventory(
+        partyCode,
+        dmToken,
+        getOrCreateDeviceId(),
+        action,
+      );
+      setActionError("error" in result ? result.error : null);
+      await refresh();
+    } finally {
+      setPendingItemId(null);
+    }
+  };
+
+  const handleEdit = (itemId: string, edit: ItemEdit) => {
+    if (!character) return;
+    void runEdit(itemId, { ...edit, combatantId: character.combatantId, itemId });
+  };
+
+  const handleAdjustCoins = (coins: Coins) => {
+    if (!character) return;
+    void runEdit("coins", {
+      type: "adjustCoins",
+      combatantId: character.combatantId,
+      coins,
+    });
   };
 
   const handleActivityRead = async () => {
@@ -150,10 +195,16 @@ export default function InventoryDrawer({
             {actionError && (
               <p className="text-sm text-dnd-blood-bright">{actionError}</p>
             )}
+            <CoinAdjuster
+              isPending={pendingItemId !== null}
+              onAdjust={handleAdjustCoins}
+            />
             <ItemList
               items={character.inventory.items}
               pendingItemId={pendingItemId}
               onUse={handleUse}
+              isDm={dmToken !== null}
+              onEdit={handleEdit}
             />
             {character.activity && (
               <ActivitySection
@@ -184,14 +235,76 @@ function CoinPurse({ coins }: { coins: Inventory["coins"] }) {
   );
 }
 
+/** Coins to add (positive) or take away (negative), one field per coin. */
+function CoinAdjuster({
+  isPending,
+  onAdjust,
+}: {
+  isPending: boolean;
+  onAdjust: (coins: Coins) => void;
+}) {
+  const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const data = new FormData(e.currentTarget);
+    const coins = { ...NO_COINS };
+    for (const coin of COIN_ORDER) coins[coin] = Number(data.get(coin));
+    onAdjust(coins);
+    e.currentTarget.reset();
+  };
+
+  return (
+    <details className="group rounded-lg border border-dnd-gold/20">
+      <summary className="flex cursor-pointer list-none items-center gap-2 px-3 py-2 font-heading text-dnd-gold">
+        <ChevronRight
+          size={16}
+          className="transition-transform group-open:rotate-90"
+        />
+        <span className="flex-1">Adjust coins</span>
+      </summary>
+      <form onSubmit={handleSubmit} className="space-y-2 px-3 pb-3">
+        <div className="grid grid-cols-4 gap-2">
+          {COIN_ORDER.map((coin) => (
+            <label key={coin} className="text-xs uppercase text-muted-foreground">
+              {coin}
+              <Input
+                name={coin}
+                type="number"
+                step={1}
+                defaultValue={0}
+                className="mt-1 h-8"
+              />
+            </label>
+          ))}
+        </div>
+        <p className="text-xs text-muted-foreground">
+          Positive adds, negative takes away.
+        </p>
+        <Button
+          size="sm"
+          variant="outline"
+          type="submit"
+          disabled={isPending}
+          className="cursor-pointer border-dnd-gold/30"
+        >
+          Apply
+        </Button>
+      </form>
+    </details>
+  );
+}
+
 function ItemList({
   items,
   pendingItemId,
   onUse,
+  isDm,
+  onEdit,
 }: {
   items: InventoryItem[];
   pendingItemId: string | null;
   onUse: (itemId: string) => void;
+  isDm: boolean;
+  onEdit: (itemId: string, edit: ItemEdit) => void;
 }) {
   const categories = InventoryCategorySchema.options
     .map((category) => ({
@@ -230,6 +343,8 @@ function ItemList({
                 item={item}
                 isPending={pendingItemId !== null}
                 onUse={() => onUse(item.id)}
+                isDm={isDm}
+                onEdit={(edit) => onEdit(item.id, edit)}
               />
             ))}
           </ul>
@@ -245,10 +360,14 @@ function ItemRow({
   item,
   isPending,
   onUse,
+  isDm,
+  onEdit,
 }: {
   item: InventoryItem;
   isPending: boolean;
   onUse: () => void;
+  isDm: boolean;
+  onEdit: (edit: ItemEdit) => void;
 }) {
   const use = itemUse(item);
   const amount =
@@ -290,9 +409,160 @@ function ItemRow({
               {USE_LABELS[use]}
             </Button>
           )}
+          <ItemEditor
+            item={item}
+            isDm={isDm}
+            isPending={isPending}
+            onEdit={onEdit}
+          />
         </div>
       </details>
     </li>
+  );
+}
+
+/**
+ * The corrections each role may make to an item: anyone removes it or fixes
+ * a consumable's quantity; only the DM sets cargas or marks it a consumable.
+ */
+function ItemEditor({
+  item,
+  isDm,
+  isPending,
+  onEdit,
+}: {
+  item: InventoryItem;
+  isDm: boolean;
+  isPending: boolean;
+  onEdit: (edit: ItemEdit) => void;
+}) {
+  const [isConfirmingRemove, setIsConfirmingRemove] = useState(false);
+  const consumable = isConsumable(item);
+
+  const submitWith =
+    (build: (data: FormData) => ItemEdit) => (e: FormEvent<HTMLFormElement>) => {
+      e.preventDefault();
+      onEdit(build(new FormData(e.currentTarget)));
+    };
+  const buttonClass = "cursor-pointer border-dnd-gold/30";
+  const inputClass = "h-8 w-20";
+
+  return (
+    <div className="space-y-2 pt-1">
+      {consumable && (
+        <form
+          className="flex items-center gap-2"
+          onSubmit={submitWith((data) => ({
+            type: "setQuantity",
+            quantity: Number(data.get("quantity")),
+          }))}
+        >
+          <Input
+            name="quantity"
+            type="number"
+            min={1}
+            max={1000}
+            step={1}
+            required
+            defaultValue={item.quantity}
+            aria-label="Quantity"
+            className={inputClass}
+          />
+          <Button size="sm" variant="outline" type="submit" disabled={isPending} className={buttonClass}>
+            Set quantity
+          </Button>
+        </form>
+      )}
+      {isDm && (
+        <form
+          className="flex items-center gap-2"
+          onSubmit={submitWith((data) => ({
+            type: "setCharges",
+            charges: Number(data.get("charges")),
+          }))}
+        >
+          <Input
+            name="charges"
+            type="number"
+            min={0}
+            max={1000}
+            step={1}
+            required
+            defaultValue={item.charges ?? 0}
+            aria-label="Charges"
+            className={inputClass}
+          />
+          <Button size="sm" variant="outline" type="submit" disabled={isPending} className={buttonClass}>
+            {item.charges === undefined ? "Give charges" : "Set charges"}
+          </Button>
+        </form>
+      )}
+      {isDm && !consumable && (
+        <form
+          className="flex items-center gap-2"
+          onSubmit={submitWith((data) => ({
+            type: "markConsumable",
+            quantity: Number(data.get("quantity")),
+            usage: data.get("usage") === "drink" ? "drink" : "use",
+          }))}
+        >
+          <Input
+            name="quantity"
+            type="number"
+            min={1}
+            max={1000}
+            step={1}
+            required
+            defaultValue={item.quantity}
+            aria-label="Quantity"
+            className={inputClass}
+          />
+          <select
+            name="usage"
+            aria-label="How it is spent"
+            className="h-8 rounded-md border border-input bg-transparent px-2 text-sm"
+          >
+            <option value="use">Use</option>
+            <option value="drink">Drink</option>
+          </select>
+          <Button size="sm" variant="outline" type="submit" disabled={isPending} className={buttonClass}>
+            Mark consumable
+          </Button>
+        </form>
+      )}
+      {isConfirmingRemove ? (
+        <div className="flex items-center gap-2">
+          <span className="text-muted-foreground">Remove it?</span>
+          <Button
+            size="sm"
+            variant="destructive"
+            disabled={isPending}
+            onClick={() => onEdit({ type: "remove" })}
+            className="cursor-pointer"
+          >
+            Remove
+          </Button>
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={() => setIsConfirmingRemove(false)}
+            className="cursor-pointer"
+          >
+            Cancel
+          </Button>
+        </div>
+      ) : (
+        <Button
+          size="sm"
+          variant="ghost"
+          disabled={isPending}
+          onClick={() => setIsConfirmingRemove(true)}
+          className="cursor-pointer text-dnd-blood-bright"
+        >
+          Remove
+        </Button>
+      )}
+    </div>
   );
 }
 

@@ -1,6 +1,6 @@
 import { z } from "zod";
 import type { AppError } from "../types";
-import { DENOMINATIONS, NO_COINS } from "../treasure/coins";
+import { DENOMINATIONS, NO_COINS, formatCoins } from "../treasure/coins";
 import {
   CoinsSchema,
   TreasureItemSchema,
@@ -14,7 +14,7 @@ import {
  *
  * Public interface: `applyInventoryAction`, the one entry point for every
  * change to an inventario, `isInventoryEmpty`, `itemUse` (which button an item
- * gets), and the `Inventory` shape and its schema.
+ * gets), `isConsumable`, and the `Inventory` shape and its schema.
  *
  * Adding an action: a variant of `InventoryAction` and its `case` in
  * `applyInventoryAction`, which returns `noticeFor(actor, ...)` as its avisos.
@@ -71,6 +71,40 @@ export type InventoryAction =
       type: "use";
       combatantId: number;
       itemId: string;
+    }
+  | {
+      /** Coins added (positive) or taken away (negative), per denomination. */
+      type: "adjustCoins";
+      combatantId: number;
+      coins: Coins;
+    }
+  | {
+      /** An item leaves the inventario, its whole stack included. */
+      type: "remove";
+      combatantId: number;
+      itemId: string;
+    }
+  | {
+      /** Corrects how many units a consumable's stack has. */
+      type: "setQuantity";
+      combatantId: number;
+      itemId: string;
+      quantity: number;
+    }
+  | {
+      /** DM only: corrects an item's cargas, or gives cargas to any item. */
+      type: "setCharges";
+      combatantId: number;
+      itemId: string;
+      charges: number;
+    }
+  | {
+      /** DM only: makes any item a consumable, drunk or used by units. */
+      type: "markConsumable";
+      combatantId: number;
+      itemId: string;
+      quantity: number;
+      usage: "drink" | "use";
     };
 
 /** An aviso for the actividad of a PJ. */
@@ -125,6 +159,93 @@ export function applyInventoryAction(
         notices: noticeFor(actor, target, usageNotice(target.name, item, use)),
       };
     }
+    case "adjustCoins": {
+      if (DENOMINATIONS.every((d) => action.coins[d] === 0)) {
+        return fail("NO_CHANGE", "Enter the coins to add or take away");
+      }
+      const coins = { ...target.inventory.coins };
+      for (const d of DENOMINATIONS) coins[d] += action.coins[d];
+      if (DENOMINATIONS.some((d) => coins[d] < 0)) {
+        return fail("NOT_ENOUGH_COINS", "There aren't that many coins to take", {
+          coins: target.inventory.coins,
+        });
+      }
+      return {
+        characters: withInventory(characters, target.id, {
+          ...target.inventory,
+          coins,
+        }),
+        notices: noticeFor(
+          actor,
+          target,
+          `${target.name} ajustó sus monedas: ${formatCoinDeltas(action.coins)}`,
+        ),
+      };
+    }
+    case "remove": {
+      const item = findItem(target, action.itemId);
+      if ("error" in item) return item;
+      const quantity = item.quantity > 1 ? ` ×${item.quantity}` : "";
+      return {
+        characters: withInventory(characters, target.id, {
+          ...target.inventory,
+          items: target.inventory.items.filter((i) => i !== item),
+        }),
+        notices: noticeFor(actor, target, `${target.name} quitó ${item.name}${quantity}`),
+      };
+    }
+    case "setQuantity": {
+      const item = findItem(target, action.itemId);
+      if ("error" in item) return item;
+      if (!isConsumable(item)) {
+        return fail("NOT_CONSUMABLE", `${item.name} is not a consumable`);
+      }
+      if (!isValidQuantity(action.quantity)) {
+        return fail("INVALID_QUANTITY", "The quantity must be a whole number of at least 1");
+      }
+      return {
+        characters: withItem(characters, target, item, withQuantity(item, action.quantity)),
+        notices: noticeFor(
+          actor,
+          target,
+          `${target.name} cambió la cantidad de ${item.name} a ${action.quantity}`,
+        ),
+      };
+    }
+    case "setCharges": {
+      // So nobody gives themselves cargas: a player only spends them.
+      if (actor.role !== "dm") {
+        return fail("FORBIDDEN", "Only the DM can correct charges");
+      }
+      const item = findItem(target, action.itemId);
+      if ("error" in item) return item;
+      if (!Number.isInteger(action.charges) || action.charges < 0) {
+        return fail("INVALID_CHARGES", "Charges must be a whole number of at least 0");
+      }
+      return {
+        characters: withItem(characters, target, item, { ...item, charges: action.charges }),
+        notices: [],
+      };
+    }
+    case "markConsumable": {
+      if (actor.role !== "dm") {
+        return fail("FORBIDDEN", "Only the DM can mark an item as a consumable");
+      }
+      const item = findItem(target, action.itemId);
+      if ("error" in item) return item;
+      if (!isValidQuantity(action.quantity)) {
+        return fail("INVALID_QUANTITY", "The quantity must be a whole number of at least 1");
+      }
+      // A consumable is spent by units, so it can't keep cargas.
+      const { charges: _charges, ...rest } = item;
+      return {
+        characters: withItem(characters, target, item, {
+          ...withQuantity(rest, action.quantity),
+          usage: action.usage,
+        }),
+        notices: [],
+      };
+    }
     case "receive": {
       // Only the DM delivers treasure, and an entrega never makes an aviso.
       if (actor.role !== "dm") {
@@ -167,6 +288,49 @@ function usageNotice(
 ): string {
   if (item.charges !== undefined) return `${name} usó una carga de ${item.name}`;
   return `${name} ${use === "drink" ? "bebió" : "usó"} ${item.name}`;
+}
+
+function findItem(
+  character: Character,
+  itemId: string,
+): InventoryItem | { error: AppError } {
+  return (
+    character.inventory.items.find((i) => i.id === itemId) ??
+    fail("ITEM_NOT_FOUND", "That item is not in the inventory", { itemId })
+  );
+}
+
+/** Replaces one item of a PJ's inventario. */
+function withItem(
+  characters: Character[],
+  character: Character,
+  item: InventoryItem,
+  next: InventoryItem,
+): Character[] {
+  return withInventory(characters, character.id, {
+    ...character.inventory,
+    items: character.inventory.items.map((i) => (i === item ? next : i)),
+  });
+}
+
+function isValidQuantity(quantity: number): boolean {
+  return Number.isInteger(quantity) && quantity >= 1;
+}
+
+/** `valueCp` is the whole stack's: it follows the quantity proportionally. */
+function withQuantity(item: InventoryItem, quantity: number): InventoryItem {
+  return {
+    ...item,
+    quantity,
+    valueCp: Math.round((item.valueCp * quantity) / item.quantity),
+  };
+}
+
+/** Each denomination that changed, highest first: "+10 po, -5 pc". */
+function formatCoinDeltas(deltas: Coins): string {
+  return DENOMINATIONS.filter((d) => deltas[d] !== 0)
+    .map((d) => `${deltas[d] > 0 ? "+" : "-"}${formatCoins(Math.abs(deltas[d]), d)}`)
+    .join(", ");
 }
 
 /**
@@ -224,7 +388,7 @@ function receive(
 }
 
 /** A consumable is used up one unit at a time; charged items keep their own row. */
-function isConsumable(item: { usage: string; charges?: number }): boolean {
+export function isConsumable(item: { usage: string; charges?: number }): boolean {
   return item.usage !== "none" && item.charges === undefined;
 }
 
