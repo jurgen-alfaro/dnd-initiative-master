@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import {
   applyInventoryAction,
   EMPTY_INVENTORY,
+  isInventoryEmpty,
   type Character,
   type InventoryChange,
 } from "./inventory";
@@ -253,5 +254,33 @@ describe("applyInventoryAction: receive a delivery", () => {
 
     assert.ok("error" in result);
     assert.equal(result.error.code, "CHARACTER_NOT_FOUND");
+  });
+});
+
+describe("isInventoryEmpty", () => {
+  it("should be empty with no coins and no items", () => {
+    assert.equal(isInventoryEmpty(EMPTY_INVENTORY), true);
+  });
+
+  it("should not be empty with a single copper piece", () => {
+    const coins = { ...EMPTY_INVENTORY.coins, pc: 1 };
+    assert.equal(isInventoryEmpty({ coins, items: [] }), false);
+  });
+
+  it("should not be empty with an item and no coins", () => {
+    const { characters } = expectChange(
+      applyInventoryAction(
+        [aria()],
+        DM,
+        {
+          type: "receive",
+          combatantId: 7,
+          coins: EMPTY_INVENTORY.coins,
+          items: [longsword],
+        },
+        sequentialIds(),
+      ),
+    );
+    assert.equal(isInventoryEmpty(characters[0].inventory), false);
   });
 });

@@ -16,6 +16,7 @@ import BackNavigationDialog from "@/app/components/BackNavigationDialog";
 import DeleteCombatantDialog from "@/app/components/DeleteCombatantDialog";
 import HideCombatantDialog from "@/app/components/HideCombatantDialog";
 import PartyActionsMenu from "@/app/components/PartyActionsMenu";
+import InventoryDrawer from "@/app/components/InventoryDrawer";
 import { visibleInInitiativeOrder } from "@/app/lib/combat/turnCalculator";
 
 type Party = {
@@ -153,6 +154,14 @@ export default function PartyPage({ party }: PartyPageProps) {
   // Save party to localStorage for quick resume
   const { saveRecentParty } = useRecentParty();
 
+  // The open backpack, or null when closed. `combatantId` is the PJ the DM
+  // chose (from the menu or a card); null opens the player's claimed PJ.
+  const [backpack, setBackpack] = useState<{ combatantId: number | null } | null>(
+    null,
+  );
+  const handleOpenBackpack = (combatantId: number | null) =>
+    setBackpack({ combatantId });
+
   // Delete combatant confirmation dialog state
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [combatantToDelete, setCombatantToDelete] = useState<Combatant | null>(
@@ -265,6 +274,7 @@ export default function PartyPage({ party }: PartyPageProps) {
         onUpdateNameType={optimisticUpdateNameType}
         onDelete={handleDeleteRequest}
         onHide={handleHideRequest}
+        onOpenBackpack={handleOpenBackpack}
         onUpdateConditions={optimisticUpdateConditions}
         onRemoveBuff={optimisticRemoveBuff}
         onAddAmmo={optimisticAddAmmo}
@@ -292,7 +302,20 @@ export default function PartyPage({ party }: PartyPageProps) {
         isDm={isDm}
         dmToken={dmToken}
         messaging={messaging}
+        onOpenBackpack={handleOpenBackpack}
         onReturnToMain={() => setShowConfirmation(true)}
+      />
+
+      <InventoryDrawer
+        // A fresh drawer per PJ, so one PJ's backpack never flashes in another's.
+        key={backpack?.combatantId ?? "own"}
+        partyCode={party.code}
+        dmToken={dmToken}
+        combatantId={backpack?.combatantId ?? null}
+        open={backpack !== null}
+        onOpenChange={(open) => {
+          if (!open) setBackpack(null);
+        }}
       />
 
       <BackNavigationDialog
@@ -309,6 +332,8 @@ export default function PartyPage({ party }: PartyPageProps) {
           onConfirm={handleConfirmDelete}
           onCancel={handleCancelDelete}
           combatant={combatantToDelete}
+          partyCode={party.code}
+          dmToken={dmToken}
         />
       )}
 
