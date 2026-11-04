@@ -14,6 +14,7 @@ import {
   Biohazard,
   Eye,
   Plus,
+  Backpack,
 } from "lucide-react";
 import type { Combatant, Condition } from "@/app/lib/types";
 import StatEditDialog from "@/app/components/StatEditDialog";
@@ -51,6 +52,7 @@ interface CombatantCardProps {
   ) => void;
   onDelete: (id: number) => void;
   onHide: (id: number) => void;
+  onOpenBackpack: (id: number) => void;
   onConditionsChange: (id: number, conditions: Condition[]) => Promise<void>;
   onRemoveBuff: (combatantId: number, buffId: string) => Promise<void>;
   onAddAmmo: (
@@ -82,6 +84,7 @@ const CombatantCard = forwardRef<HTMLDivElement, CombatantCardProps>(
       onDamageHeal,
       onDelete,
       onHide,
+      onOpenBackpack,
       onConditionsChange,
       onRemoveBuff,
       onAddAmmo,
@@ -256,6 +259,19 @@ const CombatantCard = forwardRef<HTMLDivElement, CombatantCardProps>(
                     {combatant.type === "enemy" ? "Enemy" : "Hero"}
                   </span>
                 </Badge>
+              )}
+
+              {/* Backpack (DM only): a player opens their own from the menu */}
+              {isDm && combatant.type === "player" && (
+                <button
+                  type="button"
+                  onClick={() => onOpenBackpack(combatant.id)}
+                  title="Open backpack"
+                  className="rounded-md p-1.5 text-dnd-gold-dim transition-all duration-200 hover:bg-dnd-gold/10 hover:text-dnd-gold-bright active:scale-95"
+                >
+                  <Backpack size={16} />
+                  <span className="sr-only">Open {combatant.name}&apos;s backpack</span>
+                </button>
               )}
 
               {/* Send to reserve (DM only): keeps the combatant prepared but out

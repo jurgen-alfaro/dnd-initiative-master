@@ -25,7 +25,7 @@ import SelectPartyDialog from "@/app/components/SelectPartyDialog";
 import SessionNotesDrawer from "@/app/components/SessionNotesDrawer";
 import ReserveDrawer from "@/app/components/ReserveDrawer";
 import MessagesDrawer from "@/app/components/MessagesDrawer";
-import InventoryDrawer from "@/app/components/InventoryDrawer";
+import BackpackPickerDialog from "@/app/components/BackpackPickerDialog";
 import TreasureGeneratorDialog from "@/app/components/TreasureGeneratorDialog";
 import { getPartiesForDevice } from "@/app/server/actions";
 import { getOrCreateDeviceId } from "@/app/lib/device-id";
@@ -48,6 +48,8 @@ interface PartyActionsMenuProps {
   dmToken: string | null;
   /** Passed as one object so the prop list doesn't grow by a dozen callbacks. */
   messaging: PartyMessagingState;
+  /** Opens a backpack: the PJ the DM picked, or null for the player's own. */
+  onOpenBackpack: (combatantId: number | null) => void;
   onReturnToMain: () => void;
 }
 
@@ -69,6 +71,7 @@ export default function PartyActionsMenu({
   isDm,
   dmToken,
   messaging,
+  onOpenBackpack,
   onReturnToMain,
 }: PartyActionsMenuProps) {
   const [menuOpen, setMenuOpen] = useState(false);
@@ -80,7 +83,7 @@ export default function PartyActionsMenu({
   const [notesOpen, setNotesOpen] = useState(false);
   const [reserveOpen, setReserveOpen] = useState(false);
   const [treasureOpen, setTreasureOpen] = useState(false);
-  const [inventoryOpen, setInventoryOpen] = useState(false);
+  const [backpackPickerOpen, setBackpackPickerOpen] = useState(false);
   const [parties, setParties] = useState<DmParty[]>([]);
 
   // DM-only: load this device's parties to power the "Switch party" action.
@@ -230,11 +233,19 @@ export default function PartyActionsMenu({
                     badge={messaging.unreadTotal}
                     onClick={() => openAction(setMessagesOpen)}
                   />
-                  {!isDm && hasClaimedCharacter && (
+                  {(isDm || hasClaimedCharacter) && (
                     <ActionButton
                       icon={<Backpack className="size-6 text-dnd-gold" />}
                       label="Backpack"
-                      onClick={() => openAction(setInventoryOpen)}
+                      onClick={() => {
+                        // The DM picks a PJ first; a player's claim decides it.
+                        if (isDm) {
+                          openAction(setBackpackPickerOpen);
+                        } else {
+                          setMenuOpen(false);
+                          onOpenBackpack(null);
+                        }
+                      }}
                     />
                   )}
                   {/* Placeholder — language switching is not wired up yet */}
@@ -312,13 +323,18 @@ export default function PartyActionsMenu({
         open={messagesOpen}
         onOpenChange={setMessagesOpen}
       />
-      {!isDm && (
-        <InventoryDrawer
-          partyCode={partyCode}
-          dmToken={null}
-          combatantId={null}
-          open={inventoryOpen}
-          onOpenChange={setInventoryOpen}
+      {isDm && (
+        <BackpackPickerDialog
+          // A PJ held in reserve still has a backpack.
+          characters={[...combatants, ...hiddenCombatants].filter(
+            (c) => c.type === "player",
+          )}
+          open={backpackPickerOpen}
+          onOpenChange={setBackpackPickerOpen}
+          onPick={(combatantId) => {
+            setBackpackPickerOpen(false);
+            onOpenBackpack(combatantId);
+          }}
         />
       )}
     </>

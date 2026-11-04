@@ -13,7 +13,8 @@ import {
  * item ids come from the caller.
  *
  * Public interface: `applyInventoryAction`, the one entry point for every
- * change to an inventario, and the `Inventory` shape and its schema.
+ * change to an inventario, `isInventoryEmpty`, and the `Inventory` shape and
+ * its schema.
  */
 
 /** An item of an inventario: a treasure item without its rolls, plus an id. */
@@ -38,6 +39,11 @@ export const InventorySchema = z.object({
 export type Inventory = z.infer<typeof InventorySchema>;
 
 export const EMPTY_INVENTORY: Inventory = { coins: NO_COINS, items: [] };
+
+/** No coins of any kind and no items: nothing is lost if the PJ goes. */
+export function isInventoryEmpty({ coins, items }: Inventory): boolean {
+  return items.length === 0 && DENOMINATIONS.every((d) => coins[d] === 0);
+}
 
 /** A PJ whose inventario an action reads or changes. */
 export type Character = { id: number; name: string; inventory: Inventory };

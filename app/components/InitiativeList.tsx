@@ -30,6 +30,7 @@ interface InitiativeListProps {
   ) => Promise<void>;
   onDelete?: (id: number) => void;
   onHide?: (id: number) => void;
+  onOpenBackpack?: (id: number) => void;
   onUpdateConditions?: (id: number, conditions: Condition[]) => Promise<void>;
   onRemoveBuff?: (combatantId: number, buffId: string) => Promise<void>;
   onAddAmmo?: (
@@ -60,6 +61,7 @@ export default function InitiativeList({
   onUpdateNameType,
   onDelete,
   onHide,
+  onOpenBackpack,
   onUpdateConditions,
   onRemoveBuff,
   onAddAmmo,
@@ -237,6 +239,7 @@ export default function InitiativeList({
           onDamageHeal={handleDamageHeal}
           onDelete={onDelete || (() => {})}
           onHide={onHide || (() => {})}
+          onOpenBackpack={onOpenBackpack || (() => {})}
           onConditionsChange={handleConditionsChange}
           onRemoveBuff={handleRemoveBuff}
           onAddAmmo={handleAddAmmo}
