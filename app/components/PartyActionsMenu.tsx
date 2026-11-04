@@ -14,6 +14,7 @@ import {
   LogOut,
   EyeOff,
   Coins,
+  Backpack,
   X,
 } from "lucide-react";
 import { Button } from "@/app/components/ui/button";
@@ -24,6 +25,7 @@ import SelectPartyDialog from "@/app/components/SelectPartyDialog";
 import SessionNotesDrawer from "@/app/components/SessionNotesDrawer";
 import ReserveDrawer from "@/app/components/ReserveDrawer";
 import MessagesDrawer from "@/app/components/MessagesDrawer";
+import InventoryDrawer from "@/app/components/InventoryDrawer";
 import TreasureGeneratorDialog from "@/app/components/TreasureGeneratorDialog";
 import { getPartiesForDevice } from "@/app/server/actions";
 import { getOrCreateDeviceId } from "@/app/lib/device-id";
@@ -78,6 +80,7 @@ export default function PartyActionsMenu({
   const [notesOpen, setNotesOpen] = useState(false);
   const [reserveOpen, setReserveOpen] = useState(false);
   const [treasureOpen, setTreasureOpen] = useState(false);
+  const [inventoryOpen, setInventoryOpen] = useState(false);
   const [parties, setParties] = useState<DmParty[]>([]);
 
   // DM-only: load this device's parties to power the "Switch party" action.
@@ -112,6 +115,8 @@ export default function PartyActionsMenu({
 
   const otherParties = isDm ? parties.filter((p) => p.code !== partyCode) : [];
   const canSwitchParty = otherParties.length > 0;
+  // A player only has a backpack once they have claimed a PJ.
+  const hasClaimedCharacter = combatants.some((c) => c.claimedByMe);
 
   // Close the menu first, then open the chosen sub-dialog, so the two overlays
   // never stack on top of each other.
@@ -225,6 +230,13 @@ export default function PartyActionsMenu({
                     badge={messaging.unreadTotal}
                     onClick={() => openAction(setMessagesOpen)}
                   />
+                  {!isDm && hasClaimedCharacter && (
+                    <ActionButton
+                      icon={<Backpack className="size-6 text-dnd-gold" />}
+                      label="Backpack"
+                      onClick={() => openAction(setInventoryOpen)}
+                    />
+                  )}
                   {/* Placeholder — language switching is not wired up yet */}
                   <ActionButton
                     icon={<Languages className="size-6 text-sky-400" />}
@@ -300,6 +312,15 @@ export default function PartyActionsMenu({
         open={messagesOpen}
         onOpenChange={setMessagesOpen}
       />
+      {!isDm && (
+        <InventoryDrawer
+          partyCode={partyCode}
+          dmToken={null}
+          combatantId={null}
+          open={inventoryOpen}
+          onOpenChange={setInventoryOpen}
+        />
+      )}
     </>
   );
 }

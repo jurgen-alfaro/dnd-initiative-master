@@ -91,3 +91,26 @@ export async function notifyPartyMessage(partyCode: string): Promise<void> {
     console.error("Failed to notify party message via Pusher", error);
   }
 }
+
+/**
+ * Notifies a party that some inventario changed: an empty `"inventory"` event,
+ * for the same reason as `notifyPartyMessage`. Only open backpacks re-fetch,
+ * and each gets just the inventario it is entitled to.
+ */
+export async function notifyPartyInventory(partyCode: string): Promise<void> {
+  const pusher = getPusherServer();
+
+  if (!pusher) {
+    console.warn(
+      "Pusher is not configured; skipping inventory notification for party",
+      partyCode,
+    );
+    return;
+  }
+
+  try {
+    await pusher.trigger(partyChannel(partyCode), "inventory", {});
+  } catch (error) {
+    console.error("Failed to notify inventory change via Pusher", error);
+  }
+}

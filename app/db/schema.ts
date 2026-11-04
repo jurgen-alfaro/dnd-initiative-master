@@ -12,6 +12,7 @@ import {
 } from "drizzle-orm/pg-core";
 import { relations, sql } from "drizzle-orm";
 import type { Ammo, Buff } from "../lib/types";
+import type { Inventory } from "../lib/inventory/inventory";
 
 // Combatant type
 export const typeEnum = pgEnum("type", ["player", "enemy"]);
@@ -99,6 +100,12 @@ export const combatants = pgTable(
     // Consumable ammunition. Kept apart from buffs because it never expires with
     // the round counter — it only moves when spent or restocked.
     ammo: jsonb("ammo").$type<Ammo[]>().notNull().default([]),
+    // The PC's inventario. Private to the DM and the player who claimed the PC,
+    // so it never travels in the party payload (see `toSafeCombatant`).
+    inventory: jsonb("inventory")
+      .$type<Inventory>()
+      .notNull()
+      .default({ coins: { pc: 0, pp: 0, po: 0, ppt: 0 }, items: [] }),
     // Combatants the DM prepared in advance but has not brought into the fight
     // yet. Hidden combatants are never sent to players and are excluded from the
     // initiative order, so they don't consume a turn.
