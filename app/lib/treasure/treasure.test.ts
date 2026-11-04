@@ -371,3 +371,53 @@ describe("generateTreasure gems and art", () => {
     }
   }
 });
+
+describe("generateTreasure value (ADR-0003)", () => {
+  // NE 1, no coins, no gems, one mundane object: a Coraza (Mediana), 200 po.
+  const coraza = (valueRoll: number) => {
+    const die = fixedDie(1, 1, 72, 18, 19, 11, valueRoll);
+    const treasure = generateTreasure(1, die);
+    assert.equal(die.rest(), 0, "every planned roll must be used");
+    return treasure;
+  };
+
+  it("should give 75 % of the table price on the lowest value roll", () => {
+    assert.equal(coraza(1).items[0].valueCp, 15_000);
+  });
+
+  it("should give 150 % of the table price on the highest value roll", () => {
+    assert.equal(coraza(100).items[0].valueCp, 30_000);
+  });
+
+  it("should skew a middle roll just under the table price", () => {
+    // U = 57/99, factor 0.75 + 0.75·U² = 0.99862…, rounded to whole pc.
+    assert.equal(coraza(58).items[0].valueCp, 19_972);
+  });
+
+  it("should apply the factor to the whole of an item with a quantity", () => {
+    // Ácido ×7 (7 × 10 po) at 75 %.
+    const die = fixedDie(1, 1, 72, 1, 13, 3, 4, 1);
+    const [item] = generateTreasure(1, die).items;
+
+    assert.deepEqual([item.name, item.valueCp], ["Ácido ×7", 5_250]);
+  });
+
+  it("should keep the value roll last among the item's rolls", () => {
+    const [item] = coraza(37).items;
+
+    assert.deepEqual(item.rolls.at(-1), {
+      label: "Value, 75-150 % of table price",
+      dice: "d%",
+      values: [37],
+    });
+  });
+
+  it("should use the rolled value in the total and the announcement", () => {
+    const treasure = coraza(100);
+
+    assert.equal(totalValueCp(treasure), 30_000);
+    assert.deepEqual(formatIndividualAnnouncement(treasure, "Aria"), [
+      "Treasure for Aria\n- Coraza (Mediana) (300 po)\n  Armadura intermedia: CA 14 + Destreza (máx. 2).\nTotal: 300 po",
+    ]);
+  });
+});

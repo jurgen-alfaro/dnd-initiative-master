@@ -264,12 +264,12 @@ describe("descriptions", () => {
 
   it("should list an item's description indented below it in announcements", () => {
     // NE 1: no coins (d% 1), no gems (1), objects 72 → 1 mundane → table 3-8
-    // 18 armor → 19 Coraza → size 11 Mediana.
-    const [item] = generateTreasure(1, fixedDie(1, 1, 72, 18, 19, 11)).items;
+    // 18 armor → 19 Coraza → size 11 Mediana → valor d% 100 (150 %).
+    const [item] = generateTreasure(1, fixedDie(1, 1, 72, 18, 19, 11, 100)).items;
 
     assert.equal(
       formatItemEntry(item),
-      `- Coraza (Mediana) (200 po)\n  ${MUNDANE_DESCRIPTIONS["Coraza"]}`,
+      `- Coraza (Mediana) (300 po)\n  ${MUNDANE_DESCRIPTIONS["Coraza"]}`,
     );
   });
 
