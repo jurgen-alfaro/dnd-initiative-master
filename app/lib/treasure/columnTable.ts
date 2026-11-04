@@ -55,12 +55,10 @@ export type ColumnTable = {
   descriptions?: Descriptions;
 };
 
-const pluralCharges = (n: number) => `${n} ${n === 1 ? "carga" : "cargas"}`;
-
 /**
  * Rolls a table: d% in the column of `category`, then the random parts of the
  * object — "(tipo)" and "(alineamiento)" become a concrete value, and wands
- * and staffs get their charges.
+ * and staffs get their charges, kept apart from the name.
  */
 export function rollColumnTable(
   { table, rows, kind, isCharged, descriptions }: ColumnTable,
@@ -94,15 +92,16 @@ export function rollColumnTable(
   pickFrom("(alineamiento)", "Alignment", "1d4", ALIGNMENTS);
 
   if (kind) name = `${kind}: ${name}`;
+  let charges: number | undefined;
   if (isCharged) {
-    const [charges] = rollDice(die, "1d50");
+    [charges] = rollDice(die, "1d50");
     rolls.push({ label: "Charges", dice: "1d50", values: [charges] });
-    name = `${name} (${pluralCharges(charges)})`;
   }
   return {
     name,
     valueCp: row.priceCp,
     description: descriptions?.[row.name],
     rolls,
+    ...(charges === undefined ? {} : { charges }),
   };
 }

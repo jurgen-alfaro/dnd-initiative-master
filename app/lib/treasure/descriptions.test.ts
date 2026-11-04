@@ -220,7 +220,7 @@ describe("descriptions", () => {
     // Table 7-1 medium 67 → Bastones → 7-18 medium 16-30 Fuego → 1d50 = 12.
     const item = rollMagicItem("medium", fixedDie(67, 20, 12));
 
-    assert.equal(item.name, "Bastón: Fuego (12 cargas)");
+    assert.deepEqual([item.name, item.charges], ["Bastón: Fuego", 12]);
     assert.equal(item.description, STAFF_DESCRIPTIONS["Fuego"]);
   });
 
@@ -275,7 +275,15 @@ describe("descriptions", () => {
 
   it("should list an item without a description as a single line", () => {
     assert.equal(
-      formatItemEntry({ category: "minor", name: "Varita", valueCp: 100, rolls: [] }),
+      formatItemEntry({
+        category: "minor",
+        inventoryCategory: "magicItems",
+        name: "Varita",
+        quantity: 1,
+        usage: "none",
+        valueCp: 100,
+        rolls: [],
+      }),
       "- Varita (1 po)",
     );
   });

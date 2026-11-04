@@ -58,7 +58,10 @@ function rollValuable(
   const name = row.names[nameRoll - 1];
   return {
     category,
+    inventoryCategory: "valuables",
     name,
+    quantity: 1,
+    usage: "none",
     valueCp: poToCp(values.reduce((a, b) => a + b, 0) * row.times),
     rolls,
     description: VALUABLE_DESCRIPTIONS[name],

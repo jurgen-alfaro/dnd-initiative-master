@@ -39,6 +39,7 @@ import {
   MAX_ENCOUNTER_LEVEL,
   MIN_ENCOUNTER_LEVEL,
   formatItem,
+  formatItemName,
   generateTreasure,
   totalValueCp,
 } from "@/app/lib/treasure/treasure";
@@ -333,7 +334,7 @@ function TreasureGeneratorForm({
                 disabled={partyRecipients.length === 0}
               >
                 <SelectTrigger
-                  aria-label={`Recipient of ${item.name}`}
+                  aria-label={`Recipient of ${formatItemName(item)}`}
                   className="w-36 shrink-0"
                 >
                   <SelectValue placeholder="Assign" />
