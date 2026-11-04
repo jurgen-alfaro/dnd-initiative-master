@@ -23,6 +23,7 @@ import {
   type Inventory,
   type InventoryItem,
 } from "@/app/lib/inventory/inventory";
+import { formatUnreadCount } from "@/app/lib/unread-count";
 
 type InventoryDrawerProps = {
   partyCode: string;
@@ -812,7 +813,7 @@ function ActivitySection({
         <span className="flex-1">Activity</span>
         {unreadCount > 0 && (
           <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-dnd-blood px-1 font-sans text-xs font-bold text-white">
-            {unreadCount > 99 ? "99+" : unreadCount}
+            {formatUnreadCount(unreadCount)}
           </span>
         )}
       </summary>

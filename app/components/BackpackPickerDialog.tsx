@@ -11,6 +11,7 @@ import {
 } from "@/app/components/ui/dialog";
 import { EyeOff } from "lucide-react";
 import type { Combatant } from "@/app/lib/types";
+import { formatUnreadCount } from "@/app/lib/unread-count";
 
 type BackpackPickerDialogProps = {
   /** The PJs whose backpack the DM can open. */
@@ -64,7 +65,7 @@ export default function BackpackPickerDialog({
                     )}
                     {(unread[character.id] ?? 0) > 0 && (
                       <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-dnd-blood px-1 text-xs font-bold text-white">
-                        {unread[character.id] > 99 ? "99+" : unread[character.id]}
+                        {formatUnreadCount(unread[character.id])}
                       </span>
                     )}
                   </span>
