@@ -13,8 +13,11 @@ import {
  * item ids come from the caller.
  *
  * Public interface: `applyInventoryAction`, the one entry point for every
- * change to an inventario, `isInventoryEmpty`, and the `Inventory` shape and
- * its schema.
+ * change to an inventario, `isInventoryEmpty`, `itemUse` (which button an item
+ * gets), and the `Inventory` shape and its schema.
+ *
+ * Adding an action: a variant of `InventoryAction` and its `case` in
+ * `applyInventoryAction`, which returns `noticeFor(actor, ...)` as its avisos.
  */
 
 /** An item of an inventario: a treasure item without its rolls, plus an id. */
@@ -51,14 +54,24 @@ export type Character = { id: number; name: string; inventory: Inventory };
 /** Who acts: the DM, or the player who claimed the PJ `combatantId`. */
 export type Actor = { role: "dm" } | { role: "player"; combatantId: number };
 
-/** What happens to the inventarios. */
-export type InventoryAction = {
-  /** An entrega: the coins and items one PJ got from a treasure. */
-  type: "receive";
-  combatantId: number;
-  coins: Coins;
-  items: TreasureItem[];
-};
+/**
+ * What happens to the inventarios. `combatantId` is always the PJ who acts on
+ * their inventario: a player may only name their own.
+ */
+export type InventoryAction =
+  | {
+      /** An entrega: the coins and items one PJ got from a treasure. */
+      type: "receive";
+      combatantId: number;
+      coins: Coins;
+      items: TreasureItem[];
+    }
+  | {
+      /** A uso: one unit of a consumable, or one carga. */
+      type: "use";
+      combatantId: number;
+      itemId: string;
+    };
 
 /** An aviso for the actividad of a PJ. */
 export type InventoryNotice = { combatantId: number; text: string };
@@ -86,7 +99,32 @@ export function applyInventoryAction(
     });
   }
 
+  if (actor.role === "player" && actor.combatantId !== target.id) {
+    return fail("FORBIDDEN", "A player can only change their own character");
+  }
+
   switch (action.type) {
+    case "use": {
+      const item = target.inventory.items.find((i) => i.id === action.itemId);
+      if (!item) {
+        return fail("ITEM_NOT_FOUND", "That item is not in the inventory", {
+          itemId: action.itemId,
+        });
+      }
+      if (item.charges === 0) {
+        return fail("NO_CHARGES", `${item.name} has no charges left`);
+      }
+      const use = itemUse(item);
+      if (!use) return fail("NOT_USABLE", `${item.name} can't be used`);
+
+      return {
+        characters: withInventory(characters, target.id, {
+          ...target.inventory,
+          items: spendOne(target.inventory.items, item),
+        }),
+        notices: noticeFor(actor, target, usageNotice(target.name, item, use)),
+      };
+    }
     case "receive": {
       // Only the DM delivers treasure, and an entrega never makes an aviso.
       if (actor.role !== "dm") {
@@ -102,6 +140,54 @@ export function applyInventoryAction(
       };
     }
   }
+}
+
+/**
+ * The button an item gets: drink a potion, use a scroll, an alchemical or an
+ * item with cargas left. Null for anything else, including an item at 0 cargas.
+ */
+export function itemUse(item: InventoryItem): "drink" | "use" | null {
+  if (item.charges !== undefined) return item.charges > 0 ? "use" : null;
+  return item.usage === "none" ? null : item.usage;
+}
+
+/** One aviso for the PJ's actividad, but only when its player acted. */
+function noticeFor(
+  actor: Actor,
+  character: Character,
+  text: string,
+): InventoryNotice[] {
+  return actor.role === "player" ? [{ combatantId: character.id, text }] : [];
+}
+
+function usageNotice(
+  name: string,
+  item: InventoryItem,
+  use: "drink" | "use",
+): string {
+  if (item.charges !== undefined) return `${name} usó una carga de ${item.name}`;
+  return `${name} ${use === "drink" ? "bebió" : "usó"} ${item.name}`;
+}
+
+/**
+ * Spends one carga, or one unit of a consumable with its share of the value.
+ * A consumable at 0 units leaves the inventario.
+ */
+function spendOne(items: InventoryItem[], item: InventoryItem): InventoryItem[] {
+  const { charges } = item;
+  if (charges !== undefined) {
+    return items.map((i) => (i === item ? { ...i, charges: charges - 1 } : i));
+  }
+  if (item.quantity === 1) return items.filter((i) => i !== item);
+  return items.map((i) =>
+    i === item
+      ? {
+          ...i,
+          quantity: i.quantity - 1,
+          valueCp: Math.round((i.valueCp * (i.quantity - 1)) / i.quantity),
+        }
+      : i,
+  );
 }
 
 function fail(

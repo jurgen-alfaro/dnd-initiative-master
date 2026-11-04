@@ -9,6 +9,7 @@ import { useMemo, useEffect, useState } from "react";
 import { useRecentParty } from "@/app/lib/hooks/useRecentParty";
 import { readDmToken } from "@/app/lib/dm-token";
 import { usePartyMessages } from "@/app/lib/hooks/usePartyMessages";
+import { useActivityUnread } from "@/app/lib/hooks/useActivityUnread";
 import { isPartyDm } from "@/app/server/actions";
 import PartyInfoCard from "../components/PartyInfoCard";
 import { useBackNavigationGuard } from "@/app/lib/hooks/useBackNavigationGuard";
@@ -129,6 +130,8 @@ export default function PartyPage({ party }: PartyPageProps) {
   // Private DM ↔ player messaging. It holds off until the role is known so the
   // DM is never briefly mistaken for a player without a character.
   const messaging = usePartyMessages(party.code, isRoleResolved, dmToken);
+  // DM only (dmToken is null for players): unread avisos of every PJ.
+  const activityUnread = useActivityUnread(party.code, dmToken);
 
   // Create updated party object with optimistic name
   const displayParty = {
@@ -275,6 +278,7 @@ export default function PartyPage({ party }: PartyPageProps) {
         onDelete={handleDeleteRequest}
         onHide={handleHideRequest}
         onOpenBackpack={handleOpenBackpack}
+        activityUnread={activityUnread.byCombatant}
         onUpdateConditions={optimisticUpdateConditions}
         onRemoveBuff={optimisticRemoveBuff}
         onAddAmmo={optimisticAddAmmo}
@@ -302,6 +306,7 @@ export default function PartyPage({ party }: PartyPageProps) {
         isDm={isDm}
         dmToken={dmToken}
         messaging={messaging}
+        activityUnread={activityUnread}
         onOpenBackpack={handleOpenBackpack}
         onReturnToMain={() => setShowConfirmation(true)}
       />

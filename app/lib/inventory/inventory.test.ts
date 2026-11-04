@@ -4,8 +4,11 @@ import {
   applyInventoryAction,
   EMPTY_INVENTORY,
   isInventoryEmpty,
+  itemUse,
+  type Actor,
   type Character,
   type InventoryChange,
+  type InventoryItem,
 } from "./inventory";
 import type { TreasureItem } from "../treasure/treasure";
 
@@ -282,5 +285,193 @@ describe("isInventoryEmpty", () => {
       ),
     );
     assert.equal(isInventoryEmpty(characters[0].inventory), false);
+  });
+});
+
+describe("applyInventoryAction: use an item", () => {
+  const potions: InventoryItem = {
+    id: "potions",
+    inventoryCategory: "consumables",
+    name: "Poción de curar heridas leves",
+    quantity: 3,
+    usage: "drink",
+    valueCp: 15000,
+  };
+  const scroll: InventoryItem = {
+    id: "scroll",
+    inventoryCategory: "consumables",
+    name: "Rollo de pergamino arcano: Proyectil mágico",
+    quantity: 1,
+    usage: "use",
+    valueCp: 2500,
+  };
+  const lightWand: InventoryItem = {
+    id: "wand",
+    inventoryCategory: "magicItems",
+    name: "Varita: Luz",
+    quantity: 1,
+    charges: 37,
+    usage: "none",
+    valueCp: 37500,
+  };
+  const sword: InventoryItem = {
+    id: "sword",
+    inventoryCategory: "weapons",
+    name: "Espada larga de gran calidad",
+    quantity: 1,
+    usage: "none",
+    valueCp: 31500,
+  };
+  const ARIA_PLAYER: Actor = { role: "player", combatantId: 7 };
+
+  const withItems = (...items: InventoryItem[]) =>
+    aria({ coins: EMPTY_INVENTORY.coins, items });
+
+  const use = (
+    character: Character,
+    itemId: string,
+    actor: Actor = ARIA_PLAYER,
+    others: Character[] = [],
+  ) =>
+    applyInventoryAction(
+      [character, ...others],
+      actor,
+      { type: "use", combatantId: 7, itemId },
+      sequentialIds(),
+    );
+
+  it("should spend one unit of a consumable, and its share of the value", () => {
+    const change = expectChange(use(withItems(potions, sword), "potions"));
+
+    assert.deepEqual(change.characters[0].inventory.items, [
+      { ...potions, quantity: 2, valueCp: 10000 },
+      sword,
+    ]);
+  });
+
+  it("should remove a consumable when its last unit is used", () => {
+    const change = expectChange(use(withItems(scroll, sword), "scroll"));
+
+    assert.deepEqual(change.characters[0].inventory.items, [sword]);
+  });
+
+  it("should spend one charge and keep the item", () => {
+    const change = expectChange(use(withItems(lightWand), "wand"));
+
+    assert.deepEqual(change.characters[0].inventory.items, [
+      { ...lightWand, charges: 36 },
+    ]);
+  });
+
+  it("should keep an item in the inventory when its last charge is spent", () => {
+    const change = expectChange(
+      use(withItems({ ...lightWand, charges: 1 }), "wand"),
+    );
+
+    assert.deepEqual(change.characters[0].inventory.items, [
+      { ...lightWand, charges: 0 },
+    ]);
+  });
+
+  it("should refuse to use an item with 0 charges", () => {
+    const result = use(withItems({ ...lightWand, charges: 0 }), "wand");
+
+    assert.ok("error" in result);
+    assert.equal(result.error.code, "NO_CHARGES");
+  });
+
+  it("should refuse to use an item that has no use", () => {
+    const result = use(withItems(sword), "sword");
+
+    assert.ok("error" in result);
+    assert.equal(result.error.code, "NOT_USABLE");
+  });
+
+  it("should refuse an item that is not in the inventory", () => {
+    const result = use(withItems(potions), "missing");
+
+    assert.ok("error" in result);
+    assert.equal(result.error.code, "ITEM_NOT_FOUND");
+  });
+
+  it("should refuse a player using the items of another PJ", () => {
+    const borin: Character = { id: 9, name: "Borin", inventory: EMPTY_INVENTORY };
+
+    const result = use(
+      withItems(potions),
+      "potions",
+      { role: "player", combatantId: 9 },
+      [borin],
+    );
+
+    assert.ok("error" in result);
+    assert.equal(result.error.code, "FORBIDDEN");
+  });
+
+  it("should leave one aviso when the player drinks a potion", () => {
+    const change = expectChange(use(withItems(potions), "potions"));
+
+    assert.deepEqual(change.notices, [
+      { combatantId: 7, text: "Aria bebió Poción de curar heridas leves" },
+    ]);
+  });
+
+  it("should leave one aviso when the player uses a scroll", () => {
+    const change = expectChange(use(withItems(scroll), "scroll"));
+
+    assert.deepEqual(change.notices, [
+      {
+        combatantId: 7,
+        text: "Aria usó Rollo de pergamino arcano: Proyectil mágico",
+      },
+    ]);
+  });
+
+  it("should leave one aviso when the player spends a charge", () => {
+    const change = expectChange(use(withItems(lightWand), "wand"));
+
+    assert.deepEqual(change.notices, [
+      { combatantId: 7, text: "Aria usó una carga de Varita: Luz" },
+    ]);
+  });
+
+  it("should leave no aviso when the DM uses an item", () => {
+    const change = expectChange(use(withItems(potions), "potions", DM));
+
+    assert.deepEqual(change.characters[0].inventory.items, [
+      { ...potions, quantity: 2, valueCp: 10000 },
+    ]);
+    assert.deepEqual(change.notices, []);
+  });
+});
+
+describe("itemUse", () => {
+  const item: InventoryItem = {
+    id: "x",
+    inventoryCategory: "consumables",
+    name: "X",
+    quantity: 1,
+    usage: "none",
+    valueCp: 100,
+  };
+
+  it("should be drink for a potion", () => {
+    assert.equal(itemUse({ ...item, usage: "drink" }), "drink");
+  });
+
+  it("should be use for a scroll or an alchemical", () => {
+    assert.equal(itemUse({ ...item, usage: "use", quantity: 3 }), "use");
+  });
+
+  it("should be use for an item with charges left, such as a wand or a staff", () => {
+    assert.equal(itemUse({ ...item, charges: 4 }), "use");
+  });
+
+  it("should be null for an item with 0 charges", () => {
+    assert.equal(itemUse({ ...item, charges: 0 }), null);
+  });
+
+  it("should be null for any other item", () => {
+    assert.equal(itemUse(item), null);
   });
 });

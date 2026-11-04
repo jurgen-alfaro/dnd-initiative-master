@@ -161,6 +161,33 @@ export const messages = pgTable(
   ],
 );
 
+// The actividad of a PJ: one aviso per change its player made to the
+// inventario, for the DM only. Shaped like `messages`: the party is
+// denormalized for the 30-day sweep, and deleting the PJ removes its avisos.
+export const activityNotices = pgTable(
+  "activity_notices",
+  {
+    id: serial("id").primaryKey(),
+    partyId: integer("party_id")
+      .references(() => parties.id, { onDelete: "cascade" })
+      .notNull(),
+    combatantId: integer("combatant_id")
+      .references(() => combatants.id, { onDelete: "cascade" })
+      .notNull(),
+    text: text("text").notNull(),
+    // Set when the DM opens the PJ's actividad.
+    readAt: timestamp("read_at"),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (t) => [
+    index("activity_notices_character_created_idx").on(
+      t.combatantId,
+      t.createdAt,
+    ),
+    index("activity_notices_party_created_idx").on(t.partyId, t.createdAt),
+  ],
+);
+
 // Relations for Drizzle Queries
 export const dungeonMastersRelations = relations(
   dungeonMasters,

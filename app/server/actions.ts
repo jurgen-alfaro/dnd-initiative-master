@@ -8,9 +8,10 @@ import {
   dungeonMasters,
   dmDevices,
   messages,
+  activityNotices,
 } from "@/app/db/schema";
 import { generatePartyCode, generateRecoveryCode } from "@/app/lib/code-gen";
-import { and, desc, eq, inArray, isNull, sql } from "drizzle-orm";
+import { and, desc, eq, inArray, isNull, or, sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
@@ -56,6 +57,7 @@ import {
   sweepExpiredMessages,
   resolveMessageAccess,
 } from "@/app/server/messages";
+import { sweepExpiredActivity } from "@/app/server/inventory";
 
 // Zod validation schemas
 const CreatePartySchema = z.object({
@@ -292,6 +294,31 @@ const MarkThreadReadSchema = z.object({
   combatantId: z.number().int().positive(),
   dmToken: z.string().min(1).nullable(),
   deviceId: DeviceIdSchema.nullable(),
+});
+
+// What a player or the DM can do in a backpack: one `z.object` per action,
+// matching a case of `applyInventoryAction`. Adding an action is adding a
+// variant here. "receive" is not one: only a delivery brings items in.
+const BackpackActionSchema = z.discriminatedUnion("type", [
+  z.object({
+    type: z.literal("use"),
+    combatantId: z.number().int().positive(),
+    itemId: z.string().min(1).max(100),
+  }),
+]);
+export type BackpackAction = z.infer<typeof BackpackActionSchema>;
+
+const ApplyInventorySchema = z.object({
+  partyCode: PartyCodeSchema,
+  dmToken: z.string().min(1).nullable(),
+  deviceId: DeviceIdSchema.nullable(),
+  action: BackpackActionSchema,
+});
+
+const MarkActivityReadSchema = z.object({
+  partyCode: PartyCodeSchema,
+  dmToken: z.string().min(1),
+  combatantId: z.number().int().positive(),
 });
 
 /** True if the error is a Postgres unique violation (code 23505). */
@@ -2045,5 +2072,147 @@ export async function deliverPartyTreasure(
   } catch (error) {
     console.error("Error delivering party treasure:", error);
     return { error: "Error delivering treasure" };
+  }
+}
+
+// --- Inventory Actions ---
+
+/**
+ * The one write path of the backpack. The caller proves who they are like in
+ * the private messages (DM token, or the device that claimed a PJ); the pure
+ * module decides the rest, including that a player only touches their own PJ.
+ * Every changed inventario and every aviso land in one batch.
+ */
+export async function applyInventory(
+  partyCode: string,
+  dmToken: string | null,
+  deviceId: string | null,
+  action: BackpackAction,
+): Promise<ActionResult> {
+  const validated = ApplyInventorySchema.safeParse({
+    partyCode,
+    dmToken,
+    deviceId,
+    action,
+  });
+  if (!validated.success) {
+    return { error: "Invalid data" };
+  }
+
+  try {
+    const access = await resolveMessageAccess(
+      validated.data.partyCode,
+      validated.data.dmToken,
+      validated.data.deviceId,
+    );
+    if (access.role === "not-found") return { error: "Party not found" };
+    if (access.role === "unclaimed") return { error: "Claim a character first" };
+
+    // Every PJ the caller may see, so an action that involves a second PJ
+    // (giving) needs nothing more here. Hidden PJs never reach a player.
+    const rows = await db.query.combatants.findMany({
+      columns: { id: true, name: true, inventory: true },
+      where: and(
+        eq(combatants.partyId, access.partyId),
+        eq(combatants.type, "player"),
+        access.role === "player"
+          ? or(
+              eq(combatants.isHidden, false),
+              eq(combatants.id, access.combatantId),
+            )
+          : undefined,
+      ),
+    });
+
+    const change = applyInventoryAction(
+      rows,
+      access.role === "dm"
+        ? { role: "dm" }
+        : { role: "player", combatantId: access.combatantId },
+      validated.data.action,
+      () => crypto.randomUUID(),
+    );
+    if ("error" in change) return { error: change.error.message };
+
+    // `characters` keeps the order of `rows`, and an untouched inventario
+    // keeps its identity, so only the changed ones are written.
+    const writes = [
+      ...change.characters
+        .filter((c, i) => c.inventory !== rows[i].inventory)
+        .map((c) =>
+          db
+            .update(combatants)
+            .set({ inventory: c.inventory })
+            .where(eq(combatants.id, c.id)),
+        ),
+      ...(change.notices.length > 0
+        ? [
+            db.insert(activityNotices).values(
+              change.notices.map((notice) => ({
+                partyId: access.partyId,
+                combatantId: notice.combatantId,
+                text: notice.text,
+              })),
+            ),
+          ]
+        : []),
+    ];
+    const [first, ...rest] = writes;
+    if (!first) return { success: true };
+
+    await db.batch([first, ...rest]);
+    if (change.notices.length > 0) await sweepExpiredActivity(access.partyId);
+
+    await notifyPartyInventory(access.partyCode);
+    return { success: true };
+  } catch (error) {
+    console.error("Error updating inventory:", error);
+    return { error: "Error updating the backpack" };
+  }
+}
+
+/**
+ * Marks the avisos of a PJ's actividad as read, when the DM opens it. Callers
+ * only invoke it with something unread, since the signal it emits makes every
+ * open backpack and badge re-fetch.
+ */
+export async function markActivityRead(
+  partyCode: string,
+  dmToken: string,
+  combatantId: number,
+): Promise<ActionResult> {
+  const validated = MarkActivityReadSchema.safeParse({
+    partyCode,
+    dmToken,
+    combatantId,
+  });
+  if (!validated.success) {
+    return { error: "Invalid data" };
+  }
+
+  try {
+    const found = await findPartyForDm(
+      validated.data.partyCode,
+      validated.data.dmToken,
+    );
+    if ("error" in found) return found;
+    const { party } = found;
+
+    await db
+      .update(activityNotices)
+      .set({ readAt: new Date() })
+      .where(
+        and(
+          eq(activityNotices.partyId, party.id),
+          eq(activityNotices.combatantId, validated.data.combatantId),
+          isNull(activityNotices.readAt),
+        ),
+      );
+
+    await notifyPartyInventory(party.code);
+    return { success: true };
+  } catch (error) {
+    console.error("Error marking activity as read:", error);
+    return { error: "Error updating the activity" };
   }
 }

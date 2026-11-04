@@ -15,6 +15,8 @@ import type { Combatant } from "@/app/lib/types";
 interface BackpackPickerDialogProps {
   /** The PJs whose backpack the DM can open. */
   characters: Combatant[];
+  /** Unread avisos per PJ id. */
+  unread: Record<number, number>;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onPick: (combatantId: number) => void;
@@ -23,6 +25,7 @@ interface BackpackPickerDialogProps {
 /** DM-only: choose which PJ's backpack to open from the actions menu. */
 export default function BackpackPickerDialog({
   characters,
+  unread,
   open,
   onOpenChange,
   onPick,
@@ -51,13 +54,20 @@ export default function BackpackPickerDialog({
                   <span className="font-heading text-dnd-gold">
                     {character.name}
                   </span>
-                  {character.isHidden && (
-                    <EyeOff
-                      size={14}
-                      className="text-muted-foreground"
-                      aria-label="In reserve"
-                    />
-                  )}
+                  <span className="flex items-center gap-2">
+                    {character.isHidden && (
+                      <EyeOff
+                        size={14}
+                        className="text-muted-foreground"
+                        aria-label="In reserve"
+                      />
+                    )}
+                    {(unread[character.id] ?? 0) > 0 && (
+                      <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-dnd-blood px-1 text-xs font-bold text-white">
+                        {unread[character.id] > 99 ? "99+" : unread[character.id]}
+                      </span>
+                    )}
+                  </span>
                 </button>
               </li>
             ))}
