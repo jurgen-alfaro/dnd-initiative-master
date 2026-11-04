@@ -317,6 +317,8 @@ export default function PartyPage({ party }: PartyPageProps) {
         partyCode={party.code}
         dmToken={dmToken}
         combatantId={backpack?.combatantId ?? null}
+        // Hidden PJs only ever reach the DM, so a player can't give to them.
+        characters={liveCombatants.filter((c) => c.type === "player")}
         open={backpack !== null}
         onOpenChange={(open) => {
           if (!open) setBackpack(null);
