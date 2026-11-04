@@ -1,4 +1,10 @@
-import { rollDice, rollTable, type DiceNotation, type Die } from "./dice";
+import {
+  rollDice,
+  rollPercentile,
+  rollTable,
+  type DiceNotation,
+  type Die,
+} from "./dice";
 import { rollMagicItem, type MagicCategory } from "./magicTable";
 import { rollMundaneItem } from "./mundaneTable";
 import type { Roll, TreasureItem } from "./treasure";
@@ -105,9 +111,32 @@ export const GOODS_TABLE: readonly (readonly GoodsRow[])[] = [
   [none(25), goods(65, "medium", "1d4"), goods(100, "major", "1d3")],
 ];
 
+const VALUE_LABEL = "Value, 75-150 % of table price";
+
+/**
+ * Turns the precio de tabla of an object into its valor (ADR-0003): a d% gives
+ * U from 0 to 1 and the price is scaled by 0.75 + 0.75·U², from 75 % to 150 %,
+ * under the price about 58 % of the time. Rounded to whole pc; on an object
+ * with a quantity the price is already the whole lot. Gems and art never come
+ * here: tables 3-6 and 3-7 already rolled their value.
+ */
+function rollValue(item: TreasureItem, die: Die): TreasureItem {
+  const percentile = rollPercentile(die);
+  // ponytail: U = (d% − 1)/99 so both ends are reachable; the mean lands at
+  // 100.1 % instead of exactly 100 %. A bigger die narrows the gap if needed.
+  const u = (percentile - 1) / 99;
+  const roll = { label: VALUE_LABEL, dice: "d%", values: [percentile] };
+  return {
+    ...item,
+    valueCp: Math.round(item.valueCp * (0.75 + 0.75 * u * u)),
+    rolls: [...item.rolls, roll],
+  };
+}
+
 /**
  * Rolls the objects column for an NE and resolves each object it gives. Each
- * item keeps the column rolls that gave it, followed by its own rolls.
+ * item keeps the column rolls that gave it, followed by its own rolls and, last,
+ * the roll of its valor.
  */
 export function rollGoods(level: number, die: Die): TreasureItem[] {
   const label = "Table 3-5, objects";
@@ -130,6 +159,6 @@ export function rollGoods(level: number, die: Die): TreasureItem[] {
   return Array.from({ length: amount }, () => {
     const item =
       category === "mundane" ? rollMundaneItem(die) : rollMagicItem(category, die);
-    return { ...item, rolls: [...columnRolls, ...item.rolls] };
+    return rollValue({ ...item, rolls: [...columnRolls, ...item.rolls] }, die);
   });
 }
