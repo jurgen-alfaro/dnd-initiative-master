@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { z } from "zod";
 import { InventorySchema, type Inventory } from "@/app/lib/inventory/inventory";
 import {
@@ -58,8 +58,22 @@ export function useCharacterInventory(
 ): CharacterInventoryState {
   const [character, setCharacter] = useState<CharacterInventory | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // Each open starts empty: until its own read lands, the last open's result
+  // could be stale (a dialog would otherwise act on it).
+  const [wasOpen, setWasOpen] = useState(isOpen);
+  if (isOpen !== wasOpen) {
+    setWasOpen(isOpen);
+    if (isOpen) {
+      setCharacter(null);
+      setError(null);
+    }
+  }
+  // Reads can overlap (opening, a signal, a reconnect): only the latest writes.
+  const latestRequest = useRef(0);
 
   const fetchInventory = useCallback(async () => {
+    const request = ++latestRequest.current;
+    const isSuperseded = () => request !== latestRequest.current;
     const headers: Record<string, string> = {
       "x-device-id": getOrCreateDeviceId(),
     };
@@ -71,12 +85,14 @@ export function useCharacterInventory(
         cache: "no-store",
         headers,
       });
+      if (isSuperseded()) return;
       if (!res.ok) {
         setCharacter(null);
         setError("Couldn't load the backpack");
         return;
       }
       const data = ResponseSchema.parse(await res.json());
+      if (isSuperseded()) return;
       if (data.role === "unclaimed") {
         setCharacter(null);
         setError("You haven't claimed a character");
@@ -86,6 +102,8 @@ export function useCharacterInventory(
       setError(null);
     } catch (fetchError) {
       console.error("Error fetching inventory for party", partyCode, fetchError);
+      if (isSuperseded()) return;
+      setCharacter(null);
       setError("Couldn't load the backpack");
     }
   }, [partyCode, dmToken, combatantId]);
