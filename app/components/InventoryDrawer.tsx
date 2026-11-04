@@ -6,15 +6,11 @@ import { Backpack, ChevronRight, Loader2, X } from "lucide-react";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { useCharacterInventory } from "@/app/lib/hooks/useCharacterInventory";
-import {
-  applyInventory,
-  markActivityRead,
-  type BackpackAction,
-} from "@/app/server/actions";
+import { markActivityRead, runBackpackAction } from "@/app/server/actions";
 import { getOrCreateDeviceId } from "@/app/lib/device-id";
 import { formatMessageTime } from "@/app/lib/date-format";
 import type { ActivityNotice } from "@/app/lib/types";
-import { formatCpAsPo, NO_COINS } from "@/app/lib/treasure/coins";
+import { DENOMINATIONS, formatCpAsPo, NO_COINS } from "@/app/lib/treasure/coins";
 import {
   InventoryCategorySchema,
   type Coins,
@@ -23,11 +19,12 @@ import {
 import {
   isConsumable,
   itemUse,
+  type BackpackAction,
   type Inventory,
   type InventoryItem,
 } from "@/app/lib/inventory/inventory";
 
-interface InventoryDrawerProps {
+type InventoryDrawerProps = {
   partyCode: string;
   dmToken: string | null;
   /** The PJ to open; null for a player, whose claim decides it. */
@@ -36,14 +33,18 @@ interface InventoryDrawerProps {
   characters: Recipient[];
   open: boolean;
   onOpenChange: (open: boolean) => void;
-}
+};
 
 type Recipient = { id: number; name: string };
 
+/** `Omit` that keeps a union a union. */
+type Without<T, K extends PropertyKey> = T extends unknown ? Omit<T, K> : never;
+
 /** A dar, minus the PJ who gives: the backpack's own. */
-type Gift =
-  | { type: "giveItem"; toCombatantId: number; itemId: string; quantity: number }
-  | { type: "giveCoins"; toCombatantId: number; coins: Coins };
+type Gift = Without<
+  Extract<BackpackAction, { type: "giveItem" | "giveCoins" }>,
+  "combatantId"
+>;
 
 const CATEGORY_LABELS: Record<InventoryCategory, string> = {
   weapons: "Weapons",
@@ -56,14 +57,16 @@ const CATEGORY_LABELS: Record<InventoryCategory, string> = {
 };
 
 /** A correction to one item: a backpack action, short of whose and which. */
-type ItemEdit =
-  | { type: "remove" }
-  | { type: "setQuantity"; quantity: number }
-  | { type: "setCharges"; charges: number }
-  | { type: "markConsumable"; quantity: number; usage: "drink" | "use" };
+type ItemEdit = Without<
+  Extract<
+    BackpackAction,
+    { type: "remove" | "setQuantity" | "setCharges" | "markConsumable" }
+  >,
+  "combatantId" | "itemId"
+>;
 
-/** The coins in the order the backpack shows them. */
-const COIN_ORDER = ["pc", "pp", "po", "ppt"] as const;
+/** The coins in the order the backpack shows them: lowest first. */
+const COIN_ORDER = [...DENOMINATIONS].reverse();
 
 /**
  * The backpack: the inventario of one PJ, with its coins top right and its
@@ -96,7 +99,7 @@ export default function InventoryDrawer({
   ): Promise<boolean> => {
     setPendingItemId(pendingKey);
     try {
-      const result = await applyInventory(
+      const result = await runBackpackAction(
         partyCode,
         dmToken,
         getOrCreateDeviceId(),
