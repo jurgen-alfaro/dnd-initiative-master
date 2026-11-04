@@ -98,16 +98,22 @@ async function fetchCharacterInventory(
 /**
  * Drops the avisos past the retention window of the messages, after a write.
  * Best-effort, like `sweepExpiredMessages`: the reads filter by the same cutoff.
+ * A failure is only logged, since the write it follows is already committed and
+ * reporting an error would invite a retry that applies it twice.
  */
 export async function sweepExpiredActivity(partyId: number): Promise<void> {
-  await db
-    .delete(activityNotices)
-    .where(
-      and(
-        eq(activityNotices.partyId, partyId),
-        lt(activityNotices.createdAt, messageRetentionCutoff()),
-      ),
-    );
+  try {
+    await db
+      .delete(activityNotices)
+      .where(
+        and(
+          eq(activityNotices.partyId, partyId),
+          lt(activityNotices.createdAt, messageRetentionCutoff()),
+        ),
+      );
+  } catch (error) {
+    console.error("Error sweeping expired activity:", error);
+  }
 }
 
 /** The newest avisos of a PJ's actividad, oldest first. */
