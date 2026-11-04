@@ -108,6 +108,11 @@ export default function InventoryDrawer({
       setActionError("error" in result ? result.error : null);
       await refresh();
       return !("error" in result);
+    } catch (actionFailure) {
+      // The action never answered (network down, server crashed).
+      console.error("Error running backpack action", actionFailure);
+      setActionError("Couldn't update the backpack. Try again.");
+      return false;
     } finally {
       setPendingItemId(null);
     }
@@ -147,12 +152,17 @@ export default function InventoryDrawer({
 
   const handleActivityRead = async () => {
     if (!character || !dmToken) return;
-    const result = await markActivityRead(
-      partyCode,
-      dmToken,
-      character.combatantId,
-    );
-    if ("error" in result) setActionError(result.error);
+    try {
+      const result = await markActivityRead(
+        partyCode,
+        dmToken,
+        character.combatantId,
+      );
+      if ("error" in result) setActionError(result.error);
+    } catch (readFailure) {
+      console.error("Error marking activity as read", readFailure);
+      setActionError("Couldn't mark the activity as read");
+    }
     await refresh();
   };
 

@@ -12,7 +12,7 @@ import {
 import { EyeOff } from "lucide-react";
 import type { Combatant } from "@/app/lib/types";
 
-interface BackpackPickerDialogProps {
+type BackpackPickerDialogProps = {
   /** The PJs whose backpack the DM can open. */
   characters: Combatant[];
   /** Unread avisos per PJ id. */
@@ -20,7 +20,7 @@ interface BackpackPickerDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onPick: (combatantId: number) => void;
-}
+};
 
 /** DM-only: choose which PJ's backpack to open from the actions menu. */
 export default function BackpackPickerDialog({
