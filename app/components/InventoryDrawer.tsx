@@ -621,8 +621,9 @@ function GiveCoinsForm({
 }
 
 /**
- * The corrections each role may make to an item: anyone removes it or fixes
- * a consumable's quantity; only the DM sets cargas or marks it a consumable.
+ * The corrections each role may make to an item: anyone removes it or lowers
+ * a consumable's quantity; only the DM raises it, sets cargas or marks it a
+ * consumable.
  */
 function ItemEditor({
   item,
@@ -660,7 +661,7 @@ function ItemEditor({
             name="quantity"
             type="number"
             min={1}
-            max={1000}
+            max={isDm ? 1000 : item.quantity}
             step={1}
             required
             defaultValue={item.quantity}

@@ -214,6 +214,10 @@ export function applyInventoryAction(
       if (!isValidQuantity(action.quantity)) {
         return fail("INVALID_QUANTITY", "The quantity must be a whole number of at least 1");
       }
+      // A player only corrects down: raising it would create items.
+      if (actor.role === "player" && action.quantity > item.quantity) {
+        return fail("FORBIDDEN", `There are only ${item.quantity} of ${item.name}`);
+      }
       return {
         characters: withItem(characters, target, item, withQuantity(item, action.quantity)),
         notices: noticeFor(

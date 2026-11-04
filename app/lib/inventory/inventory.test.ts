@@ -579,19 +579,41 @@ describe("applyInventoryAction: edit by hand", () => {
     assert.equal(result.error.code, "ITEM_NOT_FOUND");
   });
 
-  it("should change the quantity of a consumable, and its value with it", () => {
+  it("should lower the quantity of a consumable, and its value with it", () => {
     const change = expectChange(
-      edit({ type: "setQuantity", combatantId: 7, itemId: "potions", quantity: 5 }),
+      edit({ type: "setQuantity", combatantId: 7, itemId: "potions", quantity: 2 }),
     );
 
     assert.deepEqual(change.characters[0].inventory.items, [
-      { ...potions, quantity: 5, valueCp: 25000 },
+      { ...potions, quantity: 2, valueCp: 10000 },
     ]);
     assert.deepEqual(change.notices, [
       {
         combatantId: 7,
-        text: "Aria cambió la cantidad de Poción de curar heridas leves a 5",
+        text: "Aria cambió la cantidad de Poción de curar heridas leves a 2",
       },
+    ]);
+  });
+
+  it("should refuse a player raising a quantity, which would create items", () => {
+    const result = edit({
+      type: "setQuantity",
+      combatantId: 7,
+      itemId: "potions",
+      quantity: 5,
+    });
+
+    assert.ok("error" in result);
+    assert.equal(result.error.code, "FORBIDDEN");
+  });
+
+  it("should let the DM raise a quantity", () => {
+    const change = expectChange(
+      edit({ type: "setQuantity", combatantId: 7, itemId: "potions", quantity: 5 }, DM),
+    );
+
+    assert.deepEqual(change.characters[0].inventory.items, [
+      { ...potions, quantity: 5, valueCp: 25000 },
     ]);
   });
 
